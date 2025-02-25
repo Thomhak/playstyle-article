@@ -1,0 +1,4241 @@
+---
+title: "Thesis analysis"
+author: "Thomas Hakman"
+date: "20/06/2021"
+output: html_document
+---
+
+``````{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  message = FALSE, 
+  warning = FALSE, 
+  cache = FALSE
+)
+```
+
+# Analysis of the PvZ data in R
+
+**Part 1: packages**
+
+Load packages with pacman package installer 
+```{r}
+library(pacman)
+p_load(
+  readxl,
+  knitr,
+  here,
+  lubridate,
+  scales,
+  janitor,
+  tidyverse,
+  oii
+)
+```
+
+**Part 2: data cleaning**
+
+
+## Raw data
+
+The raw data files from the original study (survey and telemetry) are taken from a zip compressed file on OSF: <https://osf.io/cjd6z/>. (A user ID column was manually removed from the survey data before uploading.) Start by downloading that file and unpacking it to the target directory:
+
+EA sent out the survey in two waves: one in August of 2020, the second in September 2020. For each wave, there are 9 telemetry files, each one recording a different aspect of play events in Plants vs. Zombies: Battle for Neighborville and one file for the survey results.
+
+These telemetry files contain info on PVZ play events from a long period of time, including for players who did not participate in the survey. We limit our analyses to the individuals who participated in the survey, and to the 2 weeks preceding the survey. However, the raw data files might be of interest for additional analyses.
+
+## Process raw files
+
+Because there were two of each telemetry file (waves), we create a function to read both waves' data into a single table:
+
+```{r}
+read_both_waves <- function(stub = "OII_PVZ_Authentications", ...) {
+  # Filenames of wave 1 and 2 authentications files
+  list.files(
+    here("data-raw/ea"), pattern = stub, full.names = TRUE
+  ) %>% 
+    # Put wave 1 first
+    rev() %>% 
+    # Read into a list of data frames
+    map(read_csv, ...) %>% 
+    # Bind into one data frame with wave ID
+    bind_rows(.id = "wave") %>%
+    # Take only participants who filled out survey
+    filter(player_id %in% survey$player_id)
+}
+```
+
+### Survey
+
+Because we only keep telemetry data of players who answered the survey, we'll load the survey first.
+```{r}
+survey <- read_excel(
+  here("data-raw/ea/Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx")
+)
+
+survey <- survey %>% 
+  mutate(
+    # Ensure date data type
+    date = mdy_hm(date),
+    # Need another name to use in filtering telemetry
+    start_date = date
+  ) %>% 
+  # Other files use player_id
+  rename(player_id = UID)
+```
+
+#### Clean and transform
+
+Next, we give some sensible variable names and assign proper variable types for the survey.
+```{r give-proper-variable-names}
+# Rename variables
+survey <- 
+  survey %>% 
+  select(
+    
+    # meta-info
+    player_id,
+    start_date, date,
+    survey_duration = qtime,
+    of_age = Q2,
+    consent = Q3,
+    
+    # demographics
+    played = Q1,
+    country = hCountry,
+    survey_language = PRELANG,
+    age = D1,
+    gender = D2,
+    gender_other = D2r3oe,
+    experience = D3,
+    
+    # well-being
+    spane_ = starts_with("A1"), # general well-being in the two weeks
+    straightliner_spane = hA1Straight,
+    
+    # motivations
+    played_with_others = NSat1, # filter question that determines whether relatedness items were shown
+    autonomy_ = NSat2r1:NSat2r3,
+    competence_ = NSat2r4:NSat2r6,
+    relatedness_ = NSat2r7:NSat2r9,
+    enjoyment_ = NSat2r10:NSat2r13,
+    extrinsic_ = NSat2r14:NSat2r17,
+    straightliner_motivations = hNSat2Straight,
+    
+    # self-reported play
+    active_play_hours = GT1c1,
+    active_play_minutes = GT1c2,
+    within_estimate = GT2,
+    between_estimate = GT3,
+    spane_game_ = starts_with("GT4")
+  )
+
+# Assign proper variable types and factor levels
+survey <- survey %>%   
+  mutate(
+    across(
+      c(
+        player_id,
+        of_age:survey_language,
+        gender,
+        played_with_others
+      ),
+      as.factor
+    ),
+    
+    across(
+      c(of_age:played, played_with_others),
+      ~ fct_recode(
+        .x,
+        "Yes" = "1",
+        "No" = "2"
+      )
+    ),
+    
+    gender = fct_recode(
+      gender,
+      "Male" = "1",
+      "Female" = "2",
+      "Other" = "3",
+      "Prefer not to say" = "4"
+    ),
+    
+    country = fct_recode(
+      country,
+      "US" = "1",
+      "UK" = "2",
+      "Canada" = "5"
+    ),
+    
+    survey_language = fct_recode(
+      survey_language,
+      "English" = "1",
+      "French" = "2"
+    )
+  )
+
+# Reverse scored items
+survey <- survey %>% 
+  mutate(
+    across(
+      c(
+        starts_with("spane"), # 1 was never
+        between_estimate, #  those estimates also had 1: much more than typically
+        within_estimate,
+        relatedness_3,
+        enjoyment_2,
+        enjoyment_3
+      ),
+      ~ 8 - .x
+    )
+  )
+
+# Indicators for straightliners
+survey <- survey %>% 
+  mutate(across(contains("straightliner"), ~.x==1))
+```
+
+Then we create mean indices for the scales.
+SPANE has positive affect, negative affect, and an affect balance score (subtract negative from positive).
+```{r create-scales}
+# General SPANE
+survey <- 
+  survey %>% 
+  mutate(
+    spane_positive = rowMeans(
+      select(
+        .,
+        spane_1,
+        spane_3,
+        spane_5,
+        spane_7,
+        spane_10,
+        spane_12
+      ),
+      na.rm = TRUE
+    ),
+    spane_negative = rowMeans(
+      select(
+        .,
+        spane_2,
+        spane_4,
+        spane_6,
+        spane_8,
+        spane_9,
+        spane_11
+      ),
+      na.rm = TRUE
+    ),
+    spane_balance = spane_positive - spane_negative
+  )
+
+# Motivations
+survey <- survey %>% 
+  mutate(
+    autonomy = rowMeans(
+      select(., starts_with("autonomy")), na.rm = TRUE
+    ),
+    competence = rowMeans(
+      select(., starts_with("competence")), na.rm = TRUE
+    ),
+    relatedness = rowMeans(
+      select(., starts_with("relatedness")), na.rm = TRUE
+    ),
+    enjoyment = rowMeans(
+      select(., starts_with("enjoyment")), na.rm = TRUE
+    ),
+    extrinsic = rowMeans(
+      select(., starts_with("extrinsic")), na.rm = TRUE
+    )
+  )
+
+# SPANE because of playing game
+survey <- survey %>% 
+  mutate(
+    spane_game_positive = rowMeans(
+      select(
+        .,
+        spane_game_1,
+        spane_game_3,
+        spane_game_5,
+        spane_game_7,
+        spane_game_10,
+        spane_game_12
+      ),
+      na.rm = TRUE
+    ),
+    spane_game_negative = rowMeans(
+      select(
+        .,
+        spane_game_2,
+        spane_game_4,
+        spane_game_6,
+        spane_game_8,
+        spane_game_9,
+        spane_game_11
+      ),
+      na.rm = TRUE
+    ),
+    spane_game_balance = spane_game_positive - spane_game_negative
+  )
+
+# Hours of estimated play
+survey <- survey %>%
+  mutate(active_play_minutes = active_play_minutes / 60) %>% 
+  mutate(active_play = rowSums(select(., starts_with("active_play")), na.rm = T))
+```
+
+
+## GAME TIME
+
+* `player_id` = Unique identifier for a player.
+* `platform` = One of the major platforms, eg. PC, Playstation, Xbox.
+* `game_start_time` = Session start date time.
+* `game_end_time` = Session end date time.
+* `game_mode` = The game mode, primarily multiplayer or single player.
+* `game_type` = Notes if the game is offline/online and if it is splitscreen
+* `game_level` = The level's name where the session took place.
+* `game_session` = Unique identifier for a game session.
+
+```{r cache = TRUE}
+game_time_raw <- read_both_waves("OII_PVZ_Game_Time")
+glimpse(game_time_raw)
+```
+
+However, some start times are missing, which won't allow us to compute duration for that session.
+Whenever a `game_start_time` is missing, we'll set it to the end time of that session.
+That creates game sessions with a duration of 0, which we'll set to `NA` again later.
+(Note: `game_end_time` doesn't have missing values, which is why we can use `coalesce`)
+```{r}
+#is this only done to be able to calculate duration?
+
+game_time_test <- game_time_raw %>% 
+  mutate(
+    game_start_time = coalesce(
+      game_start_time, game_end_time
+    )
+  )
+
+# now collapse the rows
+game_time_test <- game_time_test %>% 
+  group_by(player_id, game_session) %>% 
+  mutate(
+    game_start_time = min(game_start_time),
+    game_end_time = max(game_end_time),
+  ) %>% 
+  # Take the first of each (identical) person-session combo
+  slice(1) %>% 
+  ungroup()
+
+glimpse(game_time_test)
+```
+
+## game time filtered for 2 weeks
+
+The raw game times were used in processing the other files, so we left processing it until here.
+
+First, we check which game sessions happened within the 14 days a participant took a survey (the file is already filtered to only include participants who actually filled out the survey). 
+
+Afterwards, we aggregate the remaining game sessions per participant to get to how many hours they played in the two weeks before the survey (i.e., only aggregate/summarize `game_session`s that happened within the past 14 days).
+
+```{r}
+game_time_2week <- game_time_test %>% 
+  left_join(select(survey, player_id, start_date)) %>% 
+  filter(game_start_time >= (start_date - days(14)))
+```
+
+```{r}
+oii.freq(game_time_2week$game_level_key) 
+```
+
+
+# Here we merge game time with the characters data set in order to be able to calculate game time per game mode propperly 
+(the social hub games are sometimes pvp games, and the only way to distuingish between them is not by level key but to see if there were points scored)
+
+This means we first need to create the characters data set and link it to the game time 2 week data set.
+After that we can conitnue with calculating game time per game mode and total game time per player(per mode)
+
+
+
+### Authentications
+
+The authentifications data set logs events when a player (`player_id`) logs into the game.
+The variables are:
+
+* `player_id` = Unique identifier for a player.
+* `platform` = One of the major platforms, eg. PC, Playstation, Xbox.
+* `date` = Date of the login.
+* `country` = Country the login came from.
+
+```{r cache = TRUE}
+authentications_raw <- read_both_waves("OII_PVZ_Authentications")
+glimpse(authentications_raw)
+```
+
+First, we only keep authentications of players who also participated in the survey.
+Then we count how many times players logged in to PvZ.
+In the survey, players reflected on their well-being and gaming in the past two weeks, so we'll only count those game events that occurred within 14 days prior to the time the participant took the survey.
+The `date` variable in `authentications` doesn't have time, so we'll make it easy and also reduce `start_time` in the survey to a date (without time of day).
+```{r}
+authentications_2week <- authentications_raw %>% 
+  # add the start date by player ID
+  left_join(select(survey, player_id, start_date)) %>% 
+  # only keep authentication events that occured within 14 days before the survey was taken
+  filter(date >= (as_date(start_date) - days(14)) ) #%>% 
+  #count(player_id, name = "authentications")
+```
+
+```{r}
+authentications_players <- authentications_2week %>% 
+count(player_id, name = "authentications")
+```
+
+### Characters
+
+We do the same for the performance stats in the `characters` data set.
+The data set doesn't have a start time and end time for the game sessions, so we'll add those start times by matching the `player_id` and `game_session` with those of the `game_time` data set, which has start times for the game sessions, thereby adding the `game_start_time` and `game_end_time` for each game session.
+Then we include only those game sessions that happened within 14 days of a participant taking the survey.
+
+After that, we calculate the total time spend for each game mode and in total for each player.
+
+Finally, we sum up all player stats for that period.
+
+#load character dataset
+```{r}
+characters_raw <- read_both_waves("OII_PVZ_Character")
+glimpse(characters_raw)
+```
+
+```{r}
+characters_2week <- characters_raw %>%
+  left_join(
+    game_time_2week %>% 
+      select(player_id, game_session, game_start_time, game_end_time),
+    by = c("player_id", "game_session")
+  ) %>%
+  left_join(select(survey, player_id, start_date)) %>% 
+  filter(game_start_time >= (start_date - days(14)))
+
+```
+
+```{r}
+summary(characters_2week)
+```
+
+
+
+# Here we merge game time with the characters data set in order to be able to calculate game time per game mode propperly 
+(the social hub games are sometimes pvp games, and the only way to distuingish between them is not by level key but to see if there were points scored)
+
+This means we first need to create the characters data set and link it to the game time 2 week data set.
+After that we can conitnue with calculating game time per game mode and total game time per player(per mode)
+
+
+## game time per game mode
+
+
+```{r}
+# this shows that to identofy unique maps oyu need to look at "game_level_key"
+unique(characters_2week[c("game_level")])
+unique(characters_2week[c("game_level_key")])
+```
+
+
+Explanation:
+
+There are several gamemodes (Social, PvE, Coop, PVP):
+
+Neighbourville = Social HUB
+- Dave manor (plant)
+- Zomboss HQ (zombies)
+- Giddy Park (combat area) This one has seasonal festivals that chance the map an and name of the map.
+
+Free Roam Reggion = PvE ( story missions, questing, boss fights, collecting chests & gnomes, etc.)
+
+Town Center:
+- suburban town of Sundrop Hills, 
+- bustling town of Up-Down-Uptown, 
+- beachside port of Pressure Pier.
+
+Mount Steep:
+- western town of Olde Town, 
+- desert cheese factory of Rocky Flats
+- underground Steep Mines
+
+Weirding Woods:
+- Camp Near-a-Lake
+- overgrown ruins of Z-Tech Factory
+- Stirring Swamp.
+
+Garden Ops = Coop game mode (team of 4 vs PvE)
+
+Graveyard Ops = Coop game mode (team of 4 vs PvE)
+
+Turf Takeover = PVP
+A game mode where players must either capture or defend several objectives across an expanding map, which including either capturing/defending a point or escorting/stopping a payload. Plants and Zombies will be rotated to either capture or defend depending on the current map.
+
+Team Vanquish = PVP
+A team deathmatch, the first team to reach 50 vanquishes wins, however reviving a teammate takes one point off the enemy team.
+
+
+a reasons to use game_level_key is because certain game_level_keys have NA as the game_level (e.g dsub_rush_resort has NA)
+
+Q: how many individual games where analysed? 32596 matches from 490 players
+I: USing the level of analyses, this goes beyond genres, games or feautures and looks at people's play behaviour
+
+```{r}
+# create new variables for type of game sessions
+
+
+# social_hub
+characters_2week$social_hub <- 0 #make all social hub
+characters_2week$social_hub[characters_2week$game_level_key=="dsub_social_terrain_summer" & is.na(characters_2week$score) ] <- 1 # code 0 the ones where there is performance data (score can only be gotten in pvp)
+
+
+#social_session
+#characters_2week$social_session <- 0
+
+#characters_2week$social_session[characters_2week$game_level_key=="dsub_social_terrain_beach"] <- 1 
+#characters_2week$social_session[characters_2week$game_level_key=="dsub_social_terrain_summer"] <- 1 
+#characters_2week$social_session[characters_2week$game_level_key=="dsub_socialspace"] <- 1 
+
+#pve_session
+characters_2week$pve_session <- 0
+
+characters_2week$pve_session[characters_2week$game_level_key=="dsub_region_cheesemines"] <- 1 
+characters_2week$pve_session[characters_2week$game_level_key=="dsub_region_dreadwood"] <- 1 
+characters_2week$pve_session[characters_2week$game_level_key=="dsub_region_towncenter"] <- 1 
+
+#pvp_session
+characters_2week$pvp_session <- 0
+
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_dreadwood"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_towncenter"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_tvm_cheesemines"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_tvm_zrefinery"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_tvm_suburbs"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_tvm_dreadwood"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_farm"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_cheesemines"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_shoreline"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_rush_resort"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_4v4_battlearena_v2"] <- 1 
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_4v4_superarena"] <- 1 
+#this next line includes giddy park in PVP
+characters_2week$pvp_session[characters_2week$game_level_key=="dsub_social_terrain_summer" & characters_2week$score == is.na(characters_2week$score) ] <- 1
+```
+
+Descriptive stats of new variables
+```{r}
+
+oii.freq(characters_2week$social_hub) 
+# there are 7489  social hub sessions which is 28.24% of the games
+
+oii.freq(characters_2week$pve_session) 
+# there are 4854 pve sessions which is 18.31% of the games
+
+oii.freq(characters_2week$pvp_session) 
+# there are 13594 pvp sessions which is 51.27% of the games
+
+```
+
+# there are 9010 games without performance telemetry
+On closer inspection these are matches that happened in the social hub, which is an idle space to navigate between game modes and customize oyur character.
+No gameplay actually happens here so these will be removed. ALso some of these games 
+
+```{r}
+# drop the 9010 cases with no performance telemetry
+characters_2week_nona <- characters_2week %>% drop_na(total_kill_count:shots_hit)
+```
+
+```{r}
+oii.summary(characters_2week_nona)
+# 17505 total matches with telemetry
+
+oii.freq(characters_2week_nona$social_hub) 
+# there are 0  social hub sessions which is 0% of the games
+
+oii.freq(characters_2week_nona$pve_session) 
+# there are 4509 pve sessions which is 25.76% of the games
+
+oii.freq(characters_2week_nona$pvp_session) 
+# there are 12445  pvp sessions which is 71.09% of the games
+```
+
+# total game time and game time per mode
+```{r}
+# then create separate "hours" played per player variables for each mode and total 
+
+#total
+game_time_players_total <- characters_2week %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(Seconds = sum(Seconds)) %>%
+  mutate(Hours = Seconds/60/60) %>% 
+  ungroup()
+
+#PVP
+game_time_players_pvp <- characters_2week[characters_2week$pvp_session == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(pvp_Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(pvp_Seconds = sum(pvp_Seconds)) %>% 
+  mutate(pvp_Hours = pvp_Seconds/60/60) %>% 
+  ungroup()
+
+#PVE
+game_time_players_pve <- characters_2week[characters_2week$pve_session == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(pve_Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(pve_Seconds = sum(pve_Seconds)) %>% 
+  mutate(pve_Hours = pve_Seconds/60/60) %>% 
+  ungroup()
+
+#social Hub
+game_time_players_social <- characters_2week[characters_2week$social_hub == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(social_Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(social_Seconds = sum(social_Seconds)) %>% 
+  mutate(social_Hours = social_Seconds/60/60) %>% 
+  ungroup()
+
+#total (NO NA (no social))
+game_time_players_total_nona <- characters_2week_nona %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(Seconds_nona = sum(Seconds)) %>% 
+  mutate(Hours_nona = Seconds_nona/60/60) %>% 
+  ungroup()
+
+#PVP (NO NA (no social))
+game_time_players_pvp_nona <- characters_2week_nona[characters_2week_nona$pvp_session == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(pvp_Seconds_nona = sum(Seconds)) %>% 
+  mutate(pvp_Hours_nona = pvp_Seconds_nona/60/60) %>% 
+  ungroup()
+
+#PVE (NO NA (no social))
+game_time_players_pve_nona <- characters_2week_nona[characters_2week_nona$pve_session == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(pve_Seconds_nona = sum(Seconds)) %>% 
+  mutate(pve_Hours_nona = pve_Seconds_nona/60/60) %>% 
+  ungroup()
+
+#social Hub
+game_time_players_social_nona <- characters_2week_nona[characters_2week_nona$social_hub == "1", ] %>% 
+  mutate(duration = game_end_time-game_start_time) %>% 
+  mutate(Seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(social_Seconds_nona = sum(Seconds)) %>% 
+  mutate(social_Hours_nona = social_Seconds_nona/60/60) %>% 
+  ungroup()
+
+```
+
+```{r}
+#merge into game time players
+game_time_players <- reduce(
+  list(game_time_players_total, game_time_players_social, game_time_players_pve, game_time_players_pvp, game_time_players_total_nona, game_time_players_pve_nona, game_time_players_pvp_nona, game_time_players_social_nona),
+  left_join)
+
+game_time_players[is.na(game_time_players)] <- 0
+
+game_time_players_nona <- reduce(
+  list(game_time_players_total_nona, game_time_players_pve_nona, game_time_players_pvp_nona, game_time_players_social_nona),
+  left_join)
+
+game_time_players_nona[is.na(game_time_players_nona)] <- 0
+
+
+```
+
+```{r}
+oii.summary(game_time_players)
+```
+```{r}
+oii.summary(game_time_players_nona)
+```
+
+```{r}
+characters_players <- characters_2week %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+characters_players_nona <- characters_2week_nona %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+```
+
+### Game sessions & Game sessions per game mode
+
+## calculate total Game sessions per player
+
+1. calculate total game sessions
+- How many games-sessions each player had, however this includes sessions in the hub (social) as well as pve and pvp.
+```{r}
+game_sessions_total <- characters_2week %>% 
+  count(player_id)
+
+game_sessions_total <- 
+  rename(game_sessions_total, n_total_game_sessions = n)
+
+glimpse(game_sessions_total)
+
+game_sessions_total_nona <- characters_2week_nona %>% 
+  count(player_id)
+
+game_sessions_total_nona <- 
+  rename(game_sessions_total_nona, n_total_game_sessions_nona = n)
+
+glimpse(game_sessions_total_nona)
+```
+
+
+```{r}
+oii.freq(characters_2week$game_level_key) 
+```
+
+```{r}
+oii.freq(characters_2week_nona$game_level_key) 
+```
+
+
+## calculate total game sessions per game type
+- Differentiating between social hub, giddy park, pve, pvp.
+
+```{r}
+
+# this is the correct one
+game_sessions <- characters_2week %>% 
+  group_by(player_id) %>% 
+  summarise(across(social_hub:pvp_session, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+glimpse(game_sessions)
+
+game_sessions_nona <- characters_2week_nona %>% 
+  group_by(player_id) %>% 
+  summarise(across(social_hub:pvp_session, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+glimpse(game_sessions_nona)
+```
+
+### Experience Points
+
+This data set shows how many XP a player earned at what time and in what session.
+The variables:
+
+* `player_id` = Unique identifier for a player.
+* `platform` = One of the major platforms, eg. PC, Playstation, Xbox.
+* `date_time` = The date time when the xp was earned.
+* `character_class` = The character key noting the character used.
+* `game_session` = Unique identifier for a game session.
+* `xp_earned` = The xp amount earned.
+
+```{r}
+library(anytime)
+```
+
+```{r cache = TRUE}
+# Gotta process dates because they are different across the two files
+xp_raw <- read_both_waves(
+  "OII_PVZ_XPEarned", 
+  col_types = cols(date_time = "c")
+)
+
+# All other timestamps, above, are automatically parsed to UTC so we do that here as well
+
+xp <- xp_raw %>% 
+  mutate(date_time = anytime(date_time, "UTC"))
+glimpse(xp)
+#write_rds(xp, here("data/ea/xp.rds"))
+```
+
+We sum up how many experience points a player got in total during the two weeks before the survey.
+
+```{r}
+xp_2weeks <- xp %>% 
+  left_join(select(survey, player_id, start_date)) %>% 
+  filter(date_time >= (start_date - days(14)))
+
+```
+
+```{r}
+xp_players <- xp_2weeks %>% 
+  group_by(player_id) %>% 
+  summarise(xp = sum(xp_earned)) %>% 
+  ungroup()
+```
+
+
+### Calculate telemetry per game mode  
+Making prefixes of pvp_ pve_
+
+Hub is excluded because it had no telemetry
+
+
+```{r}
+
+# social hub  --> but is irrelevant because no telemetry
+#social_hub_telemetry <- characters_2week[characters_2week$social_hub == "1", ] %>%
+#  group_by(player_id) %>% 
+#  summarise(across(total_kill_count:shots_hit, sum, na.rm = FALSE)) %>%
+#  setNames(paste0('hub_', names(.))) %>%
+#  rename(player_id = hub_player_id)
+
+
+```
+
+```{r}
+# pvp session
+pvp_telemetry <- characters_2week[characters_2week$pvp_session == "1", ] %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  setNames(paste0('pvp_', names(.))) %>%
+  rename(player_id = pvp_player_id)
+
+pvp_telemetry_nona <- characters_2week_nona[characters_2week_nona$pvp_session == "1", ] %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  setNames(paste0('pvp_', names(.))) %>%
+  rename(player_id = pvp_player_id)
+
+```
+
+```{r}
+# giddy park
+#giddy_park_telemetry <- characters_2week[characters_2week$giddy_park == "1", ] %>%
+#  group_by(player_id) %>% 
+# summarise(across(total_kill_count:shots_hit, sum, na.rm = FALSE)) %>%
+#  setNames(paste0('giddy_', names(.))) %>%
+#  rename(player_id = giddy_player_id)
+
+```
+
+
+```{r}
+# pve session
+pve_telemetry <- characters_2week[characters_2week$pve_session == "1", ] %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  setNames(paste0('pve_', names(.))) %>%
+  rename(player_id = pve_player_id)
+
+pve_telemetry_nona <- characters_2week_nona[characters_2week_nona$pve_session == "1", ] %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  setNames(paste0('pve_', names(.))) %>%
+  rename(player_id = pve_player_id)
+
+```
+
+
+## Merge telemetry
+
+```{r}
+telemetry_players <- reduce(
+  list(authentications_players, characters_players, game_time_players, xp_players, game_sessions, game_sessions_total, pvp_telemetry, pve_telemetry),
+  left_join)
+
+telemetry_players <- telemetry_players %>% drop_na(total_kill_count:shots_hit)
+telemetry_players[is.na(telemetry_players)] = 0
+
+telemetry_players_nona <- reduce(
+  list(authentications_players, characters_players_nona, game_time_players_nona, xp_players, game_sessions_nona, game_sessions_total_nona, pvp_telemetry_nona, pve_telemetry_nona),
+  left_join)
+
+telemetry_players_nona <- telemetry_players_nona %>% drop_na(total_kill_count:shots_hit)
+telemetry_players_nona[is.na(telemetry_players_nona)] = 0
+```
+
+
+**Part 3: re-coding telemetry variables**
+
+
+Variable ideas:
+- KDA (kill count /death count)
+- Hit ratio (shots hit/ shots fired)
+- Critical hit ratio (crit hit count/shots hit)
+- damage per game (total damage/total n games)
+- experience per game (total exp/ total n games)
+
+
+
+continue with variables creation, write something about it (JUSTIFY THEM)
+
+
+Player-based measures (individual skill)
+•	K/D ratio
+•	Hit percentage (ratio of shots hit and shots fired)
+•	Critical hit percentage
+• DPS
+
+Game-based measures (game performance)
+•	average score per game
+•	average damage per game
+
+
+## K/D ratio
+This is calculated per game mode becasue it is easier to kill in PVE then it is in PVP
+
+```{r}
+#K/D ratio
+
+# a measure of in-game individual skill
+# can have a high K/D but still lose the game because not focused on objectives
+
+# all 0's in total death count will be calculated to 1 in order to calculate k/d and avoid  NaN (0/0), and inf (1/0). this is common. In a way it becomes kills per life, instead of kills per death 
+
+telemetry_players$total_death_count[telemetry_players$total_death_count == 0] <- 1
+telemetry_players$pve_total_death_count[telemetry_players$pve_total_death_count == 0] <- 1 
+telemetry_players$pvp_total_death_count[telemetry_players$pvp_total_death_count == 0] <- 1
+
+telemetry_players <- telemetry_players %>%
+  mutate(total_kd = total_kill_count / total_death_count) %>%
+  mutate(pve_kd = pve_total_kill_count / pve_total_death_count) %>%
+  mutate(pvp_kd = pvp_total_kill_count / pvp_total_death_count)
+
+
+# do same for nona list
+telemetry_players_nona$total_death_count[telemetry_players_nona$total_death_count == 0] <- 1
+telemetry_players_nona$pve_total_death_count[telemetry_players_nona$pve_total_death_count == 0] <- 1 
+telemetry_players_nona$pvp_total_death_count[telemetry_players_nona$pvp_total_death_count == 0] <- 1
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_kd = total_kill_count / total_death_count) %>%
+  mutate(pve_kd = pve_total_kill_count / pve_total_death_count) %>%
+  mutate(pvp_kd = pvp_total_kill_count / pvp_total_death_count)
+
+# in order to calculate K/D we have to deal with NA (NA/NA), NaN (0/0), and inf (60/0)
+
+# NA (NA/NA)
+# these stay and will be disregarded these had no telemtry, so person did not ploay that mode.
+
+# NaN (0/0)
+# this is a result of a player not dying or killing
+# make the deaths 1 0/1
+
+```
+
+## hit accuracy 
+
+```{r}
+# hit accuracy 
+
+# a measure of in-game skill that differs between PVP and PVE, it is easier to hit shots on mobs then people
+
+telemetry_players <- telemetry_players %>%
+  mutate(total_hit_accuracy = shots_hit / shots_fired) %>%
+  mutate(pve_hit_accuracy = pve_shots_hit / pve_shots_fired) %>%
+  mutate(pvp_hit_accuracy = pvp_shots_hit / pvp_shots_fired)
+
+telemetry_players$total_hit_accuracy[is.nan(telemetry_players$total_hit_accuracy)] <- 0
+telemetry_players$pve_hit_accuracy[is.nan(telemetry_players$pve_hit_accuracy)] <- 0
+telemetry_players$pvp_hit_accuracy[is.nan(telemetry_players$pvp_hit_accuracy)] <- 0
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_hit_accuracy = shots_hit / shots_fired) %>%
+  mutate(pve_hit_accuracy = pve_shots_hit / pve_shots_fired) %>%
+  mutate(pvp_hit_accuracy = pvp_shots_hit / pvp_shots_fired)
+
+telemetry_players_nona$total_hit_accuracy[is.nan(telemetry_players_nona$total_hit_accuracy)] <- 0
+telemetry_players_nona$pve_hit_accuracy[is.nan(telemetry_players_nona$pve_hit_accuracy)] <- 0
+telemetry_players_nona$pvp_hit_accuracy[is.nan(telemetry_players_nona$pvp_hit_accuracy)] <- 0
+
+# have to deal with NA (NA/NA), NaN (0/0), and 0.000 (0 hits)
+
+# NA's are player who did not have telemetry, so person did not ploay that mode.
+#0 are players who did not shoot 
+```
+
+## critical hit ratio
+
+```{r}
+# critical hit ratio
+
+# a measure of in-game skill
+
+telemetry_players <- telemetry_players %>%
+  mutate(total_crit_ratio = critical_hit_count / shots_hit) %>%
+  mutate(pve_crit_ratio = pve_critical_hit_count / pve_shots_hit) %>%
+  mutate(pvp_crit_ratio = pvp_critical_hit_count / pvp_shots_hit) 
+
+# have to deal with NA (NA/NA), NaN (0/0), and 0.000 (0 crits)
+telemetry_players$total_crit_ratio[is.nan(telemetry_players$total_crit_ratio)] <- 0
+telemetry_players$pve_crit_ratio[is.nan(telemetry_players$pve_crit_ratio)] <- 0
+telemetry_players$pvp_crit_ratio[is.nan(telemetry_players$pvp_crit_ratio)] <- 0
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_crit_ratio = critical_hit_count / shots_hit) %>%
+  mutate(pve_crit_ratio = pve_critical_hit_count / pve_shots_hit) %>%
+  mutate(pvp_crit_ratio = pvp_critical_hit_count / pvp_shots_hit) 
+
+# have to deal with NA (NA/NA), NaN (0/0), and 0.000 (0 crits)
+telemetry_players_nona$total_crit_ratio[is.nan(telemetry_players_nona$total_crit_ratio)] <- 0
+telemetry_players_nona$pve_crit_ratio[is.nan(telemetry_players_nona$pve_crit_ratio)] <- 0
+telemetry_players_nona$pvp_crit_ratio[is.nan(telemetry_players_nona$pvp_crit_ratio)] <- 0
+
+
+
+# NA's are player who did not have telemetry, so person did not ploay that mode.
+#0 are players who did not shoot 
+```
+
+
+## per game variables 
+I can create variables of performance over total games, but this includes all game types so is pretty uninformative
+I first need to create 
+  - total damage per gametype
+  - total score per game type
+  - total xp per game type
+  
+to do this i need to use the raw chacters data for damage and score
+
+ 
+## damage per game (average damage dealt)
+```{r}
+#damage per game 
+
+# create an avareage damaage per game by dividing it with total matches
+telemetry_players <- telemetry_players %>%
+  mutate(total_average_damage = damage_dealt / n_total_game_sessions) %>%
+  mutate(pve_average_damage = pve_damage_dealt / pve_session) %>%
+  mutate(pvp_average_damage = pvp_damage_dealt / pvp_session) 
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_average_damage = damage_dealt / n_total_game_sessions_nona) %>%
+  mutate(pve_average_damage = pve_damage_dealt / pve_session) %>%
+  mutate(pvp_average_damage = pvp_damage_dealt / pvp_session) 
+
+# NA is when no telemtry was available, so person did not ploay that mode.
+telemetry_players$total_average_damage[is.nan(telemetry_players$total_average_damage)] <- 0
+telemetry_players$pve_average_damage[is.nan(telemetry_players$pve_average_damage)] <- 0
+telemetry_players$pvp_average_damage[is.nan(telemetry_players$pvp_average_damage)] <- 0
+
+telemetry_players_nona$total_average_damage[is.nan(telemetry_players_nona$total_average_damage)] <- 0
+telemetry_players_nona$pve_average_damage[is.nan(telemetry_players_nona$pve_average_damage)] <- 0
+telemetry_players_nona$pvp_average_damage[is.nan(telemetry_players_nona$pvp_average_damage)] <- 0
+
+```
+
+## damage per second
+```{r}
+#damage per second
+
+
+# create an average damage per second by dividing it with total seconds
+telemetry_players <- telemetry_players %>%
+  mutate(total_dps = damage_dealt / Seconds) %>%
+  mutate(pve_dps = pve_damage_dealt / pve_Seconds) %>%
+  mutate(pvp_dps = pvp_damage_dealt / pvp_Seconds) 
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_dps = damage_dealt / Seconds_nona) %>%
+  mutate(pve_dps = pve_damage_dealt / pve_Seconds_nona) %>%
+  mutate(pvp_dps = pvp_damage_dealt / pvp_Seconds_nona) 
+
+# NA is when no telemtry was available, so person did not ploay that mode.
+telemetry_players$total_dps[is.nan(telemetry_players$total_dps)] <- 0
+telemetry_players$pve_dps[is.nan(telemetry_players$pve_dps)] <- 0
+telemetry_players$pvp_dps[is.nan(telemetry_players$pvp_dps)] <- 0
+
+telemetry_players_nona$total_dps[is.nan(telemetry_players_nona$total_dps)] <- 0
+telemetry_players_nona$pve_dps[is.nan(telemetry_players_nona$pve_dps)] <- 0
+telemetry_players_nona$pvp_dps[is.nan(telemetry_players_nona$pvp_dps)] <- 0
+
+
+```
+
+## score per game (average score)
+```{r}
+#score per game
+
+telemetry_players <- telemetry_players %>%
+  mutate(total_average_score = score / n_total_game_sessions) %>%
+  mutate(pve_average_score = pve_score / pve_session) %>%
+  mutate(pvp_average_score = pvp_score / pvp_session)
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_average_score = score / n_total_game_sessions_nona) %>%
+  mutate(pve_average_score = pve_score / pve_session) %>%
+  mutate(pvp_average_score = pvp_score / pvp_session)
+
+# NA is when no telemtry was available, so person did not ploay that mode.
+telemetry_players$total_average_score[is.nan(telemetry_players$total_average_score)] <- 0
+telemetry_players$pve_average_score[is.nan(telemetry_players$pve_average_score)] <- 0
+telemetry_players$pvp_average_score[is.nan(telemetry_players$pvp_average_score)] <- 0
+
+telemetry_players_nona$total_average_score[is.nan(telemetry_players_nona$total_average_score)] <- 0
+telemetry_players_nona$pve_average_score[is.nan(telemetry_players_nona$pve_average_score)] <- 0
+telemetry_players_nona$pvp_average_score[is.nan(telemetry_players_nona$pvp_average_score)] <- 0
+
+```
+
+## score per second
+```{r}
+#score per second
+
+telemetry_players <- telemetry_players %>%
+  mutate(total_sps = score / Seconds) %>%
+  mutate(pve_sps = pve_score / pve_Seconds) %>%
+  mutate(pvp_sps = pvp_score / pvp_Seconds)
+
+telemetry_players_nona <- telemetry_players_nona %>%
+  mutate(total_sps = score / Seconds_nona) %>%
+  mutate(pve_sps = pve_score / pve_Seconds_nona) %>%
+  mutate(pvp_sps = pvp_score / pvp_Seconds_nona)
+
+# NA is when no telemtry was available, so person did not ploay that mode.
+telemetry_players$total_sps[is.nan(telemetry_players$total_sps)] <- 0
+telemetry_players$pve_sps[is.nan(telemetry_players$pve_sps)] <- 0
+telemetry_players$pvp_sps[is.nan(telemetry_players$pvp_sps)] <- 0
+
+telemetry_players_nona$total_sps[is.nan(telemetry_players_nona$total_sps)] <- 0
+telemetry_players_nona$pve_sps[is.nan(telemetry_players_nona$pve_sps)] <- 0
+telemetry_players_nona$pvp_sps[is.nan(telemetry_players_nona$pvp_sps)] <- 0
+
+```
+
+
+## XP per hour as a measure of progression
+Maybe i will use this maybe not, depends if i want to look at progression.but it doesnt actually measure it well. a small action might be a use progression in th end game.
+other things are level and prestige
+
+
+
+**Part 4: merging telemetry_player and survey dataframes** 
+
+```{r}
+# Merge telemetry with survey
+pvz_df <- survey %>% 
+  right_join(telemetry_players, by = "player_id")
+
+pvz_df_nona <- survey %>% 
+  right_join(telemetry_players_nona, by = "player_id")
+```
+
+
+
+
+## create limited dataframe with relevant variables 
+```{r}
+# original frame has 433 obs with 124 variables
+
+
+```
+
+
+**Part 5: Descriptive statistics **
+1. describe game sessions
+2. describe players
+3. describe total game session per player and hwo they differ
+
+
+in methodology just name the total number of game sessions and say they are split between all elements of the game. the 2 week filter and split come in descriptives section, where we show this plot.
+
+
+1. game session descriptives, because that is the raw format of the data  (name n of matches and n of variables)
+2. player based descriptives, because the analysis is on player level ( name n of players and n of variables)
+
+
+
+## 1. Describing game sessions
+
+```{r}
+
+```
+
+Descriptive stats of new variables
+```{r}
+
+oii.freq(characters_2week$social_hub) 
+# there are 7489  social hub sessions which is 28.24% of the games
+
+oii.freq(characters_2week$pve_session) 
+# there are 4854 pve sessions which is 18.31% of the games
+
+oii.freq(characters_2week$pvp_session) 
+# there are 13594 pvp sessions which is 51.27% of the games
+
+oii.freq(game_time_2week$match_type) 
+
+```
+
+## 2. Desribing players
+
+## Demographics
+
+In total, 433 players responded to the survey and logged in in the last 2 weeks.
+Their mean age was 35.4 with a standard deviation of 11.8. 337 were male (77.83%), and 82 female  (18.94), 1 other, and 13 prefered not to say.
+
+However only 380 of those had actual performance telemetry available.
+
+Still of the 380, 3 player played for less then a seconds and will be removed.After removal the player with the lowest playtime was 101 seconds
+
+Mean age 35.394 with a 11.857
+292  were male (77.25%), and 73 female(19.31) , 1 other, and 12 prefered not to say.
+
+so no big difference (and this is also not different from the literature)
+
+## age & gender
+
+```{r}
+oii.summary(pvz_df$age)
+oii.freq(pvz_df$gender)
+```
+```{r}
+# drop cases with 0 seconds playtime 
+pvz_df_nona<-subset(pvz_df_nona, Seconds_nona >101)
+```
+
+
+## age & gender
+```{r}
+oii.summary(pvz_df_nona$age)
+oii.freq(pvz_df_nona$gender)
+```
+
+## univariate statistics of the measures
+
+## competence 
+```{r}
+oii.summary(pvz_df$competence)
+hist(pvz_df$competence)
+
+```
+Player-based measures (individual skill)
+•	K/D ratio
+•	Hit percentage (ratio of shots hit and shots fired)
+•	Critical hit percentage
+
+## kd 
+```{r}
+oii.summary(pvz_df$total_kd)
+hist(pvz_df$total_kd, breaks = 150)
+
+# but this includes all modes of play
+```
+# hit percentage
+```{r}
+oii.summary(pvz_df$total_hit_accuracy)
+hist(pvz_df$total_hit_accuracy)
+
+# but this includes all modes of play
+```
+# crit ratio
+```{r}
+oii.summary(pvz_df$total_crit_ratio)
+hist(pvz_df$total_crit_ratio)
+
+# but this includes all modes of play
+```
+Game-based measures (game performance)
+•	average score per game
+•	average damage per game
+
+```{r}
+oii.summary(pvz_df$total_average_score)
+hist(pvz_df$total_average_score)
+
+# but this includes all modes of play
+```
+#average damage per game
+```{r}
+oii.summary(pvz_df$total_average_damage)
+hist(pvz_df$total_average_damage)
+
+# but this includes all modes of play
+```
+# total games
+```{r}
+oii.summary(pvz_df$n_total_game_sessions)
+hist(pvz_df$n_total_game_sessions)
+
+# but this includes all modes of play
+```
+#pvp session
+```{r}
+
+oii.summary(pvz_df$pvp_session)
+hist(pvz_df$pvp_session, breaks = 500
+    )
+
+# but this includes all modes of play
+```
+#pve session
+```{r}
+
+oii.summary(pvz_df$pve_session)
+hist(pvz_df$pve_session, breaks = 350)
+
+# but this includes all modes of play
+```
+#social hub
+```{r}
+
+oii.summary(pvz_df$social_hub)
+hist(pvz_df$social_hub, breaks = 250)
+
+# but this includes all modes of play
+```
+
+```{r}
+
+```
+
+
+## 3. Analysis of play behaviour during a session (they are consist of different match types)
+
+# Convert date time 
+```{r}
+# calculate date time for game time raw
+game_time_raw$game_start_time <- as.POSIXct(game_time_raw$game_start_time, format = "%y-%m-%d %H:%M:%S")
+game_time_raw$game_end_time <- as.POSIXct(game_time_raw$game_end_time, format = "%y-%m-%d %H:%M:%S")
+```   
+
+```{r}
+#convert date time into time only
+game_time_raw$start_time_only <- format(as.POSIXct(game_time_raw$game_start_time,format='%y-%m-%d %H:%M:%S'),format='%H:%M:%S')
+game_time_raw$end_time_only <- format(as.POSIXct(game_time_raw$game_end_time,format='%y-%m-%d %H:%M:%S'),format='%H:%M:%S')
+
+```
+
+# recode variables to colour-code matches
+```{r}
+# recode a new varible with PVP (Arena), PVP (vanquish), PVP (rush),PVE, SOCIAL_HUB 
+
+# there are 18 maps, these maps all belong to seperate game modes, some game modes have more maps then others. To understand the play behaviour these maps will be grouped according to their respective game mode.
+
+# An overal game sessions is split into smaller sessions of different game type, these will be calle matches for clarity. So, one game sessions consists of several distinct matches. 
+
+
+game_time_raw$match_type <- 0
+
+# social match 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_social_terrain_beach"] <- "social match" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_social_terrain_summer"] <- "social match"  
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_socialspace"] <- "social match"  
+
+#pve match
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_region_cheesemines"] <- "pve match" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_region_dreadwood"] <- "pve match" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_region_towncenter"] <- "pve session" 
+
+#pvp match (Rush)
+
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_dreadwood"] <- "pvp match (rush)" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_towncenter"] <- "pvp match (rush)"  
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_farm"] <- "pvp match (rush)" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_cheesemines"] <- "pvp match (rush)"  
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_shoreline"] <- "pvp match (rush)"  
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_rush_resort"] <- "pvp match (rush)" 
+
+#pvp match (Vanquish)
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_tvm_cheesemines"] <- "pvp match (vanquish)"  
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_tvm_zrefinery"] <- "pvp match (vanquish)"
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_tvm_suburbs"] <- "pvp match (vanquish)" 
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_tvm_dreadwood"] <- "pvp match (vanquish)"
+
+#pvp match (Arena)
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_4v4_battlearena_v2"] <- "pvp match (arena)"
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_4v4_superarena"] <- "pvp match (arena)"
+
+#podium celebration
+game_time_raw$match_type[game_time_raw$game_level_key=="dsub_podiumcelebration"] <- "podium celebration"
+  
+# it would be great it i can merge the frames so that i can include giddy park and social hub  
+  
+  
+```
+
+##order them
+```{r}
+telemetry_players[order(telemetry_players$n_total_game_sessions, decreasing = TRUE),]  
+```
+
+## create slices of 3 random players
+```{r}
+# choose cases (slices)
+tmp1 <- telemetry_players %>% 
+  slice(401) %>% 
+  left_join(game_time_raw) %>%
+  arrange(game_start_time, game_end_time)
+
+tmp1$start_time_only <- as.POSIXct(tmp1$start_time_only, format = "%H:%M:%S")
+tmp1$end_time_only <- as.POSIXct(tmp1$end_time_only, format = "%H:%M:%S")
+
+tmp2 <- telemetry_players %>% 
+  slice(6) %>% 
+  left_join(game_time_raw) %>%
+  arrange(game_start_time, game_end_time)
+
+tmp2$start_time_only <- as.POSIXct(tmp2$start_time_only, format = "%H:%M:%S")
+tmp2$end_time_only <- as.POSIXct(tmp2$end_time_only, format = "%H:%M:%S")
+
+tmp3 <- telemetry_players %>% 
+  slice(3) %>%   #436  #401
+  left_join(game_time_raw) %>%
+  arrange(game_start_time, game_end_time)
+
+tmp3$start_time_only <- as.POSIXct(tmp3$start_time_only, format = "%H:%M:%S")
+tmp3$end_time_only <- as.POSIXct(tmp3$end_time_only, format = "%H:%M:%S")
+
+
+```
+
+
+```{r}
+#visualize the cases
+
+plot1 <- tmp1 %>%   
+  rowid_to_column() %>% 
+  ggplot(aes(start_time_only, rowid, col = match_type)) +
+  scale_color_manual(name="Match type", breaks = c("social match","pve match","pvp match (rush)","pvp match (vanquish)","pvp match (arena)","podium celebration", "0"),
+                        values=c("#2ECC71", "#4E7FE3", "#E74C3C", "#F39C12", "#FFEE4B","#9B59B6","#9B59B6")) +
+  geom_segment(aes(xend = end_time_only, yend = rowid)) +
+  scale_x_datetime(labels = date_format("%H:%M"),breaks = date_breaks("2 hours")) +
+  xlab("Time (hours)") + ylab("Game matches") +
+  theme(legend.position = "right", axis.text.y = element_blank(),axis.ticks.y = element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+plot2 <- tmp2 %>%   
+  rowid_to_column() %>% 
+  ggplot(aes(start_time_only, rowid, col = match_type)) +
+  scale_color_manual(name="Match type",breaks = c("social match","pve match","pvp match (rush)","pvp match (vanquish)","pvp match (arena)","podium celebration","0"),
+                        values=c("#2ECC71", "#4E7FE3", "#E74C3C", "#F39C12", "#FFEE4B","#9B59B6","#9B59B6")) +
+  geom_segment(aes(xend = end_time_only, yend = rowid)) +
+  scale_x_datetime(labels = date_format("%H:%M"),breaks = date_breaks("2 hours")) +
+  xlab("") + ylab("Game matches") +
+  theme(legend.position = "right", axis.text.y = element_blank(),axis.ticks.y = element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+
+lims <- as.POSIXct(strptime(c("11:00", "23:59"), 
+                   format = "%H:%M"))
+
+plot3 <- tmp3 %>%   
+  rowid_to_column() %>% 
+  ggplot(aes(start_time_only, rowid, col = match_type)) +
+  scale_color_manual(name="Match type",breaks = c("social match","pve match","pvp match (rush)","pvp match (vanquish)","pvp match (arena)","podium celebration","0"),
+                        values=c("#2ECC71", "#4E7FE3", "#E74C3C", "#F39C12", "#FFEE4B","#9B59B6","#9B59B6")) +
+  geom_segment(aes(xend = end_time_only, yend = rowid)) +
+  scale_x_datetime(labels = date_format("%H:%M"),breaks = date_breaks("2 hours"), 
+                        limits = lims) +
+  xlab("") + ylab("Game matches") +
+  theme(legend.position = "right", axis.text.y = element_blank(),axis.ticks.y = element_blank(),panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_blank(), axis.line = element_line(colour = "black"))
+
+#make a variable where date is gone and its just time. thats why the dot are so small
+```
+
+```{r}
+#library(ggpubr)
+figure <- ggarrange(plot2, plot3, plot1,
+                    labels = c("Player A", "Player B", "Player C"),
+                    ncol = 1, nrow = 3, common.legend = TRUE, legend = "right")
+figure
+```
+
+
+
+
+**Part 6: analysis **
+1. cluster groups
+2. run regressions with all relevant variables
+
+
+
+## 1.  clustering to find different groups of players based on differences in the game matches
+
+Clustering is a technique of data segmentation that partitions the data into several groups based on their similarity. 
+
+# instal packages 
+```{r}
+install.packages("stats") 
+install.packages("ggplot2") 
+install.packages("ggfortify") 
+```
+
+```{r}
+
+library(stats)
+library(ggplot2)
+library(ggfortify)
+library(factoextra)
+```
+
+## set NA's to 0
+```{r}
+
+pvz_df <- pvz_df %>%
+  mutate_at(vars(giddy_park,social_hub, pve_session, pvp_session,n_total_game_sessions), ~replace_na(., 0))
+```
+
+
+## calculate ratios of game mode played
+```{r}
+
+pvz_df <- pvz_df %>%
+  mutate(ratio_social_hub = social_hub / n_total_game_sessions) %>%
+  mutate(ratio_pve_session = pve_session / n_total_game_sessions) %>%
+  mutate(ratio_pvp_session = pvp_session / n_total_game_sessions)
+```
+
+```{r}
+
+clusterdata <- pvz_df %>% 
+  select(ratio_pve_session,ratio_pvp_session)
+clusterdata[is.na(clusterdata)] <- 0
+```
+
+
+Create a function for a WSS plot to find the optimal number of clusters
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+                  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+                      for (i in 2:nc){
+                set.seed(seed)
+                    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+              plot(1:nc, wss, type="b", xlab="Number of Clusters",
+                            ylab="Within groups sum of squares")
+       }
+```
+
+```{r}
+wssplot(clusterdata2)
+```
+The WSS plot shows that there are 3 or 4 optimal number of clusters
+
+The data must be standardized (i.e., scaled) to make variables comparable.
+```{r}
+clusterdata <- scale(clusterdata)
+```
+
+Build the K-Means cluster analysis
+```{r}
+set.seed(100)
+KM = kmeans(clusterdata, 3)
+```
+
+Looking at the cluster centers
+```{r}
+
+KM$centers
+
+# cluster 1 == PVP
+# cluster 2 == PVE
+```
+
+# assign the cluster as a variable to the df
+```{r}
+pvz_df$cluster <- KM$cluster
+```
+
+
+Evaluating the cluster analysis
+```{r}
+ggplot(pvz_df, aes(x=ratio_pve_session, y= ratio_pvp_session, col= as.factor(pvz_df$cluster))) + geom_point()
+```
+
+
+
+```{r}
+library(scatterplot3d)
+scatterplot3d(clusterdata, pch=20, color=rainbow(2)[KM$cluster])
+```
+
+
+```{r}
+descriptives <- pvz_df_nona %>% 
+  select(spane_game_balance,Hours,ratio_pvp_Hours,pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score,
+         ratio_pve_Hours,pve_kd,pve_hit_accuracy,pve_dps,pve_average_damage,pve_average_score)
+clusterdata2[is.na(clusterdata2)] <- 0
+```
+spane_game_balance,Hours,ratio_pvp_Hours,pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score,
+         ratio_pve_Hours,pve_kd,pve_hit_accuracy,pve_dps,pve_average_damage,pve_average_score
+
+
+```{r}
+desc <- pvz_df_nona[,c("spane_game_balance","Hours","ratio_pvp_Hours","pvp_kd","pvp_hit_accuracy","pvp_dps","pvp_average_damage","pvp_average_score",
+         "ratio_pve_Hours","pve_kd","pve_hit_accuracy","pve_dps","pve_average_damage","pve_average_score")]
+
+
+```
+
+```{r}
+
+st(desc)
+
+```
+
+
+
+### do clusting based on game time
+
+I am going to use k means clustering for this analysis. The cluster analysis comprises the following steps…
+
+1. Assess clustering tendency of the data
+2. Estimate number of clusters
+3. Run Clustering Algorithm
+4. Assess Validity of Clustering Results
+5. Interpret clustering results
+
+```{r}
+#rename variables 
+
+pvz_df_nona <- pvz_df_nona %>% 
+  rename(
+    Hours = Hours_nona,
+    pvp_Hours = pvp_Hours_nona,
+    pve_Hours = pve_Hours_nona,
+    social_Hours = social_Hours_nona,
+    )
+
+```
+
+## calculate ratios of game mode played
+```{r}
+pvz_df3 <- pvz_df_nona
+```
+
+## calculate ratios of game mode played
+```{r}
+
+pvz_df3 <- pvz_df3 %>%
+  mutate(ratio_social_Hours = social_Hours / Hours) %>%
+  mutate(ratio_pve_Hours = pve_Hours / Hours) %>%
+  mutate(ratio_pvp_Hours = pvp_Hours / Hours)
+
+```
+
+
+## 1. assessing cluster tendency of the data VISUAL METHOD
+
+```{r}
+install.packages("clustertend")
+```
+
+```{r}
+library(clustertend)
+```
+
+Make two datasets, the one used and a random data set generated from that one
+```{r}
+# data set
+clusterdata1 <- pvz_df3 %>% 
+  select(Hours,ratio_pvp_Hours,pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score,
+         ratio_pve_Hours,pve_kd,pve_hit_accuracy,pve_dps,pve_average_damage,pve_average_score)
+clusterdata2[is.na(clusterdata2)] <- 0
+
+# Random data generated from cluster data
+random_df <- apply(clusterdata2, 2,
+function(x){runif(length(x), min(x), (max(x)))})
+random_df <- as.data.frame(random_df)
+
+# Standardize the data sets
+clusterdata2 <- scale(clusterdata1)
+random_df <- scale(random_df)
+```
+
+```{r}
+# Plot faithful data set
+fviz_pca_ind(prcomp(clusterdata2), title = "PCA - performance data",
+geom = "point", ggtheme = theme_classic(),
+legend = "bottom")
+
+# can add for colour map: habillage = pvz_df3$cluster,
+
+# Plot the random df
+fviz_pca_ind(prcomp(random_df), title = "PCA - Random data",
+geom = "point", ggtheme = theme_classic())
+```
+It can be seen that the performance data set contains 4 real clusters. However the randomly
+generated data set doesn’t contain any meaningful clusters.
+
+
+## statistical cluster tendency test (Hopkins test)
+The Hopkins statistic is used to assess the clustering tendency of a data set by
+measuring the probability that a given data set is generated by a uniform data
+distribution. In other words, it tests the spatial randomness of the data.
+
+```{r}
+# Compute Hopkins statistic for iris dataset
+set.seed(123)
+hopkins(clusterdata2, n = nrow(clusterdata2)-1)
+
+dist.cor<-get_dist(clusterdata2, method = "pearson")
+dcor1 <-fviz_dist(dist.cor, show_labels = FALSE, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+
+plot(dcor1)
+
+# tot calculate the hopkins you have to do 1- 0.1213977 = 0.8786023
+# see: https://stats.stackexchange.com/questions/332651/validating-cluster-tendency-using-hopkins-statistic
+```
+```{r}
+# Compute Hopkins statistic for iris dataset
+```
+
+
+```{r}
+# Compute Hopkins statistic for a random dataset
+set.seed(123)
+hopkins(random_df, n = nrow(random_df)-1)
+
+dist.cor2<-get_dist(random_df, method = "pearson")
+fviz_dist(dist.cor2, show_labels = FALSE, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+• Null hypothesis: the data set D is uniformly distributed (i.e., no meaningful clusters)
+• Alternative hypothesis: the data set D is not uniformly distributed (i.e., contains meaningful clusters)
+
+It can be seen that the performance data set is highly clusterable (the H value = 0.11 which
+is far below the threshold 0.5). However the random_df data set is not clusterable
+(H = 0.50)
+
+This is indeed highly clusterable, the H for the Iris data set (a famous example dataset for clustering) is 0.18.
+
+The result of the Hopkins Test is 0.1213977 which is well below the 0.5 threshold and therefore indicates the data is clusterable.
+0.502174
+We can also use a visual method to assess clustering tendency. Visual Assessment of Clustering Tendency works by computing the dissimilarity matrix of objects in the data set (using Euclidean distance). Reorder the matrix so that similar objects are close to one another.
+
+
+## 2.  determining the optimal number of clusters
+
+Elbow method:
+
+the basic idea behind partitioning methods, such as k-means clustering
+(Chapter 4), is to define clusters such that the total intra-cluster variation [or total
+within-cluster sum of square (WSS)] is minimized. The total WSS measures the
+compactness of the clustering and we want it to be as small as possible.
+The Elbow method looks at the total WSS as a function of the number of clusters:
+One should choose a number of clusters so that adding another cluster doesn’t improve
+much better the total WSS.
+
+Create a function for a WSS plot to find the optimal number of clusters
+```{r}
+wssplot <- function(data, nc=15, seed=1234){
+                  wss <- (nrow(data)-1)*sum(apply(data,2,var))
+                      for (i in 2:nc){
+                set.seed(seed)
+                    wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+              plot(1:nc, wss, type="b", xlab="Number of Clusters",
+                            ylab="Within groups sum of squares")
+       }
+```
+
+```{r}
+set.seed(123)
+fviz_nbclust(clusterdata2, kmeans, method = "wss") +
+  geom_vline(xintercept = 5, linetype = 2)+
+labs(title = "")
+```
+The plot above represents the variance within the clusters. It decreases as k increases,
+but it can be seen a bend (or “elbow”) at k = 5. This bend indicates that additional
+clusters beyond the fourth have little value.. In the next section, we’ll classify the
+observations into 5 clusters.
+
+The WSSs (within sum of square) plot shows that there are 5 optimal number of clusters
+
+```{r}
+install.packages("NbClust")
+```
+
+```{r}
+library(NbClust)
+```
+
+```{r}
+# Gap statistic
+# nboot = 50 to keep the function speedy.
+# recommended value: nboot= 500 for your analysis.
+# Use verbose = FALSE to hide computing progression.
+set.seed(123)
+fviz_nbclust(clusterdata2, kmeans, method = "gap_stat", nboot = 500)+
+labs(title = "")
+```
+```{r}
+nb <- NbClust(clusterdata2, distance = "euclidean", min.nc = 2,
+max.nc = 10, method = "kmeans")
+```
+
+```{r}
+fviz_nbclust(nb)
+```
+
+## 3. Run clustering algorithm and visualize
+
+Build the K-Means cluster analysis
+```{r}
+#compute kmeans
+set.seed(100)
+km.random <- eclust(random_df, "kmeans", k = 5,
+                 nstart = 50, graph = FALSE)
+
+# K-means clustering
+km.res <- eclust(clusterdata2, "kmeans", k = 5,
+                 nstart = 50, graph = FALSE)
+
+
+# visualize
+fviz_cluster(km.res, data = clusterdata2,
+             geom = c("point"),
+             show.clust.cent = TRUE,
+             ellipse = TRUE,
+             ellipse.type = "convex",
+             outlier.color = "black",
+             ggtheme = theme_classic(),
+             main = "Player clusters")
+
+# visualize
+fviz_cluster(km.random, data = random_df,
+             geom = c("point"),
+             show.clust.cent = TRUE,
+             ellipse = TRUE,
+             ellipse.type = "convex",
+             outlier.color = "black",
+             ggtheme = theme_classic(),
+             main = "Random clusters")
+```
+
+## 3. Run clustering algorithm and visualize
+
+Build the K-Means cluster analysis
+```{r}
+#compute kmeans
+set.seed(100)
+km.random <- eclust(random_df, "kmeans", k = 5,
+                 nstart = 50, graph = FALSE)
+
+# K-means clustering
+km.res <- eclust(clusterdata2, "kmeans", k = 5,
+                 nstart = 50, graph = FALSE)
+
+
+# visualize
+pp<-fviz_cluster(km.res, data = clusterdata2,
+             palette = "Set2",
+             geom = c("point"),
+             show.clust.cent = TRUE,
+             ellipse = TRUE,
+             ellipse.type = "convex",
+             outlier.color = "black",
+             ggtheme = theme_classic(),
+             main = "Player clusters")
+
+# visualize
+fviz_cluster(km.random, data = random_df,
+             palette = "Set2",
+             geom = c("point"),
+             show.clust.cent = TRUE,
+             ellipse = TRUE,
+             ellipse.type = "convex",
+             outlier.color = "black",
+             ggtheme = theme_classic(),
+             main = "Random clusters")
+
+pp
+```
+
+
+```{r}
+
+```
+
+### cluster validation 
+The term cluster validation is used to design the procedure of evaluating the
+goodness of clustering algorithm results. This is important to avoid finding patterns in
+a random data, as well as, in the situation where you want to compare two clustering
+algorithms.
+
+## internal validation  
+Internal cluster validation, which uses the internal information of the clustering process to evaluate the goodness of a clustering structure without reference
+to external information. It can be also used for estimating the number of clusters
+and the appropriate clustering algorithm without any external data.
+
+external validation is not possible because there are no externally known results.
+
+Internal validation measures reflect often the compactness, the connectedness and
+the separation of the cluster 
+
+In this section, we’ll describe the two commonly used indices for assessing the
+goodness of clustering: the silhouette width and the Dunn index. These internal
+measure can be used also to determine the optimal number of clusters in the data.
+
+# silhouette plot
+To confirm that your number of classes is indeed optimal, there is a way to evaluate the quality of your clustering via the silhouette plot (which shows the silhouette coefficient on the y axis).
+
+```{r}
+fviz_silhouette(km.res,palette = "Set2")
+
+# the Mean silhouette width (MSW) is positive so the classification is strong.
+```
+```{r}
+
+set.seed(100)
+# K-means clustering
+km.res4 <- eclust(clusterdata2, "kmeans", k = 5,
+                 nstart = 50, graph = FALSE)
+
+fviz_silhouette(km.res4,palette = "Set2")
+
+# the Mean silhouette width (MSW) is positive so the classification is strong.
+```
+
+
+
+As a reminder, the interpretation of the silhouette coefficient is as follows:
+
+> 0 means that the observation is well grouped. The closer the coefficient is to 1, the better the observation is grouped.
+< 0 means that the observation has been placed in the wrong cluster.
+= 0 means that the observation is between two clusters.
+
+It can be seen that several samples have a negative silhouette coefficient in the kmeans clustering. This means that they are not in the right cluster.
+
+We can find the name of these samples and determine the clusters they are closer (neighbor cluster), as follow:
+
+several other variations (k = 4, 3, 6) where tried but the ASW didnt improve and some observations always stayed below 0. Reassiging these to the new clusters, created new clusters with other samples below 0. Still the AWS is > 0 so the observations are well grouped and the clustering is validated.
+
+
+# now create new clusters and compare the old with the new with dunn index, the one with the higher dunn index is the better cluster
+```{r}
+# Silhouette width of observation
+sil <- km.res$silinfo$widths[, 1:3]
+
+```
+
+```{r}
+# Objects with negative silhouette
+neg_sil_index <- which(sil[, 'sil_width'] < 0)
+
+sil[neg_sil_index, , drop = FALSE]
+```
+There are 34 cases that are in the wrong cluster and should be switched to the closest neighbor
+```{r}
+# Replace clusters with negative silhouette
+km.res2 <- transform(km.res$silinfo$widths, cluster = ifelse(sil_width < 0, neighbor, cluster))
+
+km.res3
+```
+
+```{r}
+
+km.res3 <- transform(km.res$silinfo$widths, cluster = ifelse(sil_width < 0, neighbor, cluster))
+```
+transform(sil, cluster = ifelse(sil_width < 0, sil_neighbour, cluster))
+
+
+
+#create new df with sil data
+```{r}
+sil2 <- cbind(ID = rownames(sil), sil)
+rownames(sil) <- 1:nrow(sil)
+```
+# make sure they are ordered on ID
+```{r}
+sil2$neighbor= as.numeric(as.character(sil2$neighbor))
+sil2$sil_width = as.numeric(as.character(sil2$sil_width))
+
+sil2$ID = as.numeric(as.character(sil2$ID))
+sil2 <- sil2[order(sil2$ID),]
+```
+# create new variables in pvz_df_nona
+```{r}
+pvz_df_nona$sil_cluster <- sil2$cluster
+pvz_df_nona$sil_neighbour <- sil2$neighbor
+pvz_df_nona$sil_width <- sil2$sil_width
+```
+
+# change the 34 cases where sil_width is negative 
+```{r}
+pvz_df_nona_3 <- transform(pvz_df_nona, cluster = ifelse(sil_width < 0, sil_neighbour, cluster))
+```
+
+
+
+
+## do clustering again with new df (_3) and compare (clusters, sil and dunn index)
+
+
+# Dunn index
+The Dunn index is a internal clustering validation measure.
+
+If the data set contains compact and well-separated clusters, the diameter of the
+clusters is expected to be small and the distance between the clusters is expected to
+be large. Thus, Dunn index should be maximized.
+
+```{r}
+install.packages("fpc")
+library(fpc)
+```
+
+```{r}
+# Statistics for k-means clustering
+km_stats <- cluster.stats(dist(clusterdata2), km.res$cluster)
+# Dun index
+km_stats$dunn
+```
+
+
+
+
+
+
+## 5.  Final cluster interpretation
+
+Looking at the cluster centers
+```{r}
+km.res$centers
+```
+
+```{r}
+table1 <-aggregate(clusterdata1, by=list(cluster=km.res$cluster), mean)
+table1
+```
+
+
+## visualize table
+```{r}
+install.packages("formattable")
+library(formattable)
+```
+
+
+```{r}
+formattable(table1, 
+            align =c("l","c","c","c","c", "c", "c", "c", "c", "c", "c", "c", "c", "c", "c", "c", "c"), 
+            list(`cluster` = formatter(
+              "span", style = ~ style(color = "grey",font.weight = "bold")),
+              `Hours` = color_tile("#FDFEFD","#71CA97"),
+              'ratio_pvp_Hours' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_kd' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_hit_accuracy' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_crit_ratio' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_dps' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_average_damage' = color_tile("#FDFEFD","#71CA97"),
+              'pvp_average_score' = color_tile("#FDFEFD","#71CA97"),
+              'ratio_pve_Hours' = color_tile("#FDFEFD","#71CA97"),
+              'pve_kd' = color_tile("#FDFEFD","#71CA97"),
+              'pve_hit_accuracy' = color_tile("#FDFEFD","#71CA97"),
+              'pve_crit_ratio' = color_tile("#FDFEFD","#71CA97"),
+              'pve_dps' = color_tile("#FDFEFD","#71CA97"),
+              'pve_average_damage' = color_tile("#FDFEFD","#71CA97"),
+              'pve_average_score' = color_tile("#FDFEFD","#71CA97")
+))
+```
+
+# cluster 1 == 1st in Hours, 3rd PVP ratio, 3rd pvp kd, 3rd pvp accuracy, 3rd pvp dps, 3rd average damage, 4th pvp score, 3rd pve ratio, 4th pve kd, 4th pve hit accuracy, 4th pve dps, 4th pve average damage, 4th pve average score
+
+Casual players: Play the most by far with an even split between PVP and PVE content. Below average perforamnce in both game modes
+
+
+# cluster 2 ==  5th in hours, 1st PVP ratio, 4th pvp kd, 4th pvp accuracy, 4th pvp dps, 4th average damage, 3rd pvp score, 5th pve ratio, 5th pve kd, 5th pve hit accuracy, 5th pve dps, 5th pve average damage, 5th pve average score
+
+PVP Noobs: Lowest playtime: only play pvp and almost no pve. Below average performance in PVP and consistently the worst performance in PVE.
+
+# cluster 3 == 4th in Hours, 5th PVP ratio, 5th pvp kd, 5th pvp accuracy,  5th pvp dps, 5th pvp score, 1st pve ratio, 3rd pve kd, 3rd pve hit accuracy,  3rd pve dps, 3rd pve average damage, 2nd pve average score
+
+PVE adventurers: Below average playtime, play the least PVP and the most PVE, performance in PVP is the worst of all players, PVE performance is average.
+
+# cluster 4 ==  3rd in Hours, 4th PVP ratio, 1st pvp kd, 1st pvp accuracy,  1st pvp dps, 1st pvp score, 2nd pve ratio, 2nd pve kd, 2nd pve hit accuracy,  2nd pve dps, 2nd pve average damage, 3rd pve average score
+
+ex-PVP Elite (Veterans): play below average amounts, play little PVP, but when they do they perform the best of all. When they play PVE they perform above avearge.
+
+# cluster 5 == 2nd in Hours, 2nd PVP ratio, 2nd pvp kd, 2nd pvp accuracy, 2nd pvp dps, 2nd pvp score, 4th pve ratio, 1st pve kd, 1st pve hit accuracy, 1st pve dps, 1st pve average damage, 1st pve average score
+
+Elite : second most playtime, play more pvp then pve and are among the best in both (second best in PVP and the best in PVE)
+
+
+
+# assign cluter to data frame for analysis
+```{r}
+pvz_df3$cluster <- km.res$cluster
+pvz_df_nona$cluster <- km.res$cluster
+
+```
+
+```{r}
+oii.freq(pvz_df_nona$cluster)
+```
+
+
+
+
+
+## univariate
+for Hours
+for Cluster
+for Wellbeing
+
+
+## fucking around with normal regressions
+
+select(Hours,ratio_pvp_Hours,pvp_kd,pvp_hit_accuracy,pvp_crit_ratio,pvp_dps,pvp_average_damage,pvp_average_score,
+         ratio_pve_Hours,pve_kd,pve_hit_accuracy,pve_crit_ratio,pve_dps,pve_average_damage,pve_average_score)
+         
+pvz_df3 <- pvz_df3 %>%
+  mutate(ratio_social_Hours = social_Hours / Hours) %>%
+  mutate(ratio_pve_Hours = pve_Hours / Hours) %>%
+  mutate(ratio_pvp_Hours = pvp_Hours / Hours)
+```{r}
+pvz_df_nona <- pvz_df_nona %>%
+  mutate(ratio_social_Hours = social_Hours / Hours) %>%
+  mutate(ratio_pve_Hours = pve_Hours / Hours) %>%
+  mutate(ratio_pvp_Hours = pvp_Hours / Hours)
+```
+
+
+# make latent variables for performance
+either use PCA
+or 
+rescale them into standardized units (dividing by the STD and subtracting the mean) --> this gives you new variables with a mean of 0 and an STD of 1 and then you can combine them together. The variables have to be conceptually similar.
+```{r}
+# total performance
+
+
+
+# pvp performance
+
+pvp_kd,pvp_hit_accuracy,pvp_crit_ratio,pvp_dps,pvp_average_damage,pvp_average_score,
+         ratio_pve_Hours,pve_kd,pve_hit_accuracy,pve_crit_ratio,pve_dps,pve_average_damage,pve_average_score)
+
+# pve performance
+
+
+```
+
+#PCA
+
+```{r}
+# for total
+with(pvz_df_nona, scatterplotMatrix(~total_kd + total_hit_accuracy + total_dps + total_average_damage + total_average_score, regLine = FALSE, diagonal = list(method = "histogram"), smooth=list(smoother=loessLine, spread = FALSE))) 
+
+```
+
+```{r}
+#Correlation matrix
+
+cor2 = with(pvz_df_nona, cor(cbind(pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score), method = "pearson"))
+print(cor1)
+
+cor2b = with(pvz_df_nona, corr.test(cbind(pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score), method = "pearson", adjust = "bonferroni"))
+print(cor1b)
+
+```
+The similarity matrix above uses Pearson product moment correlations and assesses to what extent the variables move in the same direction at proportional strength. The Pearson correlation coefficient ranges from -1 to +1 and ignores the differences in the metric of the variables because it standardizes the variance to 1 and the mean to 0 for all variables, which is useful for comparing data measured on different scales. When squared the Pearson’s correlations are a PRE interpretation of the association. As can be seen from the correlation matrix above most variables in our model seem to have moderate to strong correlations with each other so we will proceed with the PCA.
+
+To correct for multiple comparisons the Bonferroni correction is used. It reduces the risk that, with a large number of variables, significance is due to chance. It is performed by dividing a/n, where a is the significance level for the family of n tests. The Bonferroni correction is displayed in the last table in the output above and consists of the p-values above the diagonal. Notably, the vast majority of the p-values remain at 0.00 in both the corrected and the uncorrected versions. The one unusual p-value is that of pvp_kd with pvp_crit_ratio, where we find no statistically significant correlation after the Bonferroni correction, where there used to be one in the uncorrected version. 
+
+```{r}
+VSS.scree(cor2)
+```
+The scree plot plots the eigen values of the principal components on the y-axis sorted from highest to lowest, and the component number on the x-axis. This plot is used to evaluate how many principal components to retain for the PCA. The above scree plot is run on the correlation matrix using regular PCA eigenvalues with no rotation. As can be seen in the plot, the first component has a very large eigen value of around 4.4, the second has an eigen value around 1.2, then the third variable has an eigen value slightly above 1. The cut-off point of 1 is the baseline as 1 is effectively the average, and we only want to include factors which add something in terms of information. Hence, we want to include all the components above 1. Thus, we should include 3 components in our PCA, still it has to be noted that sometimes the scree plot tends to retain too few components, that’s why we also look at Kaisers rule and theoretical justification.
+
+```{r}
+pca2 = principal(cor2, nfactors = 5, rotate = "none")
+loadings(pca2)
+
+```
+As can be seen above a naïve PCA is performed to examine the eigen values in the “ss loading” line of the output. Following Kaiser’s rule only principal components with eigen values over 1 should be included in a PCA. 
+In this case those are the first two principal components. Together PC1, PC2,account for 76.2% of the variance in the dataset of the original 9 variables. So, we can reduce the dimensionality to two dimensions and still account for 76.2% of the variance, which appears to be a good balance between parsimony and retaining information.
+
+#rotation
+Rotating the factor loadings makes them more distinctive and understandable. The method used for the rotation is ‘Varimax’, a varimax rotation spins the axis whilst they remain perpendicular, so the factors are uncorrelated. This has the effect of differentiating the original variables as much as possible. It minimizes the variables that have high loadings on any one given factor, so each one has either small or large loadings on particular variables. It tends to yield results that make it as easy as possible to identify each variable with a single factor. Below a varimax rotation will be conducted.
+```{r}
+rc2 = principal(with(pvz_df_nona, cbind(total_kd,total_hit_accuracy,total_dps,total_average_damage,total_average_score)), nfactors = 1, rotate = "varimax")
+loadings(rc2)
+
+plot(rc2)
+
+```
+# create new variable
+```{r}
+pvz_df_nona$total_performance = rc2$scores[,1]
+
+oii.summary(pvz_df_nona$total_performance, extended=TRUE)
+```
+
+
+
+```{r}
+# for pvp
+with(pvz_df_nona, scatterplotMatrix(~pvp_kd + pvp_hit_accuracy + pvp_dps + pvp_average_damage + pvp_average_score, regLine = FALSE, diagonal = list(method = "histogram"), smooth=list(smoother=loessLine, spread = FALSE))) 
+
+```
+```{r}
+#Correlation matrix
+
+cor1 = with(pvz_df_nona, cor(cbind(pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score), method = "pearson"))
+print(cor1)
+
+cor1b = with(pvz_df_nona, corr.test(cbind(pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score), method = "pearson", adjust = "bonferroni"))
+print(cor1b)
+
+```
+The similarity matrix above uses Pearson product moment correlations and assesses to what extent the variables move in the same direction at proportional strength. The Pearson correlation coefficient ranges from -1 to +1 and ignores the differences in the metric of the variables because it standardizes the variance to 1 and the mean to 0 for all variables, which is useful for comparing data measured on different scales. When squared the Pearson’s correlations are a PRE interpretation of the association. As can be seen from the correlation matrix above most variables in our model seem to have moderate to strong correlations with each other so we will proceed with the PCA.
+
+To correct for multiple comparisons the Bonferroni correction is used. It reduces the risk that, with a large number of variables, significance is due to chance. It is performed by dividing a/n, where a is the significance level for the family of n tests. The Bonferroni correction is displayed in the last table in the output above and consists of the p-values above the diagonal. Notably, the vast majority of the p-values remain at 0.00 in both the corrected and the uncorrected versions. The one unusual p-value is that of pvp_kd with pvp_crit_ratio, where we find no statistically significant correlation after the Bonferroni correction, where there used to be one in the uncorrected version. 
+
+```{r}
+VSS.scree(cor1)
+```
+The scree plot plots the eigen values of the principal components on the y-axis sorted from highest to lowest, and the component number on the x-axis. This plot is used to evaluate how many principal components to retain for the PCA. The above scree plot is run on the correlation matrix using regular PCA eigenvalues with no rotation. As can be seen in the plot, the first component has a very large eigen value of around 4.4, the second has an eigen value around 1.2, then the third variable has an eigen value slightly above 1. The cut-off point of 1 is the baseline as 1 is effectively the average, and we only want to include factors which add something in terms of information. Hence, we want to include all the components above 1. Thus, we should include 3 components in our PCA, still it has to be noted that sometimes the scree plot tends to retain too few components, that’s why we also look at Kaisers rule and theoretical justification.
+
+```{r}
+pca1 = principal(cor1, nfactors = 5, rotate = "none")
+loadings(pca1)
+
+```
+As can be seen above a naïve PCA is performed to examine the eigen values in the “ss loading” line of the output. Following Kaiser’s rule only principal components with eigen values over 1 should be included in a PCA. 
+In this case those are the first two principal components. Together PC1, PC2,account for 76.2% of the variance in the dataset of the original 9 variables. So, we can reduce the dimensionality to two dimensions and still account for 76.2% of the variance, which appears to be a good balance between parsimony and retaining information.
+
+#rotation
+Rotating the factor loadings makes them more distinctive and understandable. The method used for the rotation is ‘Varimax’, a varimax rotation spins the axis whilst they remain perpendicular, so the factors are uncorrelated. This has the effect of differentiating the original variables as much as possible. It minimizes the variables that have high loadings on any one given factor, so each one has either small or large loadings on particular variables. It tends to yield results that make it as easy as possible to identify each variable with a single factor. Below a varimax rotation will be conducted.
+```{r}
+rc1 = principal(with(pvz_df_nona, cbind(pvp_kd,pvp_hit_accuracy,pvp_dps,pvp_average_damage,pvp_average_score)), nfactors = 1, rotate = "varimax")
+loadings(rc1)
+
+plot(rc1)
+
+```
+# create new variable
+```{r}
+pvz_df_nona$pvp_performance = rc1$scores[,1]
+
+oii.summary(pvz_df_nona$pvp_performance, extended=TRUE)
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+model_test <- with(pvz_df_nona, lm(autonomy ~ Hours + total_kd))
+
+summary(model_test)
+
+#good
+#Hours
+# total_kd
+# ratio_pvp_Hours    (CI is negative -> so the more you play PVP the worse wellbeing)
+# ratio_pve_Hours  (CI is positive -> so the more you play PVE the better wellbeing)
+
+
+#bad
+#Pve, pvp Hours
+#pve, pvp _kd
+#total_average_score
+# total dps total sps
+```
+
+
+```{r}
+model_all <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_kd + total_dps +total_average_score + total_sps))
+
+summary(model_all)
+```
+```{r}
+with(pvz_df_nona, scatterplotMatrix( ~ Hours + total_kd + total_dps +total_average_score + total_sps, diagonal=list(method ="histogram", breaks="FD"), regLine = FALSE, smooth=list(spread=FALSE)))
+```
+
+```{r}
+library(mctest)
+eigprop(model_all, na.rm = TRUE, Inter = FALSE)
+```
+
+
+## linear regression with dummy variables for interaction effect
+
+
+```{r}
+
+# create variable
+pvz_df_nona$player_type <- 0
+
+pvz_df_nona$player_type[pvz_df_nona$cluster=="1"] <- "Casual Players"
+pvz_df_nona$player_type[pvz_df_nona$cluster=="2"] <- "PVP Noobs"
+pvz_df_nona$player_type[pvz_df_nona$cluster=="3"] <- "PVE Adventurers" 
+pvz_df_nona$player_type[pvz_df_nona$cluster=="4"] <- "Veterans" 
+pvz_df_nona$player_type[pvz_df_nona$cluster=="5"] <- "Elites" 
+
+pvz_df_nona$player_type <- factor(pvz_df_nona$player_type, levels=c("Casual Players", "PVP Noobs", "PVE Adventurers" ,"Veterans"  ,"Elites"), labels=c("Casual Players", "PVP Noobs", "PVE Adventurers" ,"Veterans"  ,"Elites"))
+
+# create dummy variables for player_type (clusters)
+
+# cluster 1 == Elite : 
+
+# cluster 2 == PVE adventurers: 
+
+# cluster 3 ==  PVP Noobs:
+
+# cluster 4 ==  ex-PVP Elite: 
+
+# cluster 5 == Casual players: 
+
+pvz_df_nona$c_elite <- 0
+pvz_df_nona$c_elite[pvz_df_nona$cluster==5] <- 1 
+
+pvz_df_nona$c_pve_adventurers <- 0
+pvz_df_nona$c_pve_adventurers[pvz_df_nona$cluster==3] <- 1 
+
+pvz_df_nona$c_pvp_noobs <- 0
+pvz_df_nona$c_pvp_noobs[pvz_df_nona$cluster==2] <- 1 
+
+pvz_df_nona$c_ex_pvp_elite <- 0
+pvz_df_nona$c_ex_pvp_elite[pvz_df_nona$cluster==4] <- 1 
+
+pvz_df_nona$c_casual_players <- 0
+pvz_df_nona$c_casual_players[pvz_df_nona$cluster==1] <- 1 
+
+```
+
+
+# set custon colour scheme
+```{r}
+#Create a custom color scale
+library(RColorBrewer)
+myColors <- brewer.pal(5,"Set2")
+names(myColors) <- levels(pvz_df_nona$player_type)
+colScale <- scale_colour_manual(name = "Player profile",values = myColors)
+```
+
+```{r}
+myColors
+```
+
+
+
+1. regression with Hours only
+```{r}
+wellbeing_model_0 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours))
+wellbeing_model_00 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + player_type))
+wellbeing_model_01 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender))
+wellbeing_model_011 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + c_elite))
+wellbeing_model_012 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender * c_elite))# momdel 4
+wellbeing_model_02 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + age))
+wellbeing_model_03 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + age + player_type)) # momdel 4
+wellbeing_model_04 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + age + player_type + Hours:player_type)) # model 5
+wellbeing_model_05 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + player_type + Hours:player_type))
+wellbeing_model_04 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + age + player_type + Hours:player_type)) # model 5
+wellbeing_model_05 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + player_type + Hours:player_type))
+
+
+tab_model(wellbeing_model_0,wellbeing_model_01, wellbeing_model_02)
+oii.summary(wellbeing_model_01)
+
+anova(wellbeing_model_0,wellbeing_model_01)
+anova(wellbeing_model_0,wellbeing_model_00)
+anova(wellbeing_model_01,wellbeing_model_02)
+anova(wellbeing_model_01,wellbeing_model_011)
+anova(wellbeing_model_011,wellbeing_model_012)
+# adjusted r-squared of 0.01138, means that 1.1% of variance in wellbeing is explained by gametime
+
+# “We	 constructed	a	linear	model	of	 wellbeing 	as	a	 function	 of	 gametime.	This	model	was	significant	(F(1,375)=5.329,	p<0.05).
+
+# for every hour of gametime wellbeing increases by 0.015999.
+
+# plot with one regression line to summarize the model
+```
+The R2 has a PRE interpretation and determines how good the model fit is. R2 is the percentage of variance in the dependent variable that is explained by the independent variables. Low R2 (close to 0) implies a lot of variance in the dependent variable remains unexplained, high R2 (close to 1) means that the residual variance is small and that the independent variables are a good predictor of the dependent variable. The adjusted R2 is used instead of the multiple R2 because it takes into account the number of predictors in the model.
+
+The adjusted R2 of ---- tells us that our independent variables explain ----% of the variance in DV and the p-value associated with our F- statistic (----P-value) confirms that the overall model is significant at any common level of significance. 
+
+1 casual
+2 pvp noobs
+3 PVE
+4 Veterans
+5 ELitre
+#visualize
+```{r}
+# plot of null model wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type) ) +
+     geom_point() +
+     xlab("Game time (Hours)") +
+     ylab("Wellbeing") + 
+     colScale +
+     theme(text=element_text(family="Times New Roman", size=12)) +
+     scale_y_continuous(limits = c(-4, 7), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 120)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')
+
+
+
+
+```
+
+#centering
+can be done to make the intercept more meaningfull
+```{r}
+pvz_df_nona$Hours.c = pvz_df_nona$Hours - mean(pvz_df_nona$Hours)
+
+wellbeing_model_01 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours.c))
+tab_model(wellbeing_model_01)
+oii.summary(wellbeing_model_01)
+```
+
+# visualize centering
+```{r}
+
+# plot of null model wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Game time (Hours)") +
+     ylab("Wellbeing") + 
+     colScale +
+     theme(text=element_text(family="Times New Roman", size=12)) +
+     scale_y_continuous(limits = c(-4, 7), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 100)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')
+```
+
+```{r}
+wellbeing_model_test <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_elite + c_pve_adventurers + c_pvp_noobs + c_ex_pvp_elite + c_casual_players  ))
+summary(wellbeing_model_test)
+```
+
+```{r}
+with(pvz_df_nona, scatterplotMatrix(~c_elite + c_pve_adventurers + c_pvp_noobs + c_ex_pvp_elite + c_casual_players, regLine = FALSE, diagonal = list(method = "histogram"), smooth=list(smoother=loessLine, spread = FALSE))) 
+```
+
+```{r}
+wellbeing_model_test <- with(pvz_df_nona, lm(spane_game_balance ~ 0+ Hours + player_type + gender + age ))
+summary(wellbeing_model_test)
+tab_model(wellbeing_model_test)
+```
+
+```{r}
+wellbeing_model_coef <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender))
+```
+
+```{r}
+
+mp3 <- coefplot(wellbeing_model_05,coefficients = c("player_typeElites","player_typeVeterans","player_typePVE Adventurers","player_typePVP Noobs"),
+        outerCI = 0,
+          innerCI = 1,
+          title = "Intercept differences",
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          color = c("#66C2A5"),
+                   newNames = c("player_typeElites" ="Elites",
+                       "player_typePVE Adventurers" ="PVE Adventurers",
+                       "player_typePVP Noobs"="PVP Noobs",
+                       "player_typeVeterans"="Veterans",
+                       "Hours:player_typeElites"="Game time : Elites",
+                       "Hours:player_typePVE Adventurers"="Game time : PVE Adventurers",
+                       "Hours:player_typePVP Noobs"="Game time : PVP Noobs",
+                       "Hours:player_typeVeterans"="Game time : Veterans")
+         )
+
+mp4 <- coefplot(wellbeing_model_05,coefficients = c("Hours:player_typeElites","Hours:player_typeVeterans","Hours:player_typePVE Adventurers","Hours:player_typePVP Noobs"),
+        outerCI = 0,
+          innerCI = 1,
+          title = "Slope differences",
+          xlab = "Regression coefficient",
+          ylab = NULL,
+         color = c("#FC8D62"),
+                   newNames = c("player_typeElites" ="Elites",
+                       "player_typePVE Adventurers" ="PVE Adventurers",
+                       "player_typePVP Noobs"="PVP Noobs",
+                       "player_typeVeterans"="Veterans",
+                       "Hours:player_typeElites"="Game time : Elites",
+                       "Hours:player_typePVE Adventurers"="Game time : PVE Adventurers",
+                       "Hours:player_typePVP Noobs"="Game time : PVP Noobs",
+                       "Hours:player_typeVeterans"="Game time : Veterans")
+         )
+grid.arrange(mp3, mp4, nrow = 1)
+
+summary(wellbeing_model_05)
+```
+
+```{r}
+
+coefplot(wellbeing_model_04,coefficients = c("player_typeElites","player_typeVeterans","player_typePVE Adventurers","player_typePVP Noobs","Hours:player_typeElites","Hours:player_typeVeterans","Hours:player_typePVE Adventurers","Hours:player_typePVP Noobs"),
+                outerCI = 0,
+          innerCI = 1,
+          title = "Coefficient plot",
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          color = c("#66C2A5"),
+         cex.var=1,
+         col.pts=1,
+                   newNames = c("player_typeElites" ="Elites",
+                       "player_typePVE Adventurers" ="PVE Adventurers",
+                       "player_typePVP Noobs"="PVP Noobs",
+                       "player_typeVeterans"="Veterans",
+                       "Hours:player_typeElites"="Game time : Elites",
+                       "Hours:player_typePVE Adventurers"="Game time : PVE Adventurers",
+                       "Hours:player_typePVP Noobs"="Game time : PVP Noobs",
+                       "Hours:player_typeVeterans"="Game time : Veterans"))
+
+
+
+```
+
+2. regression with Hours, Dummies and INTERACTION
+```{r}
+
+
+#intercept differences  (multiple linea regressions)
+wellbeing_model_1 <- with(pvz_df_nona, lm(spane_game_balance ~gender  + Hours + c_elite ))
+wellbeing_model_2 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours + c_pve_adventurers))
+wellbeing_model_3 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours + c_pvp_noobs))
+wellbeing_model_4 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours + c_ex_pvp_elite))
+wellbeing_model_5 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours + c_casual_players))
+
+#slope differences
+wellbeing_model_6 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours * c_elite ))
+wellbeing_model_7 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours * c_pve_adventurers))
+wellbeing_model_8 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours * c_pvp_noobs))
+wellbeing_model_9 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours * c_ex_pvp_elite))
+wellbeing_model_10 <- with(pvz_df_nona, lm(spane_game_balance ~ gender  + Hours * c_casual_players))
+
+tab_model(wellbeing_model_0, wellbeing_model_1, wellbeing_model_2, wellbeing_model_3,wellbeing_model_4,wellbeing_model_5,wellbeing_model_6, wellbeing_model_7, wellbeing_model_8, wellbeing_model_9,wellbeing_model_10, show.ci = FALSE)
+```
+
+
+res.aov3 <- aov(spane_game_balance ~ Hours * c_pve_adventurers, data = pvz_df_nona)
+```{r}
+# this one is significant (without age)
+#intercept differences  (multiple linea regressions)
+wellbeing_model_1 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_elite ))
+wellbeing_model_2 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_pve_adventurers))
+wellbeing_model_3 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_pvp_noobs))
+wellbeing_model_4 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_ex_pvp_elite))
+wellbeing_model_5 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_casual_players))
+
+#slope differences
+wellbeing_model_6 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * c_elite ))
+wellbeing_model_7 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * c_pve_adventurers))
+wellbeing_model_8 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * c_pvp_noobs))
+wellbeing_model_9 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * c_ex_pvp_elite))
+wellbeing_model_10 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * c_casual_players))
+
+tab_model(wellbeing_model_0, wellbeing_model_1, wellbeing_model_2, wellbeing_model_3,wellbeing_model_4,wellbeing_model_6, wellbeing_model_7, wellbeing_model_8, wellbeing_model_9, show.ci = FALSE)
+```
+
+```{r}
+summary(wellbeing_model_05)
+```
+
+
+```{r}
+wellbeing_model_elite <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender ))
+wellbeing_model_elite1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender + c_elite ))
+
+anova(wellbeing_model_elite,wellbeing_model_elite1)
+```
+
+
+```{r}
+#library(coefplot)
+
+mp1 <- multiplot( wellbeing_model_9, wellbeing_model_8, wellbeing_model_7,wellbeing_model_6,wellbeing_model_0,
+          coefficients = c("c_elite", "c_pve_adventurers","c_pvp_noobs","c_ex_pvp_elite"),
+          outerCI = 0,
+          innerCI = 1,
+          title = "Intercept",
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          decreasing = FALSE,
+          legend.position = "none",
+          newNames = c("c_elite" ="Elite",
+                       "c_pve_adventurers" ="PVE Adventurers",
+                       "c_pvp_noobs"="PVP Noobs",
+                       "c_ex_pvp_elite"="Veterans",
+                       "c_casual_players"="Casual Players",
+                       "Hours:c_elite"="Hours:Elites",
+                       "Hours:c_pve_adventurers"="Hours:PVE Adventurers",
+                       "Hours:c_pvp_noobs"="Hours:PVP Noobs",
+                       "Hours:c_ex_pvp_elite"="Hours:Veterans",
+                       "Hours:c_casual_players"="Hours:Casual Players")
+          
+)
+
+
+mp2 <- multiplot( wellbeing_model_9, wellbeing_model_8, wellbeing_model_7,wellbeing_model_6,wellbeing_model_0,
+          coefficients = c("Hours:c_elite", "Hours:c_pve_adventurers", "Hours:c_pvp_noobs", "Hours:c_ex_pvp_elite"),
+          outerCI = 0,
+          innerCI = 1,
+          title = "Slope",
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          decreasing = FALSE,
+          legend.position = "none",
+          newNames = c("c_elite" ="Elites",
+                       "c_pve_adventurers" ="PVE Adventurers",
+                       "c_pvp_noobs"="PVP Noobs",
+                       "c_ex_pvp_elite"="Veterans",
+                       "c_casual_players"="Casual Players",
+                       "Hours:c_elite"="Game time : Elites",
+                       "Hours:c_pve_adventurers"="Game time : PVE Adventurers",
+                       "Hours:c_pvp_noobs"="Game time : PVP Noobs",
+                       "Hours:c_ex_pvp_elite"="Game time : Veterans",
+                       "Hours:c_casual_players"="Game time : Casual Players")
+          
+)
+
+grid.arrange(mp1, mp2, nrow = 1)
+```
+
+```{r}
+oii.summary(pvz_df_nona$Hours)
+hist(pvz_df_nona$Hours, breaks =120)
+```
+```{r}
+oii.summary(pvz_df_nona$spane_game_balance)
+hist(pvz_df_nona$spane_game_balance, breaks =120)
+```
+
+```{r}
+mp2
+```
+
+```{r}
+wellbeing_model_elite <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + c_elite ))
+wellbeing_model_elite1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours * c_elite ))
+
+anova(wellbeing_model_elite,wellbeing_model_elite1)
+```
+```{r}
+#significant
+wellbeing_model_casual <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender ))
+wellbeing_model_casual1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender + c_casual_players ))
+
+anova(wellbeing_model_casual,wellbeing_model_casual1)
+```
+```{r}
+wellbeing_model_pvp_noobs <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender ))
+wellbeing_model_pvp_noobs1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender + c_pvp_noobs ))
+
+anova(wellbeing_model_pvp_noobs,wellbeing_model_pvp_noobs1)
+```
+
+```{r}
+# significant
+wellbeing_model_pve_adventurers <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender ))
+wellbeing_model_pve_adventurers1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender + c_pve_adventurers ))
+
+anova(wellbeing_model_pve_adventurers,wellbeing_model_pve_adventurers1)
+```
+
+```{r}
+wellbeing_model_ex_pvp_elite <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender ))
+wellbeing_model_ex_pvp_elite1 <- with(pvz_df_nona, aov(spane_game_balance ~ Hours + gender + c_ex_pvp_elite ))
+
+anova(wellbeing_model_ex_pvp_elite,wellbeing_model_ex_pvp_elite1)
+```
+
+```{r}
+#library(coefplot)
+
+multiplot(wellbeing_model_10, wellbeing_model_9, wellbeing_model_8, wellbeing_model_7,wellbeing_model_6,wellbeing_model_0,
+          coefficients = c("c_elite", "c_pve_adventurers","c_pvp_noobs","c_ex_pvp_elite", "c_casual_players", "Hours:c_elite", "Hours:c_pve_adventurers", "Hours:c_pvp_noobs", "Hours:c_ex_pvp_elite", "Hours:c_casual_players", "Hours"),
+          outerCI = 1,
+          innerCI = 0,
+          title = NULL,
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          decreasing = FALSE,
+          legend.position = "none",
+          newNames = c("c_elite" ="Elite",
+                       "c_pve_adventurers" ="PVE Adventurers",
+                       "c_pvp_noobs"="PVP noobs",
+                       "c_ex_pvp_elite"="Veteran",
+                       "c_casual_players"="Casual players",
+                       "Hours:c_elite"="Hours:Elite",
+                       "Hours:c_pve_adventurers"="Hours:PVE Adventurers",
+                       "Hours:c_pvp_noobs"="Hours:PVP noobs",
+                       "Hours:c_ex_pvp_elite"="Hours:Veteran",
+                       "Hours:c_casual_players"="Hours:Casual players")
+          
+)
+
+
+```
+
+
+```{r}
+# Simple slope analysis with conditional intercepts
+wellbeing_model_ss <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + Hours:player_type))
+wellbeing_model_05 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + gender + player_type + Hours:player_type))
+
+wellbeing_ss <- sim_slopes(wellbeing_model_05,
+                  pred=Hours,
+                  modx =player_type,
+                  cond.int = TRUE,
+                  jnplot = TRUE)
+
+wellbeing_ss
+
+```
+
+
+
+```{r}
+
+pvz_df_nona
+```
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Game time (Hours)") +
+     ylab("Wellbeing") +
+     colScale +
+     theme(text=element_text(family="Times New Roman", size=12)) +
+     scale_y_continuous(limits = c(-4, 7), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 100)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F)   +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')  
+
+
+interact_plot(wellbeing_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=TRUE,
+                  plot.points = TRUE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+interact_plot(wellbeing_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+
+```
+
+
+
+
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type) ) +
+     geom_point() +
+     xlab("Hours") +
+     ylab("Wellbeing") +
+     scale_y_continuous(limits = c(-5, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 120)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F)   +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')  
+```
+
+```{r}
+coef(wellbeing_model_10)
+coef(wellbeing_model_9)
+coef(m2_wellbeing)
+```
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, colour =player_type, shape = player_type) ) +
+     geom_point() +
+     colScale +
+     xlab("Gametime (Hours)") +
+     ylab("Wellbeing") +
+     theme(text=element_text(family="Times New Roman", size=12))+ 
+     scale_y_continuous(limits = c(-3, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 65)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[1,2], intercept = coef(m1_wellbeing)$player_type[1,1], color= myColors[1]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[2,2], intercept = coef(m1_wellbeing)$player_type[2,1], color= myColors[2]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[3,2], intercept = coef(m1_wellbeing)$player_type[3,1], color= myColors[3]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[4,2], intercept = coef(m1_wellbeing)$player_type[4,1], color= myColors[4]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[5,2], intercept = coef(m1_wellbeing)$player_type[5,1], color= myColors[5]) +
+     geom_abline(slope=fixef(m1_wellbeing)[2], intercept = fixef(m1_wellbeing)[1], color= 'black',linetype =2) 
+```
+
+4. Anova
+If F-test for change in R-squared is significant for the third regression, that means there is interaction effect
+
+
+```{r}
+ModelX <- aov(spane_game_balance ~ Hours + c_elite + c_pve_adventurers + c_pvp_noobs + c_ex_pvp_elite, data = pvz_df_nona)
+summary(ModelX)
+
+ModelXM <- aov(spane_game_balance ~ Hours * c_elite + c_pve_adventurers + c_pvp_noobs + c_ex_pvp_elite+ Hours:c_elite + Hours:c_pve_adventurers + Hours:c_pvp_noobs + Hours:c_ex_pvp_elite, data = pvz_df_nona)
+
+summary(ModelXM)
+
+anova(ModelX,ModelXM)
+```
+
+
+```{r}
+res.aov2 <- aov(spane_game_balance ~ Hours + c_pve_adventurers, data = pvz_df_nona)
+summary(res.aov2)
+
+res.aov3 <- aov(spane_game_balance ~ Hours * c_pve_adventurers, data = pvz_df_nona)
+
+summary(res.aov3)
+
+anova(res.aov2,res.aov3)
+```
+```{r}
+elite1 <- aov(spane_game_balance ~ Hours + c_elite, data = pvz_df_nona)
+summary(elite1)
+
+elite2 <- aov(spane_game_balance ~ Hours * c_elite, data = pvz_df_nona)
+
+summary(elite2)
+
+anova(elite1,elite2)
+
+```
+
+From the ANOVA results, you can conclude the following, based on the p-values and a significance level of 0.05:
+
+the p-value of Hours is 0.0207 (significant), which indicates that gametime is associated with wellbeing.
+the p-value of c_pve_adventurers is 0.0142 (significant), which indicates that being a PVE Adventurer is postively associated with subjective wellbeing
+the p-value for the interaction between Hours:c_pve_adventurers is 0.7250  (insignificant), which indicates that the relationships between gametime and wellbeing doe not depend on pve adventurer.
+
+
+
+
+```{r}
+res <- lm(spane_game_balance ~ Hours + player_type + gender + Hours:player_type, data = pvz_df_nona)
+summary(res)
+cbind(coef(res), confint(res, level = 0.95))
+
+library(car)
+
+res.std <- rstandard(res)
+plot(res.std, ylab="Standardized Residuals")
+
+"Outlier Test. Observations with a Bonferroni p < .01 might be considered as outliers and might need further investigation."
+outlierTest(res)
+
+"Residual plots, curvature tests and normality plot"
+residualPlots(res)
+ggplot(as.data.frame(res.std), aes(sample = res.std)) +
+  geom_qq() +
+  geom_qq_line()
+
+"Variance inflation factor (VIF >=5 indicates high level of multicollinearity)"
+vif(res)
+
+"Estimated Marginal Means"
+library(emmeans)
+
+m_Hours<- mean(pvz_df_nona$Hours, na.rm = TRUE)
+sd_Hours<- sd(pvz_df_nona$Hours, na.rm = TRUE)
+
+
+emm <- emmeans(res,  ~ Hours*player_type,
+  cov.keep = 3, at = list(
+  Hours = c(m_Hours-sd_Hours, m_Hours, m_Hours+sd_Hours)), level = 0.95)
+summary(emm)
+
+simpleSlope <- emtrends(res, pairwise ~ player_type, var = "Hours", level = 0.95)
+summary(simpleSlope)
+
+emmip(res, player_type ~ Hours,
+  cov.keep = 3, at = list(
+  Hours = c(m_Hours-sd_Hours, m_Hours, m_Hours+sd_Hours)),
+  CIs = TRUE, level = 0.95, position = "jitter")
+
+
+```
+
+
+
+Tukey multiple pairwise comparisons
+```{r}
+res.aov4 <- aov(spane_game_balance ~ Hours * player_type, data = pvz_df_nona)
+
+TukeyHSD(res.aov4, which = "player_type")
+
+```
+
+
+
+
+
+
+
+2. Regression with Hours and the Dummies
+```{r}
+wellbeing_model_test <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + c_elite + c_pve_adventurers + c_pvp_noobs + c_ex_pvp_elite))
+
+anova(wellbeing_model_test,wellbeing_model_0)
+
+```
+
+
+```{r}
+# choose ommited category
+
+boxplot(spane_game_balance ~ player_type, data = pvz_df_nona)
+```
+The omitted dummy category for labour force is student, because theoretically it is the most different as student generally speaking have not entered the labor force yet; this is supported by the grouped boxplot which demonstrates that students is indeed the most different category. Students is clearly associated with higher/lower levels of trust than employed, retired, unemployed. The grouped boxplot also highlights some potential outliers in the students and students categories. These will be noted and discussed later on in the analysis.
+
+
+
+3. Regression with the Dummies, and the Interactions
+```{r}
+
+```
+
+```{r}
+
+```
+4. Anova
+If F-test for change in R-squared is significant for the third regression, that means there is interaction effect
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+https://m-clark.github.io/mixed-models-with-R/random_intercepts.html
+
+
+## normal fixed effect model
+
+
+1. regression with Hours only
+```{r}
+wellbeing_model_0 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours))
+tab_model(wellbeing_model_0)
+oii.summary(wellbeing_model_0)
+
+# adjusted r-squared of 0.01138, means that 1.1% of variance in wellbeing is explained by gametime
+
+# “We	 constructed	a	linear	model	of	 wellbeing 	as	a	 function	 of	 gametime.	This	model	was	significant	(F(1,375)=5.329,	p<0.05).
+
+# for every hour of gametime wellbeing increases by 0.015999.
+
+# plot with one regression line to summarize the model
+```
+The R2 has a PRE interpretation and determines how good the model fit is. R2 is the percentage of variance in the dependent variable that is explained by the independent variables. Low R2 (close to 0) implies a lot of variance in the dependent variable remains unexplained, high R2 (close to 1) means that the residual variance is small and that the independent variables are a good predictor of the dependent variable. The adjusted R2 is used instead of the multiple R2 because it takes into account the number of predictors in the model.
+
+The adjusted R2 of ---- tells us that our independent variables explain ----% of the variance in DV and the p-value associated with our F- statistic (----P-value) confirms that the overall model is significant at any common level of significance. 
+
+
+This would be fine except that we are ignoring the clustering. A side effect of doing so is that our standard errors are biased, and thus claims about statistical significance based on them would be off. More importantly however is that we simply don’t get to explore the player profile effect as laid out by RQ2.
+
+An alternative approach would be to run separate regressions for every student. However, there are many drawbacks to this- it’s not easily summarized when there are many groups, typically there would be very little data within each cluster to do so (as in this case), and the models are over-contextualized, meaning they ignore what students have in common. We’ll compare such an approach to the mixed model later.
+
+# visualize
+```{r}
+# plot of null model wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type, shape = player_type) ) +
+     geom_point() +
+     colScale +
+     xlab("Gametime (Hours)") +
+     ylab("Wellbeing") +
+     theme(text=element_text(family="Times New Roman", size=12))+ 
+     scale_y_continuous(limits = c(-3, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 65)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')
+```
+
+
+## Diagnostics
+
+```{r}
+# fit vs residuals
+library(calibrate)
+pvz_df_nona$fit1 = fitted.values(wellbeing_model_0)
+pvz_df_nona$case = rep(1:nrow(pvz_df_nona))
+pvz_df_nona$student1 = rstudent(wellbeing_model_0)
+plot(pvz_df_nona$fit1, pvz_df_nona$student1)
+abline(h = 0)
+textxy(pvz_df_nona$fit1, pvz_df_nona$student1, pvz_df_nona$case)
+
+```
+
+```{r}
+# influence plot for outliers
+influencePlot(wellbeing_model_0)
+```
+
+
+```{r}
+# heteroscedasticity
+ncvTest(wellbeing_model_0)
+
+```
+
+
+```{r}
+# normality
+plot(wellbeing_model_0)
+```
+
+
+
+
+In line with different studies, we find a similar relation between gametime and wellbeing. However when plotting the identified clusters it becomes evident that thsi relationship might depend on different playstyles. To test this hypothesis Multilevel modelling will be used.
+
+First a null model is run to determine the suitability of multilevel modeling. After which a MLM is run to see if the clusters 
+
+
+## 2.  Multilevel model 
+
+# packages
+```{r}
+library(lme4)
+library(sjPlot)
+library(lmerTest)
+```
+# colours
+```{r}
+cols = brewer.pal(5, "Set2")
+```
+
+# MEAN centering the data
+```{r}
+
+cols
+```
+
+# 2.1. Unconditional model 
+In the unconditional model, only the dependent variable and the grouping variable(s) (e.g., subject ID) are entered. No predictors are entered, thus the model is not “conditioned” upon any predictor variables.
+```{r}
+m0_wellbeing = lmer(spane_game_balance ~ 1 + ( 1 | player_type), data = pvz_df_nona)
+summary(m0_wellbeing)
+tab_model(m0_wellbeing)
+```
+
+# Output & interpretation
+```{r}
+p_value(m0_wellbeing,p.kr=TRUE)
+```
+Test suitability fo using a LML
+
+ The most relevant for evaluating an unconditional model is the computation of p-values based on conditional F-tests with Kenward-Roger approximation for the degrees of freedom. If it is < .05 (or whatever predetermined cutoff for significance is being used), the model can be interpreted as showing significant between-cluster variation and thus supporting the use of multilevel modeling. (ref LML for R book)
+
+
+ICC 
+
+
+
+# 2.2. random intercept effect model - Interpretation and explanation of the intra-class correlation.
+```{r}
+m1_wellbeing = lmer(spane_game_balance ~ Hours + gender + age + (1 | player_type), data = pvz_df_nona, REML =FALSE)
+```
+
+```{r}
+coef(m1_wellbeing)
+```
+
+# set custon colour scheme
+```{r}
+#Create a custom color scale
+library(RColorBrewer)
+myColors <- brewer.pal(5,"Set2")
+names(myColors) <- levels(pvz_df_nona$player_type)
+colScale <- scale_colour_manual(name = "Player profile",values = myColors)
+```
+
+```{r}
+myColors
+```
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, colour =player_type, shape = player_type) ) +
+     geom_point() +
+     colScale +
+     xlab("Gametime (Hours)") +
+     ylab("Wellbeing") +
+     theme(text=element_text(family="Times New Roman", size=12))+ 
+     scale_y_continuous(limits = c(-3, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 65)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[1,2], intercept = coef(m1_wellbeing)$player_type[1,1], color= myColors[1]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[2,2], intercept = coef(m1_wellbeing)$player_type[2,1], color= myColors[2]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[3,2], intercept = coef(m1_wellbeing)$player_type[3,1], color= myColors[3]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[4,2], intercept = coef(m1_wellbeing)$player_type[4,1], color= myColors[4]) +
+     geom_abline(slope=coef(m1_wellbeing)$player_type[5,2], intercept = coef(m1_wellbeing)$player_type[5,1], color= myColors[5]) +
+     geom_abline(slope=fixef(m1_wellbeing)[2], intercept = fixef(m1_wellbeing)[1], color= 'black',linetype =2) 
+```
+
+# Output & interpretation
+```{r}
+summary(m1_wellbeing)
+ranef(m1_wellbeing)
+coef(m1_wellbeing)
+tab_model(m1_wellbeing)
+```
+The (1|player_type) means that we are allowing the intercept, represented by 1, to vary by player profile. With the mixed model, we get the same results as the regression, but as we’ll see we’ll have more to talk about.
+
+
+The “fixed parts” section of this output can be interpreted in a similar manner to OLS regression. The information in the “random parts” section helps researchers partition the variance in the dependent variable. Partitioning the variance refers to identifying how much variance in the dependent variable is due to within-person (σ2) and between-person (τ00) variance.
+
+# compute intra-class correlation (ICC) as pseudo R-squared  
+
+Another way to interpret the variance output is to note percentage of the student variance out of the total, or 0.064 / 0.122 = 52%. This is also called the intraclass correlation, because it is also an estimate of the within cluster correlation, as we’ll see later.
+
+ For example, in Figure 5, the ICC is .436, which is calculated by dividing between-person variance and the sum of between- and within-person variance (i.e., ICC = τ00/( σ2 + τ00), or 0.436 = 2.695/(2.695+3.429)). The ICC in this example would be interpreted as meaning that 46.4% of the variance in suicidal ideation scores are due to person-to-person variation, whereas 53.6% (i.e., 1-0.464) of the variance is due to within-person observation-to-observation variation. As noted above, there are no strong guidelines for interpreting an ICC, however scores approaching 1.0 would indicate that nearly all variation is occurring at the highest level (in this case, person-level) and could mean that multilevel
+# anova
+```{r}
+
+```
+
+
+
+# 3. interaction effect model
+```{r}
+m2_wellbeing = lmer(spane_game_balance ~ Hours + gender + age+ ( Hours | player_type), data = pvz_df_nona)
+```
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Hours") +
+     ylab("Wellbeing") +
+     scale_y_continuous(limits = c(-5, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 120)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F)   +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')  
+```
+
+# visualize
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, colour =player_type, shape = player_type) ) +
+     geom_point() +
+     colScale +
+     xlab("Gametime (Hours)") +
+     ylab("Wellbeing") +
+     theme(text=element_text(family="Times New Roman", size=12))+ 
+     scale_y_continuous(limits = c(-3, 6.0), breaks = c(-2, 0, 2, 4, 6)) +
+     scale_x_continuous(limits = c(0, 65)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_abline(slope=coef(m2_wellbeing)$player_type[1,2], intercept = coef(m2_wellbeing)$player_type[1,1], color= myColors[1]) +
+     geom_abline(slope=coef(m2_wellbeing)$player_type[2,2], intercept = coef(m2_wellbeing)$player_type[2,1], color= myColors[2]) +
+     geom_abline(slope=coef(m2_wellbeing)$player_type[3,2], intercept = coef(m2_wellbeing)$player_type[3,1], color= myColors[3]) +
+     geom_abline(slope=coef(m2_wellbeing)$player_type[4,2], intercept = coef(m2_wellbeing)$player_type[4,1], color= myColors[4]) +
+     geom_abline(slope=coef(m2_wellbeing)$player_type[5,2], intercept = coef(m2_wellbeing)$player_type[5,1], color= myColors[5]) +
+     geom_abline(slope=fixef(m2_wellbeing)[2], intercept = fixef(m2_wellbeing)[1], color= 'black',linetype =2) +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')  
+```
+
+
+# summarize 
+```{r}
+summary(m2_wellbeing)
+tab_model(m2_wellbeing)
+fixef(m2_wellbeing)
+coef(m2_wellbeing)
+ranef(m2_wellbeing)
+```
+
+The (fixed) effect of game time (Hours) is significant. This is the average effect of Hours taken over the whole population of players. 
+We know that every cluster has its own random deviation of this effect. Hence, the relevant question is whether the cluster profiles just fluctuate around a constant Hours effect whether the Hours effect is substantially larger than this cluster specific hours variation.
+Technically speaking, the playstyle (cluster) specific game time (Hours) variation is nothing else than the interaction between playstyle (cluster) and  game time (Hours).
+
+There is no straightforward R2, instead ther is a marginal R2 and conditional R2. The difference is that the marginal R2 reflects the variance of the fixed effects only, whereas the conditional R2 reflects both the fixed and random effects. It is nice to report these, but for multilevel models it is also (more) common and good practice to evalute model fit by comparing different models (as discussed below).
+
+and with iCC??
+
+
+
+# anova
+```{r}
+#anova(m0_wellbeing,m1_wellbeing,m2_wellbeing)
+tab_model(wellbeing_model_0,m0_wellbeing,m1_wellbeing,m2_wellbeing)
+
+
+# lowest BICC AND AIC is M1
+# but they are 
+```
+The (fixed) effect of game time (Hours) is significant.
+
+
+
+The random intercept model is significasnt
+
+the random slop and intercept model is significnt and performs the best (highest ICC and highest R2)
+Still it does not explain a lot of the wellebing
+But it explains it mroe and significant;y then just looking at hours!
+
+
+
+4. assumptions
+4.1 colineairty - residual vs fitted values plot
+4.2 influential points  -influence plot
+4.3 homoscedasity
+4.4 normality  - qqplot
+4.5 independence - reason we did MLM
+# Tukey-Anscombe plot
+```{r}
+plot(m_ri_wellbeing)
+# The Tukey-Anscombe plot looks good
+```
+# QQ- plots
+```{r}
+par(mfrow = c(1, 3))
+qqnorm(ranef(m_ri_wellbeing)$player_type[, 1], main = "Random effects of Playstyle")
+qqnorm(resid(m_ri_wellbeing), main = "Residuals")
+```
+
+## random effects
+
+```{r}
+ranef(m2_wellbeing)
+
+coef(m2_wellbeing)
+coef(wellbeing_model_0)
+  
+```
+
+## Interpretation of final model
+```{r}
+plot_model(m2_wellbeing, type='re')
+
+# colour indicates if it is positive or negative
+
+```
+The fixed effects are the coefficients (intercept, slope) as we usually think about them. The random effects are the variances of the intercepts
+or slopes across groups.
+
+Because we may be interested in the variation of the coefficients across groups as a research
+question
+
+and we are. so whilst the relation between gametime and wellbeing is small and positive, this differs between players profiles. As can be seen from the random effects plot, there are slight differences per profile. For some this relationship between gametime and wellbeing is more positive such
+
+In fixed-effects models (e.g., regression, ANOVA, generalized linear models), there is only one source of random variability.
+We call the variability across individuals’ “residual” variance (in linear models, this is the estimate of σ2, also called the mean squared error). It’s the variability that was unexplained by the predictors in the model (the fixed effects).
+
+Mixed effects models are different in that there is more than one source of random variability in the data.
+
+In addition to individual players, there may also be random variability across the clusters of players.
+
+We account for these differences through the incorporation of random effects. Random intercepts allow the outcome to be higher or lower for each cluster; random slopes allow fixed effects to vary for each cluster.
+
+In other words, we can now incorporate (instead of ignore) playstyle-to-playstyle variability in player wellbeing, and improve our ability to describe how playtime (fixed effects) relate to wellbeing (outcomes).
+
+We can also talk directly about the variability of random effects, similar to how we talk about residual variance in linear models.
+
+There is no general measure of whether variability is large or small, but subject-matter experts can consider standard deviations of random effects relative to the outcomes.
+
+For example, if playstyle-averaged wellebeing only varies from the overall average with an SD of 0.02 , the clusters may be considered rather uniform; however, if cluster-averaged wellbeing varied from the overall average with an SD of 0.5, it would seem as if playstyle makes a large difference in player wellbeing.
+
+# Intraclass Correlation Coefficient (ICC)
+
+Observations from the same cluster are usually more similar to each other than observations from different clusters.  If they are, you can’t use statistical methods on these data to that assume independence, because estimates of variance, and therefore p-values, will be incorrect.
+
+Mixed models not only account for the correlations among observations in the same cluster, they give you an estimate of that correlation.
+
+The ratio of the between-cluster variance to the total variance is called the Intraclass Correlation.  It tells you the proportion of the total variance in Y that is accounted for by the clustering.
+
+WHy ICC?
+
+1. It can help you determine whether or not a linear mixed model is even necessary. If you find that the correlation is zero, that means the observations within clusters are no more similar than observations from different clusters.  Go ahead and use a simpler analysis technique.
+
+2. It can be theoretically meaningful to understand how much of the overall variation in the response is explained simply by clustering.  you can tell to what extent wellbeing varies among playstyles, but not among players or varies little on average among playstyles, but varies a lot across players.
+
+```{r}
+coefplot(m2_wellbeing)
+```
+
+```{r}
+#library(coefplot)
+
+multiplot(wellbeing_model_10, wellbeing_model_9, wellbeing_model_8, wellbeing_model_7,wellbeing_model_6,wellbeing_model_0,
+          coefficients = c("c_elite", "c_pve_adventurers","c_pvp_noobs","c_ex_pvp_elite", "c_casual_players", "Hours:c_elite", "Hours:c_pve_adventurers", "Hours:c_pvp_noobs", "Hours:c_ex_pvp_elite", "Hours:c_casual_players", "Hours"),
+          outerCI = 0,
+          title = NULL,
+          xlab = "Regression coefficient",
+          ylab = NULL,
+          decreasing = FALSE,
+          legend.position = "none",
+          newNames = c("c_elite" ="Elite",
+                       "c_pve_adventurers" ="PVE Adventurers",
+                       "c_pvp_noobs"="PVP noobs",
+                       "c_ex_pvp_elite"="Ex-PVP Elite",
+                       "c_casual_players"="Casual players",
+                       "Hours:c_elite"="Hours:Elite",
+                       "Hours:c_pve_adventurers"="Hours:PVE Adventurers",
+                       "Hours:c_pvp_noobs"="Hours:PVP noobs",
+                       "Hours:c_ex_pvp_elite"="Hours:Ex-PVP Elite",
+                       "Hours:c_casual_players"="Hours:Casual players")
+          
+)
+
+
+```
+
+
+
+### LLM form bookdown
+
+m_ri_wellbeing = lmer(spane_game_balance ~ Hours + ( Hours | cluster), data = pvz_df_nona)
+```{r}
+
+#Model A (Unconditional means model)
+model.a <- lmer(spane_game_balance ~ Hours + (1 | player_type), REML = T, data = pvz_df_nona)
+
+summary(model.a)
+```
+
+```{r}
+# 2.98 is the estimated mean wellbeing across all players
+# 3.60 is the estimated variance in within player deviations
+# 0.02 is the estimated variance in within cluster deviations
+
+2.98/(3.60+0.02) = 0.823
+```
+
+The relative levels of between- and within-cluster variabilities can be compared through the intraclass correlation coefficient:
+ 
+Thus, 82.3% of the total variability in wellbeing scores are attributable to differences among subjects. In this particular model, we can also say that the average correlation for any pair of responses from the same cluster is a high 0.823. As  ρ approaches 0, responses from an cluster are essentially independent and accounting for the multilevel structure of the data becomes less crucial. However, as  ρ approaches 1, observations from the same cluster essentially provide no additional information and accounting for the multilevel structure becomes very important. With ρ near 0, the effective sample size (the number of independent pieces of information we have for modeling) approaches the total number of observations, while with  ρ near 1, the effective sample size approaches the number of subjects in the study.
+
+```{r}
+#Random Slopes and Intercepts Model
+model.b <- lmer(spane_game_balance ~ Hours + (1+ Hours | player_type), REML = T, data = pvz_df_nona)
+
+summary(model.b)
+```
+
+# 2.76 is the estimated mean wellbeing 
+# 0.028 is the mean increase in wellbeing per hour gametime
+# 3.52 is the  variance in within cluster deviations
+# 0.03 is the  variance in between cluster deviations in wellebing per hour gametime
+# 0.0001536 the variance in between-cluster deviations in increases in wellbeing per hour gametime
+
+# 0.89 the correlation in subjects’ wellbeing per hour gametime and their differences in wellbeing per hour gametime 
+
+Pseude R squared (model comparrison) (3.60 -3.52) / 3.60  = 0.02222222222
+
+The estimated within-cluster variance decreased by 2.2% (from 3.6 to 3.5) from the unconditional means model, implying that only 2.2% of within-cluster variability in wellbeing scores can be explained by performance type. This calculation is considered a pseudo R-squared value:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+plot(pvz_df_nona$Hours, pvz_df_nona$spane_game_balance, col=cols[pvz_df_nona$cluster], pch=16)
+plot(pvz_df_nona$Hours, pvz_df_nona$enjoyment, col=cols[pvz_df_nona$cluster], pch=16)
+plot(pvz_df_nona$Hours, pvz_df_nona$competence, col=cols[pvz_df_nona$cluster], pch=16)
+plot(pvz_df_nona$Hours, pvz_df_nona$autonomy, col=cols[pvz_df_nona$cluster], pch=16)
+plot(pvz_df_nona$Hours, pvz_df_nona$relatedness, col=cols[pvz_df_nona$cluster], pch=16)
+```
+As you can see there might be differences in player type between the relations
+
+## null model
+```{r}
+nm_wellbeing = lmer(spane_game_balance ~ 1 +( 1 | cluster), data = pvz_df_nona)
+summary(nm_wellbeing)
+tab_model(nm_wellbeing)
+
+nm_enjoyment = lm(enjoyment ~ Hours, data = pvz_df_nona)
+summary(nm_enjoyment)
+
+nm_competence = lm(competence ~ Hours, data = pvz_df_nona)
+summary(nm_competence)
+
+nm_autonomy = lm(autonomy ~ Hours, data = pvz_df_nona)
+summary(nm_autonomy)  # only this one is not significant
+
+nm_relatedness = lm(relatedness ~ Hours, data = pvz_df_nona)
+summary(nm_relatedness)
+```
+
+```{r}
+
+m_ri_wellbeing_ex = lm(spane_game_balance ~ Hours + competence + autonomy + relatedness, data = pvz_df_nona)
+
+oii.summary(m_ri_wellbeing_ex)
+```
+
+
+# plot the null model
+```{r}
+# plot of null model wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = spane_game_balance, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Hours") +
+     ylab("Wellbeing") +
+     ylim(-3, 6.5) +
+     xlim(0, 75) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')
+```
+# random intercepts
+```{r}
+m_ri_wellbeing = lmer(spane_game_balance ~ Hours +( 1 | cluster), data = pvz_df_nona)
+
+m_ri_wellbeing_ex = lmer(spane_game_balance ~ Hours + competence + autonomy + relatedness + (1 | cluster), data = pvz_df_nona)
+
+m_ri_autonomy = lmer(autonomy ~ Hours +(1 | cluster), data = pvz_df_nona)
+```
+
+```{r}
+coef (m_ri_wellbeing)
+```
+
+# plot random intercepts models
+```{r}
+plot(pvz_df_nona$Hours, pvz_df_nona$spane_game_balance, col=cols[pvz_df_nona$cluster], pch=16)
+for (i in pvz_df_nona$cluster) {  ## for each cluster
+  abline(coef(m_ri_wellbeing)$cluster[i,1], coef(m_ri_wellbeing)$cluster[i,2], col=cols[i])
+}
+
+plot(pvz_df_nona$Hours, pvz_df_nona$autonomy, col=cols[pvz_df_nona$cluster], pch=16)
+for (i in pvz_df_nona$cluster) {  ## for each cluster
+  abline(coef(m_ri_wellbeing)$cluster[i,1], coef(m_ri_wellbeing)$cluster[i,2], col=cols[i])
+}
+```
+
+```{r}
+tab_model(m_ri_wellbeing)
+# There is still a positive effect of hours, and it is even mroe significant now that it takes into account the different groups of players
+```
+
+```{r}
+tab_model(m_ri_wellbeing_ex)
+```
+
+```{r}
+tab_model(m_ri_autonomy)
+# autonomy is still insignificant
+```
+
+
+## random intercept and slope model 
+```{r}
+m_rs_wellbeing = lmer(spane_game_balance ~ Hours + ( 1 + Hours | cluster), data = pvz_df_nona)
+
+m_rs_wellbeing_ex = lmer(spane_game_balance ~ Hours + age + gender + ( 1 + Hours | cluster), data = pvz_df_nona)
+
+```
+
+```{r}
+coef (m_rs_wellbeing)
+
+fixef (m_rs_wellbeing)
+
+ranef(m_rs_wellbeing)
+```
+
+```{r}
+oii.summary(m_rs_wellbeing)
+```
+
+
+
+
+
+
+```{r}
+plot_test1 <-plot(pvz_df_nona$Hours, pvz_df_nona$spane_game_balance, col=cols[pvz_df_nona$cluster], pch=16)
+  for (i in pvz_df_nona$cluster) {  ## for each cluster
+  abline(coef(m_ri_wellbeing)$cluster[i,1], coef(m_ri_wellbeing)$cluster[i,2], col=cols[i])
+  }
+
+```
+
+```{r}
+plot_test <- plot(pvz_df_nona$Hours, pvz_df_nona$spane_game_balance, col=cols[pvz_df_nona$cluster], pch=16)
+            for (i in pvz_df_nona$cluster) {  ## for each cluster
+            abline(coef(m_rs_wellbeing)$cluster[i,1], coef(m_rs_wellbeing)$cluster[i,2], col=cols[i])
+}
+```
+
+```{r}
+# visualise wellbeing
+ggplot(pvz_df_nona, aes(x = Hours, y = enjoyment, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Hours") +
+     ylab("Wellbeing") +
+     scale_y_continuous(limits = c(0, 6.0), breaks = c(0, 1, 2, 3, 4, 5, 6)) +
+     scale_x_continuous(limits = c(0, 75)) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F)   +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F, aes(group = 1),linetype =2, col = 'black')
+
+
+# prefered not to say and other had not enough data
+```
+```{r}
+# visualise enjoyment
+ggplot(pvz_df_nona, aes(x = Hours, y = enjoyment, color = player_type, shape = player_type) ) +
+     geom_point() +
+     xlab("Hours") +
+     ylab("Wellbeing") +
+     ylim(0, 7.5) +
+     xlim(0, 50) +
+     labs(shape="Player profile",col="Player profile") +
+     geom_smooth(method = 'lm', fullrange =TRUE, se = F)   +
+     geom_smooth(method = 'lm', se = F, aes(group = 1),linetype =2) +
+  facet_wrap('player_type')
+```
+```{r}
+wellbeing_plot2 <- interact_plot(wellbeing_model,
+                  pred= "Hours",
+                  modx = "player_type",
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "Player profile",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+wellbeing_plot2
+
+# this shows that onle PvE adventurers start at a higher wellbeing than all the others, the summary shows that it is significantly different from Casual players
+```
+
+# comparing models 
+```{r}
+m_base = lmer(spane_game_balance ~ (1 | cluster), data=pvz_df_nona)
+m1 = lmer(spane_game_balance ~ Hours + (1 | cluster), data=pvz_df_nona)
+m2 = lmer(spane_game_balance ~ Hours + (1 + Hours| cluster), data=pvz_df_nona)
+
+a1 = anova(m_base,m1,m2)
+a1
+```
+
+```{r}
+tab_model(m_base, m1, m2)
+```
+
+
+## anova
+
+```{r}
+one.way <- aov(spane_game_balance ~ Hours + player_type, data=pvz_df_nona)
+interaction <- aov(spane_game_balance ~ Hours * player_type, data=pvz_df_nona)
+
+summary(one.way)
+summary(interaction)
+```
+
+
+```{r}
+plot(one.way)
+```
+```{r}
+tukey.one.way<-TukeyHSD(one.way, which = 'player_type')
+
+tukey.one.way
+
+tukey.interaction<-TukeyHSD(interaction, which = 'player_type')
+
+tukey.interaction
+```
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
+## interaction effects with dummies
+```{r}
+library(jtools)
+```
+
+```{r}
+
+# create variable
+pvz_df_nona$player_type <- 0
+
+pvz_df_nona$player_type[pvz_df_nona$cluster=="1"] <- "Elite"
+pvz_df_nona$player_type[pvz_df_nona$cluster=="2"] <- "PVE Adventurers"
+pvz_df_nona$player_type[pvz_df_nona$cluster=="3"] <- "PVP Noobs" 
+pvz_df_nona$player_type[pvz_df_nona$cluster=="4"] <- "ex-PVP Elite" 
+pvz_df_nona$player_type[pvz_df_nona$cluster=="5"] <- "Casual players" 
+```
+
+```{r}
+oii.freq(pvz_df_nona$player_type)
+```
+
+```{r}
+testmodel <- lm(spane_game_balance ~ Hours * player_type, data=pvz_df_nona)
+interact_plot(testmodel, pred = "Hours", modx = "player_type", plot.points = TRUE)
+```
+
+
+```{r}
+#NO
+wellbeing_model <- lm(spane_game_balance ~ Hours * gender, data=pvz_df_nona)
+
+wellbeing_ss <- sim_slopes(wellbeing_model,
+                  pred= Hours,
+                  modx = gender,
+                  johnson_neyman=FALSE)
+
+wellbeing_ss
+
+
+wellbeing_plot <- interact_plot(wellbeing_model,
+                  pred= "Hours",
+                  modx = "gender",
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "Player profile",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+wellbeing_plot
+```
+
+```{r}
+tab_model(wellbeing_model)
+```
+
+```{r}
+#YES PVP Noobs, and Hours *Elite
+enjoyment_model <- lm(enjoyment ~ Hours * player_type, data=pvz_df_nona)
+
+enjoyment_ss <- sim_slopes(enjoyment_model,
+                  pred= Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+enjoyment_ss
+
+
+enjoyment_plot <- interact_plot(enjoyment_model,
+                  pred= "Hours",
+                  modx = "player_type",
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Enjoyment",
+                  legend.main = "Player profile",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+enjoyment_plot
+```
+
+```{r}
+tab_model(enjoyment_model)
+```
+
+
+```{r}
+# 3. YES Hours*Elite
+extrinsic_model <- with(pvz_df_nona, lm(extrinsic ~ Hours * player_type))
+
+extrinsic_ss <- sim_slopes(extrinsic_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+extrinsic_ss
+
+extrinsic_plot <- interact_plot(extrinsic_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Extrinsic motivation",
+                  legend.main = "Player type",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+extrinsic_plot
+```
+
+```{r}
+tab_model(extrinsic_model)
+```
+
+```{r}
+#YEs PVP Noobs
+competence_model <- lm(competence ~ Hours * player_type, data=pvz_df_nona)
+
+competence_ss <- sim_slopes(competence_model,
+                  pred= Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+competence_ss
+
+
+competence_plot <- interact_plot(competence_model,
+                  pred= "Hours",
+                  modx = "player_type",
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Competence",
+                  legend.main = "Player profile",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+competence_plot
+```
+
+```{r}
+tab_model(competence_model)
+```
+
+```{r}
+# 3. NO
+autonomy_model <- with(pvz_df_nona, lm(autonomy ~ Hours * player_type))
+
+autonomy_ss <- sim_slopes(autonomy_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+autonomy_ss
+
+autonomy_plot <- interact_plot(autonomy_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="Play time (Hours)",
+                  y.label ="Autonomy",
+                  legend.main = "Player type",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+autonomy_plot
+```
+```{r}
+tab_model(autonomy_model)
+```
+
+```{r}
+# 3. yes, ex-PVP
+relatedness_model <- with(pvz_df_nona, lm(relatedness ~ Hours * player_type))
+
+relatedness_ss <- sim_slopes(relatedness_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+relatedness_ss
+
+relatedness_plot <- interact_plot(relatedness_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Relatedness",
+                  legend.main = "Player type",
+                  vary.lty = FALSE, 
+                  plot.points = TRUE)
+
+relatedness_plot
+```
+
+```{r}
+tab_model(relatedness_model)
+```
+
+```{r}
+tab_model(wellbeing_model, enjoyment_model, extrinsic_model, competence_model, autonomy_model,relatedness_model)
+```
+
+# make visualisation
+```{r}
+library(gridExtra)
+library(ggpubr)
+
+```
+
+```{r}
+figure3 <- ggarrange(wellbeing_plot, enjoyment_plot, extrinsic_plot, competence_plot, autonomy_plot, relatedness_plot,
+                    ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
+figure3
+```
+
+
+
+
+```{r}
+library(lsmeans)
+```
+
+```{r}
+
+anova(wellbeing_model)
+ 
+# Obtain slopes
+wellbeing_model$coefficients
+m.lst <- lstrends(wellbeing_model, "player_type", var="Hours")
+
+
+# Compare slopes
+pairs(m.lst)
+
+```
+
+```{r}
+library(psych)
+library(data.table)
+```
+
+```{r}
+pvz_df_nona2 <- as.data.table(pvz_df_nona)
+# Calculate Pearson's R
+m.correlations <- pvz_df_nona2[, cor(spane_game_balance, Hours), by = player_type]
+m.correlations
+# Compare R values with Fisher's R to Z
+paired.r(m.correlations[player_type=="Elite", V1], m.correlations[player_type=="Casual players", V1], 
+         n = pvz_df_nona2[player_type %in% c("Elite", "Casual players"), .N])
+paired.r(m.correlations[player_type=="Elite", V1], m.correlations[player_type=="PVP Noobs", V1], 
+         n = pvz_df_nona2[player_type %in% c("Elite", "PVP Noobs"), .N])
+paired.r(m.correlations[player_type=="PVP Noobs", V1], m.correlations[player_type=="Casual players", V1], 
+         n = pvz_df_nona2[player_type %in% c("PVP Noobs", "Casual playersr"), .N])
+```
+
+
+```{r}
+wellbeing_model
+```
+
+```{r}
+tab_model(wellbeing_model)
+```
+
+
+## 2. run regressions with all relevant variables
+
+
+
+**next step**
+
+create limited dataframe with relevant variables 
+
+create latent variables for player skill and game performance 
+
+do descriptives and visualise those (also the ones done above like distiubuition of gametypes)
+
+look at the analysis done by mattie and copy it with the new variables
+
+##  moderated mulitple linear regression
+Three-step Differential prediction process (Cleary, 1968)
+1. Estimate the criterion-related validity (Simple linear regression)
+2. Intercept differences: additive multiple linear regression model
+3. Slope differences: Multiple linear regression model (multiplicative model), this is where moderated linear regression comes in.
+
+
+# See if there is a relationship between time spent and wellbeing in each game mode
+```{r}
+# pvp
+# Grand-mean center continous predictor or moderator varaibles
+pvz_df_nona$c_Hours <- pvz_df_nona$Hours - mean(pvz_df_nona$Hours, na.rm = TRUE)
+
+pvz_df_nona$c_total_kd <- pvz_df_nona$total_kd - mean(pvz_df_nona$total_kd, na.rm = TRUE)
+
+# there is spane_balance and spane_game_balance
+pvz_df_nona$c_spane_balance <- pvz_df_nona$spane_balance - mean(pvz_df_nona$spane_balance, na.rm = TRUE)
+
+pvz_df_nona$c_spane_game_balance <- pvz_df_nona$spane_game_balance - mean(pvz_df_nona$spane_game_balance, na.rm = TRUE)
+
+```
+
+```{r}
+# assume all regression assumptions where met
+# do regression diagnostics
+
+# wellbeing and hours and KDA -- GOOD
+model1 <- with(pvz_df_nona, lm(c_spane_game_balance ~ c_Hours + c_total_kd))
+summary(model1)
+```
+
+```{r}
+install.packages("interactions")
+library(interactions)
+```
+
+```{r}
+kd_model <- with(pvz_df_nona, lm(c_spane_game_balance ~ c_Hours * c_total_kd))
+
+kd_ss <- sim_slopes(kd_model,
+                  pred=c_Hours,
+                  modx = c_total_kd,
+                  johnson_neyman=FALSE)
+
+kd_ss
+
+kd_plot <- interact_plot(kd_model,
+                  pred=c_Hours,
+                  modx = c_total_kd,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "kd",
+                  vary.lty = FALSE)
+
+kd_plot
+```
+
+```{r}
+model2 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_average_damage))
+summary(model2)
+```
+```{r}
+model3 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_average_score))
+summary(model3)
+```
+```{r}
+model4 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_hit_accuracy))
+summary(model4)
+```
+```{r}
+model5 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_crit_ratio))
+summary(model5)
+```
+```{r}
+model6 <- with(pvz_df_nona, lm(spane_game_balance ~ Hours + total_crit_ratio))
+summary(model6)
+```
+
+
+# see if it is moderated with performance metrics
+```{r}
+
+```
+
+
+# if so, see if in-game performance predicts competence as a way to explain the the moderating factor.
+```{r}
+
+model7 <- with(pvz_df_nona, lm(competence ~ total_kd))
+summary(model7)
+```
+
+```{r}
+#pvz_df$Hours10 <- pvz_df$Hours / 10
+
+model3 <- with(pvz_df, lm(spane_game_balance ~ Hours ))
+summary(model3)
+```
+
+```{r}
+
+# subset df for players who played any pvp or pve
+pvp_pvz_df <- filter(pvz_df, pvp_Hours > 0)
+pve_pvz_df <- filter(pvz_df, pve_Hours > 0)
+
+# subset df for players who played pvp
+pvp_cluster_pvz_df <- filter(pvz_df, cluster == 2)
+pve_cluster_pvz_df <- filter(pvz_df, cluster == 1)
+
+# create variable
+pvz_df$player_type <- 0
+
+pvz_df$player_type[pvz_df$cluster=="1"] <- "PvP"
+pvz_df$player_type[pvz_df$cluster=="2"] <- "PvE" 
+```
+
+
+```{r}
+model4 <- with(pvz_df, lm(spane_game_balance ~ Hours + competence + autonomy + relatedness))
+summary(model4)
+```
+
+```{r}
+model5 <- with(pvp_cluster_pvz_df, lm(spane_balance ~ pvp_Hours + pvp_kd + pvp_hit_accuracy + pvp_crit_ratio + pvp_average_score + pvp_average_damage))
+summary(model5)
+```
+
+
+
+```{r}
+install.packages("interactions")
+library(interactions)
+```
+```{r}
+library(interactions)
+```
+
+
+have to make dummies for each and make FEM interaction effect
+you can maybe plot them in the same plot.
+and make a table of all the regression coefficients
+
+```{r}
+# 3. Slope differences WELLBEING  -- YES there is a stronger positive associaiton between time played and wellebing for pvp than pve players. At low hours of play pvp players have worse wellbeing than pve players, however at high hours pvp players have a better wellbeing then pve players
+
+wellbeing_model <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * player_type))
+
+wellbeing_ss <- sim_slopes(wellbeing_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+wellbeing_ss
+
+wellbeing_plot <- interact_plot(wellbeing_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Wellbeing",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+wellbeing_plot
+```
+
+
+```{r}
+# 3. Slope differences ENJOYMENT -YES  pvp players have a more positive realtionship with enjoyment
+enjoyment_model <- with(pvz_df_nona, lm(enjoyment ~ Hours * player_type))
+
+enjoyment_ss <- sim_slopes(enjoyment_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+enjoyment_ss
+
+enjoyment_plot <- interact_plot(enjoyment_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Enjoyment",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+enjoyment_plot
+```
+
+```{r}
+# 3. Slope differences EXTRINSIC  --- NO not significant
+extrinsic_model <- with(pvz_df_nona, lm(extrinsic ~ Hours * player_type))
+
+extrinsic_ss <- sim_slopes(extrinsic_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+extrinsic_ss
+
+extrinsic_plot <- interact_plot(extrinsic_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Extrinsic motivation",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+extrinsic_plot
+```
+
+
+```{r}
+# 3. Slope differences COMPETENCE  -NO not significant
+competence_model <- with(pvz_df_nona, lm(competence ~ Hours * player_type))
+
+competence_ss <- sim_slopes(competence_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+competence_ss
+
+competence_plot <- interact_plot(competence_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Competence",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+competence_plot
+```
+
+```{r}
+# 3. Slope differences AUTONOMY  --- NO not significant
+autonomy_model <- with(pvz_df_nona, lm(autonomy ~ Hours * player_type))
+
+autonomy_ss <- sim_slopes(autonomy_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+autonomy_ss
+
+autonomy_plot <- interact_plot(autonomy_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="Play time (Hours)",
+                  y.label ="Autonomy",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+autonomy_plot
+```
+
+```{r}
+# 3. Slope differences RELATEDNESS - yes (pvp players have a lot stronger relatedness)
+relatedness_model <- with(pvz_df_nona, lm(spane_game_balance ~ Hours * player_type + gender))
+
+relatedness_ss <- sim_slopes(relatedness_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE)
+
+relatedness_ss
+
+relatedness_plot <- interact_plot(relatedness_model,
+                  pred=Hours,
+                  modx = player_type,
+                  johnson_neyman=FALSE,
+                  x.label="",
+                  y.label ="Relatedness",
+                  legend.main = "Player type",
+                  vary.lty = FALSE)
+
+relatedness_plot
+```
+
+```{r}
+library(gridExtra)
+library(ggpubr)
+
+```
+
+```{r}
+figure3 <- ggarrange(wellbeing_plot, enjoyment_plot, extrinsic_plot, competence_plot, autonomy_plot, relatedness_plot,
+                    ncol = 3, nrow = 2, common.legend = TRUE, legend = "right")
+figure3
+```
+
+```{r}
+# maybe now filter on only pvp players
+
+# subset df for players who played pvp
+pvp_pvz_df_nona <- filter(pvz_df_nona, cluster_Hours == 1)
+pve_pvz_df_nona <- filter(pvz_df_nona, cluster_Hours == 2)
+
+```
+
+
+
+## Univariate figures split by player type 
+
+This figure shows the distribution of well-being and motivation scores for both studies
+
+```{r univariate-scales}
+tmp <- dat %>%
+  pivot_longer(c(spane_balance, autonomy:extrinsic))
+tmp <- tmp %>% 
+  mutate(
+    name = factor(
+      name, 
+      levels = c(
+        "spane_balance", "extrinsic", "enjoyment", 
+        "autonomy", "competence", "relatedness"
+      ),
+      labels = c(
+        "Player well-being", "Extrinsic motivation", "Intrinsic motivation", 
+        "Player autonomy", "Player competence", "Player relatedness"
+      )
+    )
+  )
+tmp2 <- tmp %>% 
+  group_by(Game, name) %>% 
+  summarise(value = mean(value, na.rm = TRUE))
+filter(tmp, Game == "PvZ") %>%  
+  ggplot(aes(value, col = Game, fill = Game)) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  scale_color_manual(
+    values = rev(colors), aesthetics = c("color", "fill"),
+    guide = guide_legend(reverse = TRUE)
+    ) +
+  geom_histogram(
+    aes(y = stat(ncount)),
+    col = "white", bins = 20
+    ) +
+  geom_histogram(
+    data = filter(tmp, Game == "AC:NH"),
+    aes(y = stat(ncount)*-1), col = "white", bins = 20
+    ) +
+  scale_y_continuous(
+    breaks = c(-1, -.5, 0, .5, 1), labels = c(1, .5, 0, .5, 1)
+  ) +
+  scale_x_continuous("Value", breaks = pretty_breaks()) +
+  geom_point(
+    data = tmp2, aes(y = -1.01),
+    shape = 25, size = 2.5
+    ) +
+  # Make sure 1 is shown on all figures by drawing a blank geom
+  geom_blank(data = tibble(Game = "PvZ", value = 1)) +
+  labs(y = "Normalized count") +
+  facet_wrap("name", scales = "free") +
+  theme(axis.title.x = element_blank(), legend.position = "right")
+```
+
+```{r}
+
+
+modelpvp <- with(pvp_pvz_df_nona, lm(spane_game_balance ~ pvp_Hours + pvp_kd))
+summary(modelpvp)
+
+```
+```{r}
+
+

@@ -12,4 +12,12 @@
 __pycache__/
 .Rhistory
 .RData
-.ipynb_checkpoints 
+.ipynb_checkpoints
+/.luarc.json
+
+# Cursor rules
+.cursorrules
+.cursor-rules
+.cursor/rules
+.mcd
+.mcd-rules

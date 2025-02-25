@@ -1,56 +1,184 @@
 ---
-title: "My Title"
-shorttitle: "Short Title in Running Header"
+title: "The relationship between in-game player behaviour, performance, and well-being."
+shorttitle: "In-game player behaviour, performance, and well-being"
 author:
-  - name: Jane Doe
+  - name: Thomas Hakman
     corresponding: true
-    orcid: 0000-0000-0000-0001
-    email: janedoe@generic.edu
+    orcid: 0009-0009-8292-2482
+    email: thomas.hakman@oii.ox.ac.uk
+        # Roles are optional. 
+    # Select from the CRediT: Contributor Roles Taxonomy https://credit.niso.org/
+    # conceptualization, data curation, formal Analysis, funding acquisition, investigation, 
+    # methodology, project administration, resources, software, supervision, validation, 
+    # visualization, writing, editing
+    roles:
+      - conceptualization
+      - writing
     affiliations:
-      - name: Generic University
-        department: Department of Scholarly Studies
-        address: 1234 Capital St.
-        city: New York
-        region: NY
-        country: USA
-        postal-code: 12084-1234
+      - name: University of Oxford
+        department: Oxford Internet Institute
+        address: 1 St Giles'
+        city: Oxford
+        region: Oxfordshire
+        country: UK
+        postal-code: OX1 3JS
 author-note:
   status-changes: 
     affiliation-change: ~
     deceased: ~
-  disclosures:
+disclosures:
+    # Example: This study was registered at X (Identifier Y).
     study-registration: ~
+    # Acknowledge and cite data/materials to be shared.
     data-sharing: ~
+    # Example: This article is based on data published in [Reference].
+    # Example: This article is based on the dissertation completed by [citation].  
     related-report: ~
-    conflict-of-interest: ~
+    # Example: [Author name] has been a paid consultant for Corporation X, which funded this study.
+    conflict-of-interest: The authors have no conflicts of interest to disclose.
+    # Example: This study was supported by Grant [Grant Number] from [Funding Source].
     financial-support: ~
+    # Example: The authors are grateful to [Person] for [Reason].
     gratitude: ~
+    # Example. Because the authors are equal contributors, order of authorship was determined by a fair coin toss.
     authorship-agreements: ~
-abstract: "This document is a template."
-keywords: [keyword1, keyword2, keyword3]
+abstract: "Studies analysing the effect of video game playtime on well-being have reported widely varying findings, reporting negative, positive, and no associations altogether. These inconsistencies may, in part, reflect a lack of consideration for how people play video games (i.e., playing style). In this study, we clustered and analysed in-game behaviour and performance across 28,560 matches played by 471 players in the online first-person shooter game Plants vs. Zombies: Battle for Neighborville (PvZ). Based on 13 variables derived from in-game behaviour we identified five groups of players with distinct playing styles. We found that playing styles can moderate the relationship between playtime and well-being. These results challenge the implicit assumption present in research and policy that players of the same game exhibit a homogenous playing style. Instead, different players exhibit different playing styles. Our findings suggest that the effects of playing a video game on well-being depend on how people play."
+keywords: [video games, playing style, well-being, performance]
 bibliography: bibliography.bib
+lang: en
+language:
+  citation-last-author-separator: "and"
+  citation-masked-author: "Masked Citation"
+  citation-masked-date: "n.d."
+  citation-masked-title: "Masked Title"
+  email: "Email"
+  title-block-author-note: "Author Note"
+  title-block-correspondence-note: "Correspondence concerning this article should be addressed to"
+  title-block-role-introduction: "Author roles were classified using the Contributor Role Taxonomy (CRediT; https://credit.niso.org/) as follows:"
+  title-impact-statement: "Impact Statement"
 format:
   apaquarto-docx: default
   apaquarto-html: default
+  apaquarto-typst: 
+    keep-typ: true
+    list-of-figures: true
+    list-of-tables: true
+    toc: true
   apaquarto-pdf:
+    # Can be jou (journal), man (manuscript), stu (student), or doc (document)
     documentmode: man
+    keep-tex: true
 ---
+The literature on whether video games harm or improve well-being remains divided. Several studies report negative associations between playtime and measures of mental health or well-being (Ferguson & Colwell, 2019; Liu et al., 2019; Mathur & VanderWeele, 2019). Other studies find negative associations only among highly engaged players (Colder Carras et al., 2017; Przybylski & Weinstein, 2017). Yet others, find null or negligible associations (Johannes et al., 2020; Vuorre et al., 2021). The positive aspects are similarly mixed. Some studies find positive associations between playtime and well-being (Halbrook et al., 2019; Johannes et al., 2020; Villani et al., 2018), whereas others report them just for moderate usage (Przybylski & Weinstein, 2017) or specific game genres such as MMOs (Raith et al., 2021). Overall, existing evidence suggests that the relations between video games and well-being are complex, small, and potentially bidirectional. However, the inconsistency of these findings has prevented any firm conclusions from being drawn. This lack of consensus has led scholars to question the value of time spent playing games as a factor meriting study in its own right (Orben et al., 2020) 
+
+Most research on the well-being effects of video games applies what could be called a playtime paradigm, measuring how long a player engages with the video game, whilst overlooking, and not measuring, the actual play behaviour that is enacted by participants. Whilst the concept of playtime is helpful to ascertain more clearly how extreme cases of over- and under-usage may impact differentially on well-being, it gives researchers no insight into the myriad actions, behaviours, and feelings that players perform and experience. Hence, it has become increasingly clear that playtime as a unidimensional or homogenous construct has less validity than once thought (Kaye et al., 2020) and might not be informative on its own when it comes to understanding genuine player behaviour and well-being outcomes (Granic et al., 2020). This playtime paradigm is problematic, as it oversimplifies a complex phenomenon by failing to recognize that video games are multimodal virtual worlds that offer a wide variety of different experiences to each player (Kaye et al., 2020; Orben, 2019). Subsuming all these activities and experiences under one simple count of frequency and duration fails to acknowledge that they serve different functions and possibly show different effects (Dienlin & Johannes, 2020). Since this limitation calls the previous studies’ marginal findings into question, there is a strong need to start considering player-specific differences in in-game play behaviour and performance such as behavioural profiles or play styles. 
+
+Playing styles can be best thought of as collections of in-game events and features that may be interpreted to provide concise descriptions of the general way in which players behave in a game to achieve the game’s objectives (Ravari et al., 2022). Playing styles have also been referred to as behavioural profiles (Drachen et al., 2012, 2014), and have been studied in a variety of contexts. Several studies have investigated the relationship between playing style and personality (Bean & Groth-Marnat, 2016; van Lankveld et al., 2011), playing style and motivation (Melhart et al., 2019; Yee, 2016), and playing style and national culture (Ravari et al., 2022). However, the effects of playing style on well-being have been studied very little. Especially, the extent to which differences in players’ playing styles influence the association between playtime and subjective well-being remains unknown. To provide insight into these player-specific effects, this study will link playing styles based on naturalistic in-game play behaviour, with objective measures of playtime, and self-reported measures of well-being to: (1) demonstrate how playing styles can be modelled from in-game behavioural data (i.e., telemetry data), (2) show how playing styles relate to well-being, and (3) determine the extent to which playing styles moderate the relationship between playtime and subjective well-being.
+
+## Clustering playing styles from behavioural telemetry data
+
+Assessing in-game play behaviour objectively can be achieved with the analysis of behavioural telemetry data (also known as digital trace data), which is the second-by-second logged behaviour of players in a game (El-Nasr et al., 2021). Yet, the general inaccessibility of this data has proven to be a major hurdle that has stalled most research efforts. Hence, a committee report on immersive and addictive technologies presented to the UK parliament by the Secretary of State for Digital, Culture, Media and Sport recommended that the government “require games companies to share aggregated player data with researchers” (Department for Digital, Culture, Media and Sport, 2020, p. 2). Nevertheless, recent collaborations between academics and industry partners are starting to overcome this limitation by increasingly making behavioural telemetry data available for independent scientific analysis (Johannes et al., 2020; Vuorre et al., 2021). The availability of high-dimensional telemetry data in combination with unsupervised clustering techniques allows us to identify playing styles based on in-game player behaviour and performance.
+
+Establishing playing styles from telemetry data can be achieved through telemetry-driven profiling. Telemetry-driven profiling focuses on condensing varied, high-dimensional, and high-volume data into descriptions that highlight underlying patterns in the behaviour of the player base (Drachen et al., 2014; Santhosh & Vaden, 2013). These playing styles provide researchers with a “quantifiable way to understand who the players are and how they play the game or games being investigated” (Sifa et al., 2018, p. 337). Whilst there is no single ‘correct’ clustering algorithm (Bauckhage et al., 2015), the process of clustering playing styles rests on well-established guidelines in game analytics (El-Nasr et al., 2021; Su et al., 2020). A comprehensive comparison of the different clustering algorithms and their applicability to player clustering via behavioural telemetry found that K-means clustering is particularly useful for gaining insights into the general distribution of behaviours in a game ́s population, whereas other algorithms such as Archetype Analysis or Simplex Volume Maximization are better suited for the identification of players with extreme behaviours (e.g., bots or cheaters) (Drachen et al., 2014). More recently, a study analysing over 118 billion hours of mobile playtime using four different clustering algorithms, found that only the K-means model was able to find a cluster solution without classifying some of the data points as noise (Zendle et al., 2023). 
+
+## The Present Research
+
+In this study we address the inconsistency of published research linking video game play time to psychological outcomes introducing playing styles as an explanatory factor which might reconcile earlier observations of positive, negative, and null associations linking time spent playing games to player well-being. To this end, we introduce a data-driven player modelling approach to explore the unknown association and potential moderation between how much players play, how players play—as manifested through their behavioural gameplay data— and their subjective well-being. In line with this we investigate three research questions: First, can distinct playing styles be identified from behavioural telemetry data? Second, do groups of players with distinct playing styles report different levels of subjective well-being? And finally, do playing styles moderate the relationship between playtime and subjective well-being? 
 
 # Method
 
-## Participants
+## Data
+This study presents a secondary data analysis of Plants versus Zombies: Battle for Neighbourville (PvZ), originally reported in Johannes et al. (2020). As detailed in their paper, they collaborated with Electronic Arts to collect objective game telemetry data and player survey responses. Here we will discuss the subset of the data used for this study. For details on the entire data which includes Animal Crossing: New Horizons, see Johannes and colleagues (2020). The raw data, materials, codebook and further details on this dataset shared Johannes et al. (2020) can be found at https://osf.io/cjd6z/. Building on this raw data and documentation, all of the underlying wrangling and analysis code reported in this study will be available at osf post-publication.
+
+## Participants and Procedure
+As detailed in Johannes et al. (2020), participant recruitment happened in two waves, first in early August 2020 and second in late September 2020. The response rate was ~ 0.21%. In total 518 PvZ players participated in the well-being survey (404 male, 94 female, 2 other, and 17 undisclosed) with an average age of 35 (SD = 12). However, since we are interested in modelling playing styles from in-game telemetry only the 377 participants with telemetry data were included in this study. Their average age was still 35 (SD = 12). 292 were male (77.19%), 73 female (19.36%), 1 other (0.27%), and 12 preferred not to say (3.18%).
 
 ## Measures
 
-## Procedure
+### Playtime
+Calculating playtime in video games is complex. Simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time is when the player’s account is online but not actively engaging with the objectives or mechanics of the game. Idle time can happen when a player’s computer is logged onto their account, but they are away from the keyboard (AFK). Other forms of idle time are spending time in home screens, customization menus, lobbies, and social spaces. 
+In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can be present in. Every player is always in a session and could only be in one session at a time, however, multiple players could be in the same session. For example, when a player launches PvZ, they enter the hub world (where they can select what type of level or mode to play), entering the hub world starts the session timer, which ends as they choose a level or leave to join a match, which then starts a new session timer for that level. In total, 36,621 game sessions were provided, of which 25,937 happened in the two weeks prior to a player taking the survey. These sessions took place across 19 different maps that each facilitated different forms of gameplay, these maps could be grouped into 13,594 (51.27%) Player-versus-Player (PVP), 4,854 (18.31%) Player-versus-Environment (PVE), and 7,489 (28.24%) Social Hub maps. In PVP maps players battle against each other in various competitive modes such as objective-based matches, team deathmatches, and 2v2 arena matches. In PVE maps players explore open worlds that are designed for adventure with story-driven quests, side missions, and hidden collectables. The Social Hub served as an idle space for navigation and customization between matches and was excluded. This left 17,505 total sessions, 12,445 PVP sessions (71.09%) and 4,509 PVE sessions (25.76%). Players had clear preferences for which game mode they chose to play (See figure 1 for an Illustration), which already indicated clear differences in playing styles.
+
+[figure 1]
+### Behavioural telemetry (digital traces)
+The telemetry featured many fine-grained records of game events per player per session. Metrics were selected and calculated only if they had been previously validated as an informative measure of player behaviour or performance in previous studies (Drachen et al., 2012; Lugrin et al., 2013; Melhart et al., 2019). To effectively measure in-game performance all metrics were calculated to be independent of playtime, hence common game metrics such as ‘player level’ or ‘total kills’ are purposefully excluded (e.g., a player’s level might simply be higher because they played more and not because they are better). Furthermore, every game metric is calculated twice, once for PVP and once for PVE, because performance indicators should not be computed or compared across these different game modes (e.g., it might be easier to score a point or make a kill on a computer-controlled enemy in PVE, than it is versus matchmade players of equal rank in PVP). The final metrics excluding playtimes and map types were: PVP ratio, PVP Kill/Death Ratio, PVP Hit Accuracy, PVP Damage per second, PVP Average damage per game, PVP Average score per game, PVE playtime, PVE Ratio, PVE Kill/Death Ratio, PVE Hit Accuracy, PVE Damage per second, PVE Average damage per game, PVE Average score per game. See table I for descriptive statistics. 
+
+[table 1: descriptive statistics]
+
+### Well-being
+
+Well-being was assessed through the Scale of Positive and Negative Experiences (Diener et al., 2010), which measures the players’ affective dimension of well-being (Diener et al., 2018). The respondents were asked to think about how they had been feeling in the past two weeks in relation to playing PvZ and reported how often they experienced each of six negative and six positive feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always).  An overall measure of well-being was calculated by subtracting the mean negative from the mean positive score. This measure was checked for straight lining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in internet surveys (Leiner, 2019), however, no unusual cases were identified.
+
+## Analytical Approach (Not sure if this is needed)
+First, we cluster players into groups with distinct playing styles based on their in-game behaviour (RQ1). Specifically, we applied K-means clustering, which is an unsupervised machine-learning technique that detects grouping based on similarity, meaning clusters with high inter-cluster similarity and high intra-cluster dissimilarity. K-means clustering has previously been validated to identify behavioural groups from video game telemetry (Bauckhage et al., 2015; Drachen et al., 2012, 2014; Sifa et al., 2018; Zendle, Flick, et al., 2023). Second, to examine how different playing styles relate to well-being, we compute a multiple linear regression with playing styles being interpreted as dummy coded variables in reference to an omitted category. Third, we investigate the moderating role of playing styles on the relationship between playtime and well-being. Moderation effects were tested by including two-way interaction terms between playtime and playing style when predicting well-being in the multiple linear regression model and by conducting a simple slope analysis of how playtime predicts well-being at the different values of playing styles. All models were controlled for age and gender and regression diagnostics were performed to show that no linear regression assumptions were violated.
+
+The analysis was done in R (R Core Team, 2012) with the ‘factoextra’, ‘clustertend’, ‘NbClust’, and ‘fpc’ packages(Hennig, 2020; Kassambara & Mundt, 2020; Niknafs, 2015; Wright et al., 2021). Results were considered statistically significant if p<0.05.
+
 
 # Results
 
+## Identifying playing styles
+To test our first research question, concerning whether playing styles can be identified from telemetry data, we used K-means clustering to group the player base according to behavioural similarities in playing style following methodological guidelines suggested by Bauckhage et al., (2015). The outcome of this clustering process can be seen in Figure 3, with descriptions of the cluster centroids in Table 2. The clustering tendency of the data was evaluated through the visual assessment of cluster tendency (VAT) approach developed by Bezdek & Hathaway (2002) and the Hopkins statistic (Banerjee & Dave, 2004; Lawson & Jurs, 1990). The VAT approach computes a pairwise ordered dissimilarity matrix between observations using Euclidean distance for both the data of interest and a simulated data set based on the parameters of the original data (Bezdek & Hathaway, 2002). The matrix is then reordered so that similar subjects are close to one another, providing an intuitive visual tendency assessment tool.  As can be seen in Figure 2a below, the dissimilarity matrix of the simulated data shows a random collection of data points with no natural groups. The dissimilarity matrix of the telemetry dataset (Figure 2b) clearly signals the presence of well-separated clusters. 
+
+[figure 2: dissimilarity matrices]
+
+[table 2: cluster centroids]
+
+The result of the Hopkins test (H = 0.879) is well above both the 0.5 and the 0.75 thresholds, indicating that the data is highly clustered (Banerjee & Dave, 2004; Lawson & Jurs, 1990). The optimal number of clusters was five, which was determined by the elbow method (Yuan & Yang, 2019) and the Gap statistic (Tibshirani et al., 2001). For the computation see the supplementary materials. The final cluster model was computed with the Hartigan-Wong algorithm with 25 different random configurations of starting centroids (Hartigan & Wong, 1979). This algorithm is widely used in telemetry-driven profiling (Bauckhage et al., 2015; Kassambara & Mundt, 2020). Finally, we projected the resulting clusters in two-dimensional space using a Principal Component Analysis (PCA) to reduce the dimensionality from 13 to 2 variables (Figure 3). 
+
+[figure 3: cluster model]
+The evaluation of the validity of the clustering result, which means evaluating the goodness of the clustering results to avoid finding patterns in random data, was assessed with the silhouette coefficient (Si; Kaufman & Rousseeuw, 1990) and the Dunn index (Dunn, 1974). At 0.21 the mean Si > 0, so the classification is strong (Kaufman & Rousseeuw, 1990). At 0.067 The Dunn Index was also > 0, which indicated the existence of separated and compact clusters validating the results of our final model.
+The clustering analysis of the 13-feature dataset resulted in 5 clusters. To provide an interpretation of their associated playing style the factor loadings (see appendix) of each feature on each cluster were analysed. This interpretation was given following a method suggested by Drachen et al. (2012, 2014), which has also been used in more recent work on telemetry-based player profiling in video games (Bauckhage et al., 2015; Melhart et al., 2019; Sifa et al., 2018). The playing styles are summarized in Table 2 below. 
+
+[table 2: cluster centroids]
+
+These identified playing styles are operationalised using categorical dummy variables in a multiple linear regression to model the effects of playing style on the relationship between playtime and subjective well-being. 
+
+## Effects between playtime, playing style, and well-being 
+
+This analysis served as a confirmatory study, validating the slight positive relationship that was previously found by Johannes et al. (2020). Whilst controlling for gender, we found a significant positive relationship between playtime and well-being, β = 0.014, R2 = .038, F(1, 371) = 0.01, p = .044, N = 377. Thus, each additional hour of playtime was associated with a 0.014 standard deviation increase in well-being (See figure 4 below). What constitutes the smallest effect size of interest —the smallest change in an outcome measure such that individuals are willing to rate themselves as feeling different— is an ongoing debate in media research and psychology (Anvari & Lakens, 2021; Ferguson, 2009; Norman et al., 2003). However, a recent study demonstrated that individuals experience relative changes in well-being, measured by the Positive and Negative Affect Scale (PANAS), at 0.3 standard deviation (Anvari & Lakens, 2021). Since the PANAS is very similar to the Scale of Positive and Negative Experience (SPANE) used in the present study, this threshold will be used. Therefore, a 0.3 standard deviation change in well-being would require a cumulative 22 hours of playtime over the two weeks (approximately 1 hour and 34 minutes per day).
+
+[figure 4: relationship between playtime and well-being]
+
+## Playing Styles and Well-being
+To test our second research question, concerning the direct links between playing styles and self-reported well-being we used a multiple linear regression model whereby well-being (standardized) was predicted by the five playing styles dummy coded as Elite, Veteran, PVE Adventurer, and PVP Noob holding variability in playtime and player gender constant. The omitted reference category was Casual player because they had the largest sample size (Agresti, 2007) and served as a theoretically distinct reference since they represented the ‘average player’. Results from this model are shown in Figure 5 (r2 = 0.056, n = 377). Controlling for playtime, having the playstyle of an Elite player (β = -0.20) negatively predicts well-being compared to having the playstyle of a Casual Player, whereas having the playstyle of a Veteran (β = 0.35), PVE Adventurer (β = 0.55), or PVP Noob (β = 0.08) positively predicts well-being compared to that of a Casual Player. However, of these predictions only being a PVE Adventurer was significantly different from being a Casual player at p = 0.017. Meaning that having the playstyle of a PVE Adventurer is associated with a 0.55 standard deviation increase in well-being compared to being a Casual Player, all other variables held constant. Sentence about practically significant effects.
+
+[figure 5: relationship between playing style and well-being]
+
+## Playing style moderating the relationship between playtime and well-being
+
+Finally, we investigated the moderating roles of playing styles in the relationship between playtime and well-being to address our third research question. Specifically, we wanted to test the idea of whether playing styles moderate the potential association between playtime and well-being. To test this, two-way interactions between playtime and each of the playing style dummy variables were included in the multivariate regression. The results of the interaction effects are illustrated in Figure 6 (r2 = 0.044, n = 377). The coefficient of the interaction term represents the difference in the slope for a playing style compared to the omitted reference category. Conditional on gender, being an Elite (β = 0.04), Veteran (β = 0.03), or PVE Adventurer (β = 0.01), positively moderates the relationship between playtime and well-being, compared to being a Casual player. Whereas this moderation is negative for being a PVP Noob (β = -0.03). This means that Elites, Veterans and PVE Adventures have a stronger positive relationship between playtime and well-being than Casual players, and PVP Noobs have a more negative relationship between playtime and well-being than Casual players. However, this interaction effect was only significant for Elites (p = 0.045) for whom each additional hour of playing the game, was associated with a 0.04 standard deviation increase in well-being compared to Casual players, all other variables held constant. For example, if Elites and Casual players both played 10 hours over the two weeks and their intercepts were the same, Elites would have a 0.40 standard deviation higher well-being than Casual players. Whilst this gives evidence that the relationship between playtime and the well-being of Elites is significantly different from Casual players, it does not give evidence that this relationship is individually significantly different from 0. 
+
+[figure 6: playing style moderating the relationship between playtime and well-being]
+
+To test whether the established interactions are individually significantly different from 0, a simple slopes analysis was conducted on the final multiple linear regression model. A simple slope is defined as the relation between the outcome variable well-being and the predictor playtime at the specific levels of the moderator playing style, holding all other variables constant. The results of the simple slope analysis are illustrated in Figure 7 below:
+
+[figure 7: simple slopes analysis]
+
+The simple slopes analysis was significant only for Elites (β = 0.047, 95% CI [0.009,   0.085], p = .02, N = 104), and showed that for players with Elite playing styles, each hour increase in playtime is associated with a 0.05 standard deviation increase in well-being. Therefore, a felt effect (0.3 standard deviation change) in well-being would require a cumulative 6 hours of playtime over the two weeks (approximately 26 minutes per day). This finding confirms that the found interaction effect is indeed a statistically significant moderation. Other simple slopes were not significant. However, the simple slope of PVP Noobs was marginal at (β = -0.01, 95% CI [-0.085, 0.058], p = .06, n = 73), which is likely a Type II error that requires a larger sample size. 
+
 # Discussion
+
+The aims of this study were two-fold. First, to challenge the assumption of homogeneity amongst players by demonstrating the existence of distinct playing styles based on behavioural telemetry. Second, to highlight the importance of accounting for player-specific playing style differences in analysing the psychosocial outcomes of video game play. Taken as a whole, these results demonstrate that even players of the same game do not have a homogenous playing style and that subgroups with distinct playing styles can be clearly identified by clustering in-game behavioural telemetry data. We also found a slight positive relationship between overall active playtime and well-being, confirming the findings of previous studies (Johannes et al., 2020). Furthermore, we found that playing styles are related to well-being and that playing like a PVE Adventurer is associated with a 0.55 standard deviation increase in well-being compared to being a Casual Player. Most importantly, a significant positive moderation effect for players with an Elite playing style was found, demonstrating that the relationship between playtime and well-being might vary according to a player’s playing style.
+
+Through K-means clustering of behavioural telemetry data, five distinct playing styles were identified. The identified clusters were conceptually similar to player segments previously identified in two different FPS games, namely Tom Clancy’s The Division (Melhart et al., 2019) and Battlefield 2: Bad Company 2 (Drachen et al., 2012). Drachen et al. (2012) identified 7 clusters, their soldiers were very similar to our Casual Players, both being the biggest groups and having middling values across the board. Furthermore, Drachen’s Assassins, Veterans, and Target Dummies were like the Elites, Veterans, and PVP Noobs. Drachen et al. (2012) did not evaluate PVE gameplay, so PVE Adventurers had no likeness in Battlefield 2: Bad Company 2. However, in Tom Clancy’s The Division PVP was analysed next to PVE and two similar profiles were identified, namely, Adventurers who were focused on solo main and side missions, and PVE All-rounders who preferred to engage in cooperative activities over competitive PVP (Melhart et al., 2019). The PVE Adventurers identified in this study could be considered a combination of both. Furthermore, Melhart et al. (2019) also identified what they named Dark zone players, who had the top scores in PVP and were very comparable to our Elite and Veteran players. We believe it to be noteworthy that the identified playing styles are comparable across different games of the same genre, however, this is a topic for future research. Still, these findings challenge the often-made assumption of homogeneous play behaviour and instead show that it is an uninformative oversimplification. This finding suggests that there is no one prototypical player and that generalizing over a player base of even a single game has very little ecological validity. To better understand the effects of video game play we need to take into account the play behaviour of the players and as we have shown, playing styles are a highly informative way to gain insight into how people play.
+
+Our results showed a statistically significant positive relationship between overall active playtime and well-being, where 1 hour of active playtime was associated with a 0.014 standard deviation increase in well-being. Meaning that a felt effect of 0.3 standard deviation change in well-being would require a cumulative 22 hours of active playtime over the two weeks, approximately 1 hour and 34 minutes per day. This result is similar, albeit slightly stronger, than previous research (Johannes et al., 2020; Orben & Przybylski, 2019). In the same game, Johannes et al. found that 1 hour of playtime was associated with a 0.010 standard deviation increase in well-being, meaning that a cumulative 30 hours of playtime over the two weeks, approximately 2 hours and 8 minutes per day was needed to experience a felt effect (2020). The difference between these findings can be attributed to how playtime is calculated. Johannes et al. (2020) did not distinguish between idle time and active time and thus included the 7489 social hub sessions in their measure of overall playtime. This meant that their average time spent playing was longer, ultimately skewing the results in favour of longer playing durations. 
+
+Furthermore, results from our multiple linear regression with dummy coded playing style variable showed significant correlations between playing styles and well-being. Specifically, being a PVE Adventurer was associated with a 0.55 standard deviation increase in well-being compared to being a Casual Player. This means that players of the same game do not only exhibit distinct playing styles, but these playing styles also relate to their subjective well-being. This finding adds nuance to the playtime paradigm of video game effects research. It demonstrates that the psycho-social outcomes of playing video games cannot blindly be attributed to playtime alone without taking playing styles into account, a found effect might in some cases not be due to playtime, but simply because a player plays the game differently.
+
+More importantly, playing styles were also found to have a moderating effect on the relationship between playtime and subjective well-being. The relationship between playtime and well-being appears to be significantly stronger for players that exhibit an Elite playing style both compared to Casual Players and to the average of all players. Whereas it would take the average player 22 hours over two weeks (averaging 1 hour and 34 minutes per day) to experience a felt positive effect, it would take Elite players only 6 hours over two weeks (averaging only 26 minutes per day) to experience the same effect. Elites showcase the most individual skill and are the best performers in PVP, so it is no surprise that they derive the strongest positive experience from playing the game. It makes intuitive sense that for people who are very skilled at their hobby, engaging with said hobby has a bigger effect on well-being than it has for the more casual practitioners. Previous work has shown that player performance in video games exerts a positive effect on psychological competence (Klimmt et al., 2009; Przybylski et al., 2010; Tamborini et al., 2011), and psychological competence is a strong predictor of increased subjective well-being (Ryan & Deci, 2001). So, it might be that for Elite players, video games have become a primary means of experiencing competence, thus increasing their subjective well-being. Future research should test this hypothesis by gathering data on both in-game and out-game need satisfaction and combining it with in-game telemetry data to distinguish playing styles.
+
+While the study provided many valuable insights, we must also be mindful of the timeliness and boundary conditions of these findings when interpreting the results. To accurately characterize them we will aim to acknowledge the many constraints on generality this study has. Most notably, the results of this study can only be interpreted in the context of this specific game, these players, and this time. We lack evidence that playing styles will hold constant across other games or that playing styles are anything more than temporary categories. Unlike personality, players might express different playing styles in different games or at different times in their life. Furthermore, the behavioural telemetry analysed in this study only provides a snippet of the many potential actions and behaviours players can express within a video game. While we believe the used telemetry data provided a comprehensive overview of the core gameplay mechanics and performance metrics of PvZ, there is still a richness of potential behaviours that are not included in this study, most notably social behaviours such as talking and gesturing to other players. Still, we have no reason to believe that the results depend on other characteristics of the participants, materials, or context.
+
 
 ## Limitations and Future Directions
 
+There are several limitations of the current research to acknowledge that point to new directions for future research. First, the present study used a convenience sample that resulted in a low response rate. Whilst, assessing well-being through a survey is the methodological gold standard, it relies upon the willingness of individuals to participate. This raises questions of sampling bias and self-selection, particularly because it was previously found that more proficient players or players more involved in a game may be more likely to participate in online surveys (Khazaal et al., 2014). Although this cannot be avoided, it might weaken the internal validity of the overall findings. Second, it is inherently difficult to specify what effect sizes are relevant. Unfortunately, there is no universally agreed method to approach this issue so many resort back to the half a standard deviation threshold of discrimination for health-related changes in quality of life by Norman et al., (2003).  However, a recent study demonstrated that individuals experience relative changes in subjective well-being, measured by the Positive and Negative Affect Scale (PANAS), at 0.3 standard deviation (Anvari & Lakens, 2021). Since the PANAS is very similar to the Scale of Positive and Negative Experience used in the present study, this is the threshold we chose to use. Nevertheless, it remains unclear when exactly changes in subjective well-being become noticeable by players. A third limitation was the cross-sectional research design. Whilst two weeks’ worth of telemetry data is sufficient to find associations between playtime, playing styles, and well-being, it cannot begin to unpick the causal nature of these observed associations. This inherently limits the scope of the conclusion and highlights the need for experimental and longitudinal research designs.
+
 ## Conclusion
+
+The rise of video games to become the dominant form of entertainment across the globe has raised important questions about the potential benefits and costs of digital play. Understanding how and to what extent playing video games influences the well-being of its players concerns players, caregivers, game developers, and policymakers alike. To date, the literature has mostly followed a playtime paradigm, measuring and recommending how specific limits on playtime might minimise negative effects on players. However, relying on playtime alone could be a misguided oversimplification. This study is the first to use a snapshot of in-game player behaviour to uncover how playing styles can inform us about the relationships between playtime, player behaviour, and well-being. It is our sincere hope that as richer forms of play data are made available through collaborations with the games industry this study might be used as a template for scholars to dig more deeply into how in-game behaviour relates to player well-being. 
 
 # References
 
