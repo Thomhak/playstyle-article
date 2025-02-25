@@ -1,87 +1,15 @@
-# macOS system files
+# System files
 .DS_Store
-.AppleDouble
-.LSOverride
-Icon
-._*
-.Spotlight-V100
-.Trashes
 
-# Quarto output files
+# Quarto output
 /.quarto/
 /_site/
-/_book/
 /_freeze/
 *.html
 *.pdf
-*.docx
-*.odt
-*.epub
 
-# R related
-.Rproj.user
+# R/Python
+__pycache__/
 .Rhistory
 .RData
-.Ruserdata
-.Rapp.history
-.Renviron
-.Rprofile
-*-Ex.R
-/*.tar.gz
-/*.Rcheck/
-.Rproj
-*.utf8.md
-*.knit.md
-.Rbuildignore
-
-# Python related
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-.ipynb_checkpoints
-.env
-.venv
-env/
-venv/
-ENV/
-.spyderproject
-.spyproject
-.ropeproject
-
-# Data files (uncomment if needed)
-# *.csv
-# *.xlsx
-# *.xls
-# *.rds
-# *.RData
-# *.rda
-
-# Temporary files
-*.bak
-*.swp
-*~
-tmp/
-temp/
-
-# IDE specific files
-.idea/
-.vscode/
-*.sublime-project
-*.sublime-workspace 
+.ipynb_checkpoints 
