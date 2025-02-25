@@ -1,41 +1,64 @@
-# playstyle_ms title
+# Playstyle and Well-being Analysis
 
-This repository contains the data, materials, and code for our manuscript "...s".
+This repository contains the analysis for investigating the relationship between player playstyles, performance metrics, and well-being outcomes in Plants vs. Zombies: Battle for Neighborville.
 
-- preprint: <osf link>
-- [This repository]<github link> contains the data and code described in our manuscript.
+## Project Structure
 
-Authors:
+The project is organized as follows:
 
-- Author 1
-- Author 2
-- Author 3
-- Author 4
-- Author 5
+```
+playstyle_ms/
+├── data/
+│   ├── raw/           # Original data files
+│   └── processed/     # Cleaned and processed data
+├── figures/           # Output figures and visualizations
+├── scripts/           # Helper scripts and functions
+├── playstyle_analysis.qmd  # Main analysis document
+├── references.bib     # Bibliography file
+└── README.md          # This file
+```
 
-## Materials and Questionnaire Items
+## Analysis Overview
 
-The codebook describing all datatables and questionnaire items can be found in ...
+The analysis consists of several main components:
 
-## Data
+1. **Data preparation**: Loading and cleaning survey and telemetry data
+2. **Game mode classification**: Categorizing game sessions into PvP, PvE, and social hub activities
+3. **Performance metrics calculation**: Deriving metrics like K/D ratio, hit accuracy, and damage per second
+4. **Player clustering**: Identifying player types based on gameplay patterns
+5. **Well-being analysis**: Examining the relationship between playstyles and well-being outcomes
 
-Data itself can be found in `data/`, in  `.csv` files. In total, this includes ... kinds of data:
+## Requirements
 
-- data 1
-- data 2
-- data 3
-- data 4
-- data 5
+The analysis uses the following R packages:
 
+- tidyverse (for data manipulation and visualization)
+- here (for file path management)
+- lme4 (for mixed-effects models)
+- factoextra (for clustering visualization)
+- knitr (for document generation)
+- ...and others specified in the main document
 
-## Reproduce
+## Running the Analysis
 
-The analysis code is written in R. The source code of the manuscript (including all data wrangling, analysis, and an APA-like template that can be rendered as a pdf or docx file) is in `playstyle_ms.qmd`. To reproduce, run `make` or manually:
+To reproduce the analysis:
 
-....
+1. Clone this repository
+2. Place the raw data files in the `data/raw/ea/` directory
+3. Render the Quarto document:
 
-Note that some computations can take a long time, depending on computer performance etc. You will also need to have a working and compatible LaTeX installation.
+```r
+quarto render playstyle_analysis.qmd
+```
 
-## Contribute
+## Data Sources
 
-To contribute, open an issue and/or send a pull request at <github link>.
+The data used in this analysis comes from:
+
+- Survey data collected from PvZ players
+- Telemetry data from Plants vs. Zombies: Battle for Neighborville
+- Original data was collected by Electronic Arts and the Oxford Internet Institute
+
+## License
+
+This project is licensed under the terms of the MIT license.
