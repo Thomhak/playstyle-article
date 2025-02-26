@@ -1,64 +1,67 @@
-# Playstyle and Well-being Analysis
+# Player Playstyle Analysis
 
-This repository contains the analysis for investigating the relationship between player playstyles, performance metrics, and well-being outcomes in Plants vs. Zombies: Battle for Neighborville.
+This project analyzes the relationship between player playstyles, game performance metrics, and well-being outcomes using data from Plants vs. Zombies: Battle for Neighborville.
 
-## Project Structure
+## Project Organization
 
-The project is organized as follows:
+The project is organized into the following structure:
 
 ```
-playstyle_ms/
+├── 1_preprocessing.qmd     # Data preprocessing and cleaning
+├── 2_analysis.qmd          # Analysis and visualization
 ├── data/
-│   ├── raw/           # Original data files
-│   └── processed/     # Cleaned and processed data
-├── figures/           # Output figures and visualizations
-├── scripts/           # Helper scripts and functions
-├── playstyle_analysis.qmd  # Main analysis document
-├── references.bib     # Bibliography file
-└── README.md          # This file
+│   ├── processed/          # Processed data files
+│   └── raw/                # Raw data files
+├── figures/                # Generated figures
+├── scripts/
+│   └── helper_functions.R  # Helper functions for data processing and analysis
+└── README.md               # This file
 ```
 
-## Analysis Overview
+## Usage
 
-The analysis consists of several main components:
+This project is organized into two main Quarto documents:
 
-1. **Data preparation**: Loading and cleaning survey and telemetry data
-2. **Game mode classification**: Categorizing game sessions into PvP, PvE, and social hub activities
-3. **Performance metrics calculation**: Deriving metrics like K/D ratio, hit accuracy, and damage per second
-4. **Player clustering**: Identifying player types based on gameplay patterns
-5. **Well-being analysis**: Examining the relationship between playstyles and well-being outcomes
+1. `1_preprocessing.qmd`: Contains all data preprocessing steps, including loading raw data, cleaning, feature engineering, and saving processed datasets. Run this file first to generate the processed data files.
 
-## Requirements
+2. `2_analysis.qmd`: Contains the analysis of the preprocessed data, including exploratory data analysis, player clustering, and well-being analysis. This file uses the processed data from the first file.
 
-The analysis uses the following R packages:
+## Workflow
 
-- tidyverse (for data manipulation and visualization)
-- here (for file path management)
-- lme4 (for mixed-effects models)
-- factoextra (for clustering visualization)
-- knitr (for document generation)
-- ...and others specified in the main document
+Follow these steps to reproduce the analysis:
 
-## Running the Analysis
+1. Run `1_preprocessing.qmd` first to generate all the processed datasets.
+2. Run `2_analysis.qmd` to perform the analysis and generate visualizations.
 
-To reproduce the analysis:
+## Data Description
 
-1. Clone this repository
-2. Place the raw data files in the `data/raw/ea/` directory
-3. Render the Quarto document:
+The data comes from a study conducted by EA and the Oxford Internet Institute. Players completed a survey on well-being and motivations, and EA provided telemetry data on their gameplay. The analysis combines these two data sources to examine the relationship between playstyles and well-being.
+
+## Dependencies
+
+This project requires the following R packages:
+
+- tidyverse
+- here
+- lubridate
+- scales
+- janitor
+- magrittr
+- psych
+- readxl
+- knitr
+- corrplot
+- ggpubr
+- factoextra
+- cluster
+- fmsb
+
+To install all required packages, run:
 
 ```r
-quarto render playstyle_analysis.qmd
+install.packages(c(
+  "tidyverse", "here", "lubridate", "scales", "janitor",
+  "magrittr", "psych", "readxl", "knitr", "corrplot",
+  "ggpubr", "factoextra", "cluster", "fmsb"
+))
 ```
-
-## Data Sources
-
-The data used in this analysis comes from:
-
-- Survey data collected from PvZ players
-- Telemetry data from Plants vs. Zombies: Battle for Neighborville
-- Original data was collected by Electronic Arts and the Oxford Internet Institute
-
-## License
-
-This project is licensed under the terms of the MIT license.

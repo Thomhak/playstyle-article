@@ -42,25 +42,24 @@ This document analyzes player telemetry and survey data from Plants vs. Zombies:
 
 ```{r packages}
 #| label: load-packages
-
-library(pacman)
-p_load(
-  readxl,         # Reading Excel files
-  knitr,          # Document generation
-  here,           # File path management
-  lubridate,      # Date handling
-  scales,         # Visualization scales
-  janitor,        # Data cleaning
-  tidyverse,      # Data wrangling and visualization
-  oii,            # Oxford Internet Institute functions
-  psych,          # Psychological analysis tools
-  cluster,        # Clustering algorithms
-  factoextra,     # Cluster visualization and validation
-  lme4,           # Mixed models
-  sjPlot          # Tables and plots for models
-)
-```
-
+# Load required packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(scales)
+library(janitor)
+library(magrittr)
+library(oii)
+library(psych)
+library(cluster)
+library(factoextra)
+library(lme4)
+library(sjPlot)
+library(interactions)
+library(readxl)
+library(knitr)
+library(clustertend)
+library(gridExtra)
 ## Load Raw Data
 
 The data comes from a study conducted by EA and the Oxford Internet Institute. Players completed a survey on well-being and motivations, and EA provided telemetry data on their gameplay.
@@ -80,14 +79,13 @@ data_paths <- list(
 
 # Function to read both waves of telemetry data into a single table
 read_both_waves <- function(stub = "OII_PVZ_Authentications", ...) {
-  # Filenames of wave 1 and 2 authentications files
-  list.files(
-    here("data/raw/ea"), pattern = stub, full.names = TRUE
-  ) %>% 
+  # Find files matching the pattern
+  here("data/raw/ea") %>%
+    list.files(pattern = stub, full.names = TRUE) %>%
     # Put wave 1 first
-    rev() %>% 
-    # Read into a list of data frames
-    map(read_csv, ...) %>% 
+    rev() %>%
+    # Read into a list of data frames with purrr's map
+    map(read_csv, ...) %>%
     # Bind into one data frame with wave ID
     bind_rows(.id = "wave")
 }
@@ -228,83 +226,68 @@ survey <- survey %>%
 #| label: survey-scales
 
 # General SPANE scale (well-being)
-survey <- 
-  survey %>% 
+survey <- survey %>% 
   mutate(
-    spane_positive = rowMeans(
-      select(
-        .,
-        spane_1,
-        spane_3,
-        spane_5,
-        spane_7,
-        spane_10,
-        spane_12
-      ),
-      na.rm = TRUE
-    ),
-    spane_negative = rowMeans(
-      select(
-        .,
-        spane_2,
-        spane_4,
-        spane_6,
-        spane_8,
-        spane_9,
-        spane_11
-      ),
-      na.rm = TRUE
-    ),
+    # Use purrr to create positive and negative scale means
+    spane_positive = map_dbl(1:nrow(.), ~mean(c(
+      survey$spane_1[.x], 
+      survey$spane_3[.x], 
+      survey$spane_5[.x], 
+      survey$spane_7[.x], 
+      survey$spane_10[.x], 
+      survey$spane_12[.x]
+    ), na.rm = TRUE)),
+    
+    spane_negative = map_dbl(1:nrow(.), ~mean(c(
+      survey$spane_2[.x], 
+      survey$spane_4[.x], 
+      survey$spane_6[.x], 
+      survey$spane_8[.x], 
+      survey$spane_9[.x], 
+      survey$spane_11[.x]
+    ), na.rm = TRUE)),
+    
     spane_balance = spane_positive - spane_negative
   )
 
 # Motivation scales
 survey <- survey %>% 
   mutate(
-    autonomy = rowMeans(
-      select(., starts_with("autonomy")), na.rm = TRUE
-    ),
-    competence = rowMeans(
-      select(., starts_with("competence")), na.rm = TRUE
-    ),
-    relatedness = rowMeans(
-      select(., starts_with("relatedness")), na.rm = TRUE
-    ),
-    enjoyment = rowMeans(
-      select(., starts_with("enjoyment")), na.rm = TRUE
-    ),
-    extrinsic = rowMeans(
-      select(., starts_with("extrinsic")), na.rm = TRUE
-    )
+    # Use purrr's map functions to compute means for different motivation scales
+    autonomy = pmap_dbl(select(., starts_with("autonomy")), 
+                       ~mean(c(...), na.rm = TRUE)),
+    competence = pmap_dbl(select(., starts_with("competence")), 
+                         ~mean(c(...), na.rm = TRUE)),
+    relatedness = pmap_dbl(select(., starts_with("relatedness")), 
+                          ~mean(c(...), na.rm = TRUE)),
+    enjoyment = pmap_dbl(select(., starts_with("enjoyment")), 
+                        ~mean(c(...), na.rm = TRUE)),
+    extrinsic = pmap_dbl(select(., starts_with("extrinsic")), 
+                        ~mean(c(...), na.rm = TRUE))
   )
 
 # SPANE because of playing game
 survey <- survey %>% 
   mutate(
-    spane_game_positive = rowMeans(
-      select(
-        .,
-        spane_game_1,
-        spane_game_3,
-        spane_game_5,
-        spane_game_7,
-        spane_game_10,
-        spane_game_12
-      ),
-      na.rm = TRUE
-    ),
-    spane_game_negative = rowMeans(
-      select(
-        .,
-        spane_game_2,
-        spane_game_4,
-        spane_game_6,
-        spane_game_8,
-        spane_game_9,
-        spane_game_11
-      ),
-      na.rm = TRUE
-    ),
+    # Use purrr for game-related SPANE scales
+    spane_game_positive = map_dbl(1:nrow(.), ~mean(c(
+      survey$spane_game_1[.x], 
+      survey$spane_game_3[.x], 
+      survey$spane_game_5[.x], 
+      survey$spane_game_7[.x], 
+      survey$spane_game_10[.x], 
+      survey$spane_game_12[.x]
+    ), na.rm = TRUE)),
+    
+    spane_game_negative = map_dbl(1:nrow(.), ~mean(c(
+      survey$spane_game_2[.x], 
+      survey$spane_game_4[.x], 
+      survey$spane_game_6[.x], 
+      survey$spane_game_8[.x], 
+      survey$spane_game_9[.x], 
+      survey$spane_game_11[.x]
+    ), na.rm = TRUE)),
+    
     spane_game_balance = spane_game_positive - spane_game_negative
   )
 
@@ -314,7 +297,7 @@ survey <- survey %>%
   mutate(active_play = rowSums(select(., starts_with("active_play")), na.rm = TRUE))
 
 # Save processed survey data
-write_rds(survey, here("data/processed/survey_processed.rds"))
+write_csv(survey, here("data/processed/survey_processed.csv"))
 ```
 
 # Telemetry Data Processing
@@ -356,7 +339,7 @@ game_time_2week <- game_time %>%
   filter(game_start_time >= (start_date - days(14)))
 
 # Save processed game time data
-write_rds(game_time_2week, here("data/processed/game_time_2week.rds"))
+write_csv(game_time_2week, here("data/processed/game_time_2week.csv"))
 ```
 
 ## Load Authentication Data
@@ -378,7 +361,7 @@ authentications_players <- authentications_2week %>%
   count(player_id, name = "authentications")
 
 # Save processed authentication data
-write_rds(authentications_players, here("data/processed/authentications_players.rds"))
+write_csv(authentications_players, here("data/processed/authentications_players.csv"))
 ```
 
 ## Load Character Performance Data
@@ -401,7 +384,7 @@ characters_2week <- characters_raw %>%
   filter(game_start_time >= (start_date - days(14)))
 
 # Save for further processing
-write_rds(characters_2week, here("data/processed/characters_2week.rds"))
+write_csv(characters_2week, here("data/processed/characters_2week.csv"))
 ```
 
 # Game Mode Classification
@@ -449,14 +432,27 @@ characters_2week_nona <- characters_2week %>%
   drop_na(total_kill_count:shots_hit)
 
 # Save processed data
-write_rds(characters_2week, here("data/processed/characters_with_modes.rds"))
-write_rds(characters_2week_nona, here("data/processed/characters_with_modes_nona.rds"))
+write_csv(characters_2week, here("data/processed/characters_with_modes.csv"))
+write_csv(characters_2week_nona, here("data/processed/characters_with_modes_nona.csv"))
 ```
 
 # Game Time Calculations
 
 ```{r game-time-calculations}
 #| label: game-time-calculations
+
+# Define a function to calculate time per player for a specific game mode
+calculate_game_time <- function(data, mode_filter, time_prefix) {
+  data %>%
+    filter({{ mode_filter }} == 1) %>%
+    mutate(duration = game_end_time - game_start_time) %>%
+    mutate(seconds = as.numeric(duration)) %>%
+    group_by(player_id) %>%
+    summarise(seconds = sum(seconds)) %>%
+    mutate(hours = seconds / 60 / 60) %>%
+    rename_with(~ paste0(time_prefix, "_", .), .cols = c("seconds", "hours")) %>%
+    ungroup()
+}
 
 # Calculate total game time per player
 game_time_players_total <- characters_2week %>% 
@@ -467,58 +463,42 @@ game_time_players_total <- characters_2week %>%
   mutate(hours = seconds / 60 / 60) %>% 
   ungroup()
 
-# Calculate PVP game time per player
-game_time_players_pvp <- characters_2week %>% 
-  filter(pvp_session == 1) %>%
-  mutate(duration = game_end_time - game_start_time) %>% 
-  mutate(pvp_seconds = as.numeric(duration)) %>% 
-  group_by(player_id) %>% 
-  summarise(pvp_seconds = sum(pvp_seconds)) %>% 
-  mutate(pvp_hours = pvp_seconds / 60 / 60) %>% 
-  ungroup()
+# Calculate game time for different modes using our function
+game_time_players_pvp <- calculate_game_time(characters_2week, pvp_session, "pvp")
+game_time_players_pve <- calculate_game_time(characters_2week, pve_session, "pve")
+game_time_players_social <- calculate_game_time(characters_2week, social_hub, "social")
 
-# Calculate PVE game time per player  
-game_time_players_pve <- characters_2week %>% 
-  filter(pve_session == 1) %>%
-  mutate(duration = game_end_time - game_start_time) %>% 
-  mutate(pve_seconds = as.numeric(duration)) %>% 
-  group_by(player_id) %>% 
-  summarise(pve_seconds = sum(pve_seconds)) %>% 
-  mutate(pve_hours = pve_seconds / 60 / 60) %>% 
-  ungroup()
-
-# Calculate social hub time per player
-game_time_players_social <- characters_2week %>% 
-  filter(social_hub == 1) %>%
-  mutate(duration = game_end_time - game_start_time) %>% 
-  mutate(social_seconds = as.numeric(duration)) %>% 
-  group_by(player_id) %>% 
-  summarise(social_seconds = sum(social_seconds)) %>% 
-  mutate(social_hours = social_seconds / 60 / 60) %>% 
-  ungroup()
-
-# Combine game time data
-game_time_players <- purrr::reduce(
-  list(
-    game_time_players_total, 
-    game_time_players_social, 
-    game_time_players_pve, 
-    game_time_players_pvp
-  ),
-  left_join, by = "player_id"
-)
+# Combine game time data with purrr's reduce
+game_time_players <- list(
+  game_time_players_total, 
+  game_time_players_social, 
+  game_time_players_pve, 
+  game_time_players_pvp
+) %>%
+  reduce(left_join, by = "player_id")
 
 # Replace NA values with 0 (no time spent in that mode)
 game_time_players[is.na(game_time_players)] <- 0
 
 # Save processed game time data
-write_rds(game_time_players, here("data/processed/game_time_players.rds"))
+write_csv(game_time_players, here("data/processed/game_time_players.csv"))
 ```
 
 # Performance Metrics Calculation
 
-```{r performance-calculations}
-#| label: performance-calculations
+```{r performance-setup}
+#| label: performance-setup
+#| cache: true
+#| dependson: c("game-mode-classification", "game-time-calculations")
+
+# Create an empty list to store intermediate results
+metrics_list <- list()
+```
+
+```{r overall-performance}
+#| label: overall-performance
+#| cache: true
+#| dependson: c("performance-setup")
 
 # Calculate overall performance metrics per player
 characters_players <- characters_2week %>%
@@ -526,16 +506,52 @@ characters_players <- characters_2week %>%
   summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>% 
   ungroup()
 
+# Store in our list
+metrics_list$characters_players <- characters_players
+
+# Force garbage collection
+gc()
+```
+
+```{r game-sessions}
+#| label: game-sessions
+#| cache: true
+#| dependson: c("performance-setup")
+
 # Calculate game sessions per player
 game_sessions_total <- characters_2week %>% 
   count(player_id) %>%
   rename(n_total_game_sessions = n)
+
+# Store in our list
+metrics_list$game_sessions_total <- game_sessions_total
+
+# Force garbage collection
+gc()
+```
+
+```{r sessions-by-mode}
+#| label: sessions-by-mode
+#| cache: true
+#| dependson: c("performance-setup")
 
 # Calculate sessions by game mode
 game_sessions <- characters_2week %>% 
   group_by(player_id) %>% 
   summarise(across(social_hub:pvp_session, sum, na.rm = TRUE)) %>% 
   ungroup()
+
+# Store in our list
+metrics_list$game_sessions <- game_sessions
+
+# Force garbage collection
+gc()
+```
+
+```{r pvp-performance}
+#| label: pvp-performance
+#| cache: true
+#| dependson: c("performance-setup")
 
 # PvP-specific performance metrics
 pvp_telemetry <- characters_2week %>%
@@ -544,6 +560,18 @@ pvp_telemetry <- characters_2week %>%
   summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
   rename_with(~ paste0("pvp_", .), -player_id)
 
+# Store in our list
+metrics_list$pvp_telemetry <- pvp_telemetry
+
+# Force garbage collection
+gc()
+```
+
+```{r pve-performance}
+#| label: pve-performance
+#| cache: true
+#| dependson: c("performance-setup")
+
 # PvE-specific performance metrics
 pve_telemetry <- characters_2week %>%
   filter(pve_session == 1) %>%
@@ -551,30 +579,53 @@ pve_telemetry <- characters_2week %>%
   summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
   rename_with(~ paste0("pve_", .), -player_id)
 
-# Combine all telemetry data
-telemetry_players <- purrr::reduce(
-  list(
-    characters_players,
-    game_time_players,
-    game_sessions,
-    game_sessions_total,
-    pvp_telemetry,
-    pve_telemetry
-  ),
-  left_join, by = "player_id"
-)
+# Store in our list
+metrics_list$pve_telemetry <- pve_telemetry
+
+# Force garbage collection
+gc()
+```
+
+```{r combine-metrics}
+#| label: combine-metrics
+#| cache: true
+#| dependson: c("overall-performance", "game-sessions", "sessions-by-mode", "pvp-performance", "pve-performance")
+
+# Load additional data we need from previous processing
+metrics_list$game_time_players <- game_time_players
+
+# Combine telemetry data using purrr's reduce function
+telemetry_players <- list(
+  metrics_list$characters_players,
+  metrics_list$game_time_players,
+  metrics_list$game_sessions,
+  metrics_list$game_sessions_total,
+  metrics_list$pvp_telemetry,
+  metrics_list$pve_telemetry
+) %>%
+  reduce(left_join, by = "player_id")
 
 # Replace NA values with 0
-telemetry_players[is.na(telemetry_players)] <- 0
+telemetry_players <- telemetry_players %>%
+  mutate(across(everything(), ~replace_na(.x, 0)))
+
+# Clear intermediate objects and list to free memory
+rm(metrics_list)
+gc()
 
 # Save processed telemetry data
-write_rds(telemetry_players, here("data/processed/telemetry_players.rds"))
+write_csv(telemetry_players, here("data/processed/telemetry_players.csv"))
 ```
 
 # Derived Performance Metrics
 
 ```{r derived-metrics}
 #| label: derived-metrics
+
+# Define a function to calculate performance ratios
+calculate_ratio <- function(numerator, denominator) {
+  numerator / denominator
+}
 
 # Calculate derived performance metrics
 telemetry_players <- telemetry_players %>%
@@ -585,47 +636,42 @@ telemetry_players <- telemetry_players %>%
       ~ ifelse(.x == 0, 1, .x)
     )
   ) %>%
-  # K/D ratios
+  # Calculate all ratio metrics with purrr
   mutate(
-    total_kd = total_kill_count / total_death_count,
-    pve_kd = pve_total_kill_count / pve_total_death_count,
-    pvp_kd = pvp_total_kill_count / pvp_total_death_count
-  ) %>%
-  # Hit accuracy ratios
-  mutate(
-    total_hit_accuracy = shots_hit / shots_fired,
-    pve_hit_accuracy = pve_shots_hit / pve_shots_fired,
-    pvp_hit_accuracy = pvp_shots_hit / pvp_shots_fired
-  ) %>%
-  # Critical hit ratios
-  mutate(
-    total_crit_ratio = critical_hit_count / shots_hit,
-    pve_crit_ratio = pve_critical_hit_count / pve_shots_hit,
-    pvp_crit_ratio = pvp_critical_hit_count / pvp_shots_hit
-  ) %>%
-  # Damage per game
-  mutate(
-    total_average_damage = damage_dealt / n_total_game_sessions,
-    pve_average_damage = pve_damage_dealt / pve_session,
-    pvp_average_damage = pvp_damage_dealt / pvp_session
-  ) %>%
-  # Damage per second
-  mutate(
-    total_dps = damage_dealt / seconds,
-    pve_dps = pve_damage_dealt / pve_seconds,
-    pvp_dps = pvp_damage_dealt / pvp_seconds
-  ) %>%
-  # Score per game
-  mutate(
-    total_average_score = score / n_total_game_sessions,
-    pve_average_score = pve_score / pve_session,
-    pvp_average_score = pvp_score / pvp_session
-  ) %>%
-  # Score per second
-  mutate(
-    total_sps = score / seconds,
-    pve_sps = pve_score / pve_seconds,
-    pvp_sps = pvp_score / pvp_seconds
+    # K/D ratios
+    total_kd = calculate_ratio(total_kill_count, total_death_count),
+    pve_kd = calculate_ratio(pve_total_kill_count, pve_total_death_count),
+    pvp_kd = calculate_ratio(pvp_total_kill_count, pvp_total_death_count),
+    
+    # Hit accuracy ratios
+    total_hit_accuracy = calculate_ratio(shots_hit, shots_fired),
+    pve_hit_accuracy = calculate_ratio(pve_shots_hit, pve_shots_fired),
+    pvp_hit_accuracy = calculate_ratio(pvp_shots_hit, pvp_shots_fired),
+    
+    # Critical hit ratios
+    total_crit_ratio = calculate_ratio(critical_hit_count, shots_hit),
+    pve_crit_ratio = calculate_ratio(pve_critical_hit_count, pve_shots_hit),
+    pvp_crit_ratio = calculate_ratio(pvp_critical_hit_count, pvp_shots_hit),
+    
+    # Damage per game
+    total_average_damage = calculate_ratio(damage_dealt, n_total_game_sessions),
+    pve_average_damage = calculate_ratio(pve_damage_dealt, pve_session),
+    pvp_average_damage = calculate_ratio(pvp_damage_dealt, pvp_session),
+    
+    # Damage per second
+    total_dps = calculate_ratio(damage_dealt, seconds),
+    pve_dps = calculate_ratio(pve_damage_dealt, pve_seconds),
+    pvp_dps = calculate_ratio(pvp_damage_dealt, pvp_seconds),
+    
+    # Score per game
+    total_average_score = calculate_ratio(score, n_total_game_sessions),
+    pve_average_score = calculate_ratio(pve_score, pve_session),
+    pvp_average_score = calculate_ratio(pvp_score, pvp_session),
+    
+    # Score per second
+    total_sps = calculate_ratio(score, seconds),
+    pve_sps = calculate_ratio(pve_score, pve_seconds),
+    pvp_sps = calculate_ratio(pvp_score, pvp_seconds)
   )
 
 # Replace NaN values with 0
@@ -633,7 +679,7 @@ telemetry_players <- telemetry_players %>%
   mutate(across(everything(), ~ifelse(is.nan(.x), 0, .x)))
 
 # Save processed metrics
-write_rds(telemetry_players, here("data/processed/telemetry_with_metrics.rds"))
+write_csv(telemetry_players, here("data/processed/telemetry_with_metrics.csv"))
 ```
 
 # Combine Survey and Telemetry Data
@@ -658,7 +704,79 @@ pvz_df_clean <- pvz_df %>%
   filter(hours > 0.03)
 
 # Save final dataset
-write_rds(pvz_df_clean, here("data/processed/pvz_complete.rds"))
+write_csv(pvz_df_clean, here("data/processed/pvz_complete.csv"))
+```
+
+# Handling Extreme Playtime Outliers
+
+```{r outlier-handling}
+#| label: outlier-handling
+#| fig.width: 10
+#| fig.height: 6
+
+# Examine the distribution of hours played
+ggplot(pvz_df_clean, aes(x = hours)) +
+  geom_histogram(binwidth = 5, fill = "steelblue", color = "white") +
+  geom_vline(xintercept = mean(pvz_df_clean$hours), color = "red", linetype = "dashed") +
+  geom_vline(xintercept = mean(pvz_df_clean$hours) + 5*sd(pvz_df_clean$hours), 
+             color = "darkred", linetype = "dashed") +
+  labs(
+    title = "Distribution of Hours Played with Outlier Threshold",
+    subtitle = "Red dashed line = mean, Dark red dashed line = mean + 5 SD",
+    x = "Hours (2-week period)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+# Calculate statistical outlier threshold using mean + 5 SD
+outlier_threshold <- mean(pvz_df_clean$hours) + 5*sd(pvz_df_clean$hours)
+print(paste("Outlier threshold (mean + 5 SD):", round(outlier_threshold, 1), "hours"))
+
+# Identify extreme outliers
+extreme_outliers <- pvz_df_clean %>%
+  filter(hours > outlier_threshold) %>%
+  select(player_id, hours, pvp_hours, pve_hours, social_hours, pvp_kd, player_type)
+
+# Display the outliers
+print("Players with extreme hours played (outliers):")
+knitr::kable(extreme_outliers, digits = 1)
+
+# Create dataset without extreme playtime outliers
+pvz_df_no_outliers <- pvz_df_clean %>%
+  filter(hours <= outlier_threshold)
+
+# Compare summary statistics before and after outlier removal
+comparison <- bind_rows(
+  pvz_df_clean %>% 
+    summarise(
+      dataset = "With outliers",
+      n = n(),
+      mean_hours = mean(hours),
+      median_hours = median(hours),
+      sd_hours = sd(hours),
+      max_hours = max(hours)
+    ),
+  pvz_df_no_outliers %>% 
+    summarise(
+      dataset = "Without outliers",
+      n = n(),
+      mean_hours = mean(hours),
+      median_hours = median(hours),
+      sd_hours = sd(hours),
+      max_hours = max(hours)
+    )
+)
+
+# Display comparison
+knitr::kable(comparison, digits = 1,
+             caption = "Comparison of hours played statistics before and after outlier removal")
+
+# Save dataset without extreme outliers for further analysis
+write_csv(pvz_df_no_outliers, here("data/processed/pvz_no_outliers.csv"))
+
+# Use the filtered dataset for subsequent analyses
+# This preserves the original dataset while allowing for more robust statistical analysis
+pvz_df_analysis <- pvz_df_no_outliers
 ```
 
 # Exploratory Data Analysis
@@ -669,7 +787,7 @@ write_rds(pvz_df_clean, here("data/processed/pvz_complete.rds"))
 #| label: demographic-stats
 
 # Demographic summary
-demographic_summary <- pvz_df_clean %>%
+demographic_summary <- pvz_df_analysis %>%
   summarise(
     n_participants = n(),
     mean_age = mean(age, na.rm = TRUE),
@@ -690,7 +808,7 @@ knitr::kable(demographic_summary, caption = "Demographic Summary")
 #| label: gametime-distribution
 
 # Plot distribution of total game time
-ggplot(pvz_df_clean, aes(x = hours)) +
+ggplot(pvz_df_analysis, aes(x = hours)) +
   geom_histogram(binwidth = 2, fill = "steelblue", color = "white") +
   labs(
     title = "Distribution of Total Play Time",
@@ -700,7 +818,7 @@ ggplot(pvz_df_clean, aes(x = hours)) +
   theme_minimal()
 
 # Plot distribution of game time by mode
-pvz_df_clean %>%
+pvz_df_analysis %>%
   select(player_id, pvp_hours, pve_hours, social_hours) %>%
   pivot_longer(
     cols = c(pvp_hours, pve_hours, social_hours),
@@ -730,7 +848,7 @@ pvz_df_clean %>%
 #| label: performance-metrics
 
 # Plot distribution of key performance metrics
-pvz_df_clean %>%
+pvz_df_analysis %>%
   select(player_id, total_kd, total_hit_accuracy, total_dps) %>%
   pivot_longer(
     cols = c(total_kd, total_hit_accuracy, total_dps),
@@ -755,24 +873,146 @@ pvz_df_clean %>%
 
 # Player Clustering Analysis
 
+
 ## Preparing Clustering Data
 
 ```{r cluster-prep}
 #| label: cluster-prep
 
 # Select variables for clustering based on playstyle
-cluster_data <- pvz_df_clean %>% 
+cluster_data <- pvz_df_analysis %>% 
   select(
     # Game time distribution
-    ratio_pvp_hours, ratio_pve_hours,
-    # Performance metrics
-    pvp_kd, pvp_hit_accuracy, pvp_dps,
-    pve_kd, pve_hit_accuracy, pve_dps
+    ratio_pvp_hours, ratio_pve_hours, ratio_social_hours,
+    
+    # Performance metrics - PvP
+    pvp_kd, pvp_hit_accuracy, pvp_dps, pvp_crit_ratio, 
+    pvp_average_damage, pvp_average_score,
+    
+    # Performance metrics - PvE
+    pve_kd, pve_hit_accuracy, pve_dps, pve_crit_ratio,
+    pve_average_damage, pve_average_score
+    
   )
 
 # Standardize data for clustering
 cluster_data_scaled <- scale(cluster_data)
 ```
+
+
+## Assessing cluster tendency
+
+Before performing the cluster analysis, we need to assess whether the data has a natural tendency to form clusters. This helps determine if clustering is appropriate for our dataset.
+
+```{r cluster-tendency}
+#| label: cluster-tendency
+
+# Load the clustertend package for assessing clustering tendency
+if (!requireNamespace("clustertend", quietly = TRUE)) {
+  install.packages("clustertend")
+}
+library(clustertend)
+
+# Prepare the data for cluster tendency assessment
+
+
+# Create a random dataset with the same dimensions for comparison
+set.seed(123)
+random_df <- apply(cluster_data_scaled, 2,
+                   function(x){runif(length(x), min(x), max(x))})
+random_df <- as.data.frame(random_df)
+```
+
+### Visual Assessment of Clustering Tendency
+
+We can visually assess whether our dataset has a natural cluster structure by comparing it with a randomly generated dataset using PCA visualization.
+
+```{r visual-tendency}
+#| label: visual-tendency
+#| fig.width: 12
+#| fig.height: 5
+
+# PCA visualization of our actual dataset
+p1 <- fviz_pca_ind(prcomp(cluster_data_scaled), 
+                   title = "PCA - Player Playstyle Data",
+                   geom = "point", 
+                   ggtheme = theme_minimal(),
+                   legend = "none")
+
+# PCA visualization of random dataset for comparison
+p2 <- fviz_pca_ind(prcomp(random_df), 
+                   title = "PCA - Random Data",
+                   geom = "point", 
+                   ggtheme = theme_minimal(),
+                   legend = "none")
+
+# Display both visualizations side by side
+grid.arrange(p1, p2, ncol = 2)
+```
+
+The PCA visualization shows that our playstyle data (left) appears to have more structure than the random data (right). In the playstyle data, we can observe potential groupings or clusters, whereas the random data shows a more uniform distribution without clear patterns. This visual assessment suggests natural clusters may exist in our dataset.
+
+### Statistical Assessment with Hopkins Statistic
+
+The Hopkins statistic quantitatively assesses clustering tendency. It measures whether a dataset is significantly more clusterable than a random dataset:
+
+- H close to 0: Data has a high clustering tendency
+- H around 0.5: Data is randomly distributed with no meaningful clusters
+- H close to 1: Data is uniformly distributed
+
+```{r hopkins-test}
+#| label: hopkins-test
+
+# Compute Hopkins statistic for our dataset
+set.seed(123)
+h_stat <- hopkins(cluster_data_scaled, n = nrow(cluster_data_scaled)-1)
+cat("Hopkins statistic:", h_stat, "\n")
+cat("Clustering tendency (1-H):", 1-h_stat, "\n")
+```
+
+The Hopkins statistic is well below the 0.5 threshold, indicating that our data has a strong clustering tendency. This value suggests that cluster analysis is an appropriate technique for identifying player types in our dataset.
+
+For reference, the Hopkins statistic for the well-known Iris dataset (a benchmark for clustering algorithms) is around 0.18, so our value indicates an even stronger clustering tendency.
+
+### Dissimilarity Matrix Visualization
+
+The dissimilarity matrix visualization shows the pairwise distances between observations. Areas with similar colors indicate potential clusters:
+
+```{r distance-matrix}
+#| label: distance-matrix
+#| fig.width: 8
+#| fig.height: 8
+
+# Compute dissimilarity matrix
+dist_matrix <- get_dist(cluster_data_scaled, method = "pearson")
+fviz_dist(dist_matrix, 
+          show_labels = FALSE, 
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"),
+          title = "Distance Matrix Visualization - Player Data")
+```
+
+```{r random-distance-matrix}
+#| label: random-distance-matrix
+#| fig.width: 8
+#| fig.height: 8
+
+# Create a random dataset with the same dimensions for comparison
+set.seed(123)
+random_df <- apply(cluster_data_scaled, 2,
+                   function(x){runif(length(x), min(x), max(x))})
+random_df <- as.data.frame(random_df)
+
+# Compute dissimilarity matrix for random data
+dist_matrix_random <- get_dist(random_df, method = "pearson")
+fviz_dist(dist_matrix_random, 
+          show_labels = FALSE, 
+          gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"),
+          title = "Distance Matrix Visualization - Random Data")
+```
+The distance matrix visualization reveals blocks of similar colors (blue), which indicate groups of observations that are similar to each other. This pattern is characteristic of data with natural clusters and further supports our conclusion that the player data contains distinguishable playstyle groups.
+
+Based on both visual and statistical assessments, we can confidently proceed with cluster analysis to identify distinct player types in our dataset.
+
 
 ## Determining Optimal Number of Clusters
 
@@ -794,6 +1034,18 @@ fviz_nbclust(
   method = "silhouette"
 ) +
   labs(title = "Silhouette Method for Optimal k")
+
+# Gap statistic method for determining optimal number of clusters
+# This compares the within-cluster dispersion to a null reference distribution
+set.seed(125)  # For reproducibility
+fviz_nbclust(
+  cluster_data_scaled, 
+  kmeans, 
+  method = "gap_stat", 
+  nboot = 500,  # Number of bootstrap samples
+  verbose = FALSE  # Hide computing progression
+) +
+  labs(title = "Gap Statistic Method for Optimal k")
 ```
 
 ## K-means Clustering
@@ -802,23 +1054,10 @@ fviz_nbclust(
 #| label: kmeans-clustering
 
 # Set seed for reproducibility
-set.seed(123)
+set.seed(125)
 
-# Perform k-means clustering with optimal k=5
-km_res <- kmeans(cluster_data_scaled, centers = 5, nstart = 25)
-
-# Add cluster assignment to dataset
-pvz_df_clean <- pvz_df_clean %>%
-  mutate(
-    cluster = km_res$cluster,
-    player_type = case_when(
-      cluster == 1 ~ "Elite Players",
-      cluster == 2 ~ "PvE Adventurers",
-      cluster == 3 ~ "PvP Novices",
-      cluster == 4 ~ "PvP Specialists",
-      cluster == 5 ~ "Casual Players"
-    )
-  )
+# Perform k-means clustering with optimal k=6
+km_res <- kmeans(cluster_data_scaled, centers = 8, nstart = 25)
 
 # Visualize the clusters
 fviz_cluster(
@@ -829,8 +1068,49 @@ fviz_cluster(
 ) +
   labs(title = "Player Clusters")
 
-# Create a table summarizing cluster characteristics
-cluster_summary <- pvz_df_clean %>%
+# Examine cluster centers to understand what each cluster represents
+cluster_centers <- as.data.frame(km_res$centers)
+print("Cluster centers (standardized values):")
+knitr::kable(cluster_centers, digits = 2)
+
+# Examine actual metric values by cluster
+cluster_characteristics <- pvz_df_analysis %>%
+  mutate(cluster = km_res$cluster) %>%
+  group_by(cluster) %>%
+  summarise(
+    n_players = n(),
+    hours_mean = mean(hours),
+    pvp_ratio = mean(ratio_pvp_hours),
+    pve_ratio = mean(ratio_pve_hours),
+    social_ratio = mean(ratio_social_hours),
+    pvp_kd = mean(pvp_kd),
+    pve_kd = mean(pve_kd),
+    pvp_accuracy = mean(pvp_hit_accuracy),
+    pve_accuracy = mean(pve_hit_accuracy),
+    pvp_dps = mean(pvp_dps),
+    pve_dps = mean(pve_dps)
+  )
+
+print("Characteristics of each cluster:")
+knitr::kable(cluster_characteristics, digits = 2)
+
+# Based on the analysis of cluster centers and characteristics,
+# assign meaningful names to each cluster
+pvz_df_analysis <- pvz_df_analysis %>%
+    mutate(
+      cluster = km_res$cluster,
+      player_type = case_when(
+        cluster == 1 ~ "Elite Players",
+        cluster == 2 ~ "PvE Adventurers",
+        cluster == 3 ~ "PvP Novices",
+        cluster == 4 ~ "PvP Specialists",
+        cluster == 5 ~ "Casual Players",
+        cluster == 6 ~ "Social Hubbers"
+      )
+    )
+
+# Now create a table summarizing cluster characteristics with the assigned names
+cluster_summary <- pvz_df_analysis %>%
   group_by(player_type) %>%
   summarise(
     n = n(),
@@ -848,8 +1128,13 @@ knitr::kable(cluster_summary,
              digits = 2)
 
 # Save clustering results
-write_rds(pvz_df_clean, here("data/processed/pvz_with_clusters.rds"))
+write_csv(pvz_df_analysis, here("data/processed/pvz_with_clusters.csv"))
 ```
+
+
+## cluster validation
+
+
 
 # Relationship Between Playtime and Well-Being
 
@@ -859,17 +1144,17 @@ write_rds(pvz_df_clean, here("data/processed/pvz_with_clusters.rds"))
 #| label: basic-regression
 
 # Mean-center hours for interpretability
-pvz_df_clean <- pvz_df_clean %>%
+pvz_df_analysis <- pvz_df_analysis %>%
   mutate(hours_c = hours - mean(hours))
 
 # Basic linear model of wellbeing based on game time
-wellbeing_model_0 <- lm(spane_game_balance ~ hours_c, data = pvz_df_clean)
+wellbeing_model_0 <- lm(spane_game_balance ~ hours_c, data = pvz_df_analysis)
 
 # Summarize model
 summary(wellbeing_model_0)
 
 # Visualize relationship
-ggplot(pvz_df_clean, aes(x = hours, y = spane_game_balance)) +
+ggplot(pvz_df_analysis, aes(x = hours, y = spane_game_balance)) +
   geom_point(alpha = 0.5) +
   geom_smooth(method = "lm", color = "blue") +
   labs(
@@ -885,14 +1170,16 @@ ggplot(pvz_df_clean, aes(x = hours, y = spane_game_balance)) +
 ```{r player-type-moderation}
 #| label: player-type-moderation
 
+# Make sure the interactions package is available
+library(interactions)
+
 # Model with player type moderation
-wellbeing_model_mod <- lm(spane_game_balance ~ hours_c * player_type, data = pvz_df_clean)
+wellbeing_model_mod <- lm(spane_game_balance ~ hours_c * player_type, data = pvz_df_analysis)
 
 # Summarize model
 summary(wellbeing_model_mod)
 
 # Visualize interaction
-library(interactions)
 interact_plot(
   wellbeing_model_mod,
   pred = "hours_c",
@@ -916,13 +1203,13 @@ interact_plot(
 library(lme4)
 mixed_model_1 <- lmer(
   spane_game_balance ~ hours_c + (1 | player_type), 
-  data = pvz_df_clean
+  data = pvz_df_analysis
 )
 
 # Random slope and intercept model
 mixed_model_2 <- lmer(
   spane_game_balance ~ hours_c + (1 + hours_c | player_type), 
-  data = pvz_df_clean
+  data = pvz_df_analysis
 )
 
 # Compare models

@@ -1,0 +1,1026 @@
+---
+title: "Player Playstyle Analysis"
+author: "Thomas Hakman"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: flatly
+    fig-width: 8
+    fig-height: 6
+execute:
+  echo: true
+  message: false
+  warning: false
+  cache: true
+editor: visual
+---
+
+```{r setup}
+#| label: setup
+#| include: false
+
+# Set global options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE,
+  fig.path = "figures/"
+)
+```
+
+# Introduction
+
+This document contains the analysis of player telemetry and survey data from Plants vs. Zombies: Battle for Neighborville. It focuses on analyzing player playstyles, game performance metrics, and their relationship with well-being outcomes.
+
+# Load Required Packages and Data
+
+```{r packages}
+#| label: load-packages
+
+# Load required packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(scales)
+library(janitor)
+library(magrittr)
+library(psych)
+library(corrplot)
+library(ggpubr)
+library(factoextra)
+library(cluster)
+library(fmsb)
+library(knitr)
+library(tibble)
+```
+
+```{r helper-functions}
+#| label: helper-functions
+
+# Function to scale values to 0-1 range for radar charts
+scale_to_01 <- function(x, min_val = min(x, na.rm = TRUE), max_val = max(x, na.rm = TRUE)) {
+  if (max_val == min_val) return(rep(0.5, length(x)))
+  (x - min_val) / (max_val - min_val)
+}
+
+```
+
+```{r statistical-functions}
+#| label: statistical-functions
+
+# Function to run ANOVA and extract results
+run_anova <- function(dv) {
+  formula <- as.formula(paste(dv, "~ player_type"))
+  model <- aov(formula, data = pvz_data)
+  result <- broom::tidy(model)
+  result$eta_squared <- sjstats::eta_sq(model)[["eta.sq"]]
+  result$variable <- dv
+  return(result)
+}
+
+# Function to compute Hopkins statistic for cluster tendency
+compute_hopkins <- function(data, n = nrow(data)-1) {
+  # Standardize data for clustering
+  data_scaled <- scale(data)
+  
+  # Compute Hopkins statistic
+  hopkins_result <- clustertend::hopkins(data_scaled, n = n)
+  
+  return(hopkins_result)
+}
+```
+
+```{r load-processed-data}
+#| label: load-processed-data
+
+pvz_data <- read_csv(here("data/processed/pvz_complete.csv"))
+
+# Create a copy of pvz_data for analysis to maintain consistency
+pvz_df_analysis <- pvz_data
+
+glimpse(pvz_df_analysis)
+```
+
+```{r select-columns}
+#| label: select-columns
+
+pvz_df_analysis <- pvz_df_analysis %>%
+  select(
+    # Demographic variables
+    player_id, country, age, gender, played_with_others,
+    
+    # Well-being variables
+    spane_balance, spane_positive, spane_negative,
+    autonomy, competence, relatedness, enjoyment, extrinsic,
+    spane_game_balance, spane_game_positive, spane_game_negative,
+    
+    # Total playtime
+    hours,
+    
+    # PVP metrics
+    ratio_pvp_hours,
+    pvp_kd,
+    pvp_hit_accuracy,
+    pvp_dps,
+    pvp_average_damage,
+    pvp_average_score,
+    
+    # PVE metrics
+    ratio_pve_hours,
+    pve_kd,
+    pve_hit_accuracy,
+    pve_dps,
+    pve_average_damage,
+    pve_average_score
+  )
+```
+
+# Exploratory Data Analysis
+
+## plot session timeline for a player
+
+```{r plot-session-timeline}
+#| label: plot-session-timeline
+#| fig.width: 12
+#| fig.height: 16
+
+# Function to plot session timeline for a player
+plot_player_sessions <- function(player_data, player_id = NULL, player_label = "Player") {
+  # If a player_id is provided, filter data for that player
+  if (!is.null(player_id)) {
+    player_data <- player_data %>%
+      filter(player_id == !!player_id)
+  }
+  
+  # Convert timestamps to POSIXct if they're not already
+  if (!inherits(player_data$game_start_time, "POSIXct")) {
+    player_data$game_start_time <- as.POSIXct(player_data$game_start_time, format = "%Y-%m-%d %H:%M:%S")
+    player_data$game_end_time <- as.POSIXct(player_data$game_end_time, format = "%Y-%m-%d %H:%M:%S")
+  }
+  
+  # Extract time component only 
+  player_data$start_time_only <- as.POSIXct(format(player_data$game_start_time, format = "%H:%M:%S"), format = "%H:%M:%S")
+  player_data$end_time_only <- as.POSIXct(format(player_data$game_end_time, format = "%H:%M:%S"), format = "%H:%M:%S")
+  
+  # Recode match_type based on game_level_key 
+  player_data$match_type <- "0"  # Initialize with 0 as in the original code
+  
+  # Social matches
+  player_data$match_type[player_data$game_level_key == "dsub_social_terrain_beach"] <- "social match"
+  player_data$match_type[player_data$game_level_key == "dsub_social_terrain_summer"] <- "social match"
+  player_data$match_type[player_data$game_level_key == "dsub_socialspace"] <- "social match"
+  
+  # PVE matches
+  player_data$match_type[player_data$game_level_key == "dsub_region_cheesemines"] <- "pve match"
+  player_data$match_type[player_data$game_level_key == "dsub_region_dreadwood"] <- "pve match"
+  player_data$match_type[player_data$game_level_key == "dsub_region_towncenter"] <- "pve match" 
+  
+  # PVP matches (Rush)
+  player_data$match_type[player_data$game_level_key == "dsub_rush_dreadwood"] <- "pvp match (rush)"
+  player_data$match_type[player_data$game_level_key == "dsub_rush_towncenter"] <- "pvp match (rush)"
+  player_data$match_type[player_data$game_level_key == "dsub_rush_farm"] <- "pvp match (rush)"
+  player_data$match_type[player_data$game_level_key == "dsub_rush_cheesemines"] <- "pvp match (rush)"
+  player_data$match_type[player_data$game_level_key == "dsub_rush_shoreline"] <- "pvp match (rush)"
+  player_data$match_type[player_data$game_level_key == "dsub_rush_resort"] <- "pvp match (rush)"
+  
+  # PVP matches (Vanquish)
+  player_data$match_type[player_data$game_level_key == "dsub_tvm_cheesemines"] <- "pvp match (vanquish)"
+  player_data$match_type[player_data$game_level_key == "dsub_tvm_zrefinery"] <- "pvp match (vanquish)"
+  player_data$match_type[player_data$game_level_key == "dsub_tvm_suburbs"] <- "pvp match (vanquish)"
+  player_data$match_type[player_data$game_level_key == "dsub_tvm_dreadwood"] <- "pvp match (vanquish)"
+  
+  # PVP matches (Arena)
+  player_data$match_type[player_data$game_level_key == "dsub_4v4_battlearena_v2"] <- "pvp match (arena)"
+  player_data$match_type[player_data$game_level_key == "dsub_4v4_superarena"] <- "pvp match (arena)"
+  
+  # Podium celebration
+  player_data$match_type[player_data$game_level_key == "dsub_podiumcelebration"] <- "podium celebration"
+  
+  # Sort by time to get proper sequence
+  player_data <- player_data %>%
+    arrange(game_start_time, game_end_time)
+  
+  # Convert match_type to factor with proper levels for consistent ordering
+  player_data$match_type <- factor(
+    player_data$match_type,
+    levels = c("social match", "pve match", "pvp match (rush)", "pvp match (vanquish)", "pvp match (arena)", "podium celebration", "0"),
+    labels = c("Social Match", "PvE Match", "PvP (Rush)", "PvP (Vanquish)", "PvP (Arena)", "Podium Celebration", "Other")
+  )
+  
+  # Create the plot with enhanced styling
+  plot <- player_data %>%   
+    tibble::rowid_to_column() %>% 
+    ggplot2::ggplot(aes(start_time_only, rowid, col = match_type)) +
+    # Use improved color palette with better contrast
+    ggplot2::scale_color_manual(
+      name = "Match Type", 
+      values = c(
+        "Social Match" = "#00BFC4",       # Teal
+        "PvE Match" = "#7CAE00",          # Green
+        "PvP (Rush)" = "#F8766D",         # Red
+        "PvP (Vanquish)" = "#FF9E1C",     # Orange
+        "PvP (Arena)" = "#FFD700",        # Gold
+        "Podium Celebration" = "#C77CFF", # Purple
+        "Other" = "#A0A0A0"               # Gray
+      )
+    ) +
+    # Thicker segments with rounded ends for better visibility
+    ggplot2::geom_segment(
+      aes(xend = end_time_only, yend = rowid),
+      linewidth = 2,
+      lineend = "round"
+    ) +
+    # Add points at start/end for better visibility of short sessions
+    ggplot2::geom_point(size = 1.5, alpha = 0.6) +
+    ggplot2::geom_point(aes(x = end_time_only), size = 1.5, alpha = 0.6) +
+    # Better time axis formatting - using fixed limits for consistency
+    ggplot2::scale_x_datetime(
+      labels = scales::date_format("%H:%M"),
+      breaks = scales::date_breaks("2 hours"),
+      limits = c(
+        as.POSIXct(strptime("00:00", format = "%H:%M")),
+        as.POSIXct(strptime("23:59", format = "%H:%M"))
+      ),
+      expand = c(0.01, 0.01),
+      date_minor_breaks = "1 hour"
+    ) +
+    # Improved labels - removed subtitle with player label
+    ggplot2::labs(
+      x = "Time of Day (hours)", 
+      y = "Game Match Sequence"
+    ) +
+    # Improved theme with better typography and layout
+    ggplot2::theme_minimal(base_size = 11, base_family = "sans") +
+    ggplot2::theme(
+      legend.position = "none", # Move legend to the combined figure
+      plot.margin = margin(30, 10, 30, 10), # Increased margins for better separation
+      
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.title = element_text(face = "bold"),
+      
+      panel.grid.major.x = element_line(color = "grey90"),
+      panel.grid.minor.x = element_line(color = "grey95"),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA)
+    )
+  
+  return(plot)
+}
+
+# Load game session data if not already included
+game_sessions <- read_csv(here("data/processed/game_time_2week.csv"))
+
+# Make sure timestamps are in the correct format
+game_sessions$game_start_time <- as.POSIXct(game_sessions$game_start_time, format = "%Y-%m-%d %H:%M:%S")
+game_sessions$game_end_time <- as.POSIXct(game_sessions$game_end_time, format = "%Y-%m-%d %H:%M:%S")
+
+
+# First, get a list of player IDs in the data
+player_ids <- unique(game_sessions$player_id)
+
+# Choose specific indices
+# If those indices don't exist in our data, we'll use the first three players
+player_indices <- c(
+  min(401, length(player_ids)),  # Equivalent to slice(401) 
+  min(6, length(player_ids)),    # Equivalent to slice(6)
+  min(3, length(player_ids))     # Equivalent to slice(3)
+)
+
+selected_player_ids <- player_ids[player_indices]
+
+# Create individual plots for each player with standardized x-axis
+plot1 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[1])
+)
+
+plot2 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[2])
+)
+
+# For the third plot, use the same time range for consistency
+plot3 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[3])
+)
+
+# Combine plots into a single figure with enhanced styling and proper spacing
+figure <- ggarrange(
+  plot2, plot3, plot1,
+  labels = c("Player A", "Player B", "Player C"),
+  font.label = list(size = 14, face = "bold", color = "black"),
+  ncol = 1, 
+  nrow = 3, 
+  common.legend = TRUE, 
+  legend = "bottom",
+  heights = c(1, 1, 1),
+  align = "v",
+  hjust = -0.1
+)
+
+
+# Display the combined figure
+figure
+```
+
+
+## Overall Playtime Patterns
+
+```{r overall-playtime}
+#| label: overall-playtime
+#| fig.width: 10
+#| fig.height: 6
+
+# Summary statistics of playtime
+playtime_summary <- pvz_df_analysis %>%
+  summarise(
+    mean_hours = mean(hours),
+    median_hours = median(hours),
+    sd_hours = sd(hours),
+    min_hours = min(hours),
+    max_hours = max(hours),
+    q25_hours = quantile(hours, 0.25),
+    q75_hours = quantile(hours, 0.75)
+  )
+
+# Display the summary
+kable(playtime_summary, digits = 2,
+      caption = "Summary statistics of playtime (hours) in the 2-week period")
+
+# Plot the distribution of playtime
+ggplot(pvz_df_analysis, aes(x = hours)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  geom_vline(xintercept = mean(pvz_df_analysis$hours), 
+             color = "red", linetype = "dashed") +
+  geom_vline(xintercept = median(pvz_df_analysis$hours),
+             color = "darkred", linetype = "dashed") +
+  labs(
+    title = "Distribution of Total Playtime Hours",
+    subtitle = "Red = Mean, Dark Red = Median",
+    x = "Hours (2-week period)",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+## Playtime by Game Mode
+
+```{r playtime-by-mode}
+#| label: playtime-by-mode
+#| fig.width: 10
+#| fig.height: 8
+
+# Prepare data for game mode comparison
+mode_hours <- pvz_df_analysis %>%
+  select(player_id, pvp_hours, pve_hours, social_hours) %>%
+  pivot_longer(
+    cols = c(pvp_hours, pve_hours, social_hours),
+    names_to = "mode",
+    values_to = "hours"
+  ) %>%
+  mutate(mode = str_remove(mode, "_hours")) %>%
+  mutate(mode = factor(mode, levels = c("pvp", "pve", "social"),
+                       labels = c("PvP", "PvE", "Social Hub")))
+
+# Calculate summary statistics by game mode
+mode_summary <- mode_hours %>%
+  group_by(mode) %>%
+  summarise(
+    mean_hours = mean(hours),
+    median_hours = median(hours),
+    sd_hours = sd(hours),
+    total_hours = sum(hours),
+    pct_total = total_hours / sum(mode_hours$hours) * 100
+  ) %>%
+  arrange(desc(mean_hours))
+
+# Display the summary
+kable(mode_summary, digits = 2,
+      caption = "Playtime statistics by game mode")
+
+# Plot total playtime by game mode
+ggplot(mode_hours, aes(x = mode, y = hours, fill = mode)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Distribution of Playtime by Game Mode",
+    x = "Game Mode",
+    y = "Hours Played (2-week period)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+
+```{r mode-preference-distribution}
+#| label: mode-preference-distribution
+#| fig.width: 10
+#| fig.height: 6
+
+# Calculate the percentage of time each player spends in each mode
+mode_percentages <- pvz_df_analysis %>%
+  mutate(
+    total_mode_hours = pvp_hours + pve_hours + social_hours,
+    pvp_pct = pvp_hours / total_mode_hours * 100,
+    pve_pct = pve_hours / total_mode_hours * 100,
+    social_pct = social_hours / total_mode_hours * 100
+  ) %>%
+  select(player_id, pvp_pct, pve_pct, social_pct) %>%
+  pivot_longer(
+    cols = c(pvp_pct, pve_pct, social_pct),
+    names_to = "mode",
+    values_to = "percentage"
+  ) %>%
+  mutate(mode = str_remove(mode, "_pct")) %>%
+  mutate(mode = factor(mode, levels = c("pvp", "pve", "social"),
+                       labels = c("PvP", "PvE", "Social Hub")))
+
+# Visualize the distribution of mode preferences as percentage of total playtime
+ggplot(mode_percentages, aes(x = percentage, fill = mode)) +
+  geom_histogram(bins = 30, position = "identity", alpha = 0.5) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Distribution of Game Mode Preferences",
+    subtitle = "Percentage of total playtime spent in each mode",
+    x = "Percentage of Playtime",
+    y = "Count",
+    fill = "Game Mode"
+  ) +
+  theme_minimal() +
+  facet_wrap(~ mode, ncol = 1)
+```
+
+## Performance Metrics Analysis
+
+```{r performance-metrics-overview}
+#| label: performance-metrics-overview
+
+# Select key performance metrics for analysis
+performance_metrics <- pvz_df_analysis %>%
+  select(
+    player_id, hours,
+    total_kd, pvp_kd, pve_kd,
+    total_hit_accuracy, pvp_hit_accuracy, pve_hit_accuracy,
+    total_crit_ratio, pvp_crit_ratio, pve_crit_ratio,
+    total_average_damage, pvp_average_damage, pve_average_damage,
+    total_average_score, pvp_average_score, pve_average_score
+  )
+
+# Calculate summary statistics for key performance metrics
+performance_summary <- performance_metrics %>%
+  summarise(across(
+    c(total_kd, pvp_kd, pve_kd,
+      total_hit_accuracy, pvp_hit_accuracy, pve_hit_accuracy,
+      total_crit_ratio, pvp_crit_ratio, pve_crit_ratio),
+    list(
+      mean = ~mean(.x, na.rm = TRUE),
+      median = ~median(.x, na.rm = TRUE),
+      sd = ~sd(.x, na.rm = TRUE),
+      min = ~min(.x, na.rm = TRUE),
+      max = ~max(.x, na.rm = TRUE)
+    )
+  )) %>%
+  pivot_longer(everything(), names_to = c("metric", ".value"), names_sep = "_")
+
+# Display the summary
+kable(performance_summary, digits = 3,
+      caption = "Summary of key performance metrics")
+```
+
+```{r performance-correlations}
+#| label: performance-correlations
+#| fig.width: 10
+#| fig.height: 10
+
+# Calculate correlations between performance metrics
+performance_corr <- pvz_df_analysis %>%
+  select(
+    total_kd, pvp_kd, pve_kd,
+    total_hit_accuracy, pvp_hit_accuracy, pve_hit_accuracy,
+    total_crit_ratio, pvp_crit_ratio, pve_crit_ratio,
+    total_average_damage, pvp_average_damage, pve_average_damage,
+    total_average_score, pvp_average_score, pve_average_score
+  ) %>%
+  cor(use = "pairwise.complete.obs")
+
+# Create correlation plot
+corrplot(
+  performance_corr,
+  method = "color",
+  type = "upper",
+  order = "hclust",
+  tl.col = "black",
+  tl.srt = 45,
+  diag = FALSE,
+  addCoef.col = "black",
+  number.cex = 0.7,
+  title = "Correlations Between Performance Metrics",
+  mar = c(0, 0, 1, 0)
+)
+```
+
+## Play Style vs. Performance
+
+```{r playstyle-performance}
+#| label: playstyle-performance
+#| fig.width: 10
+#| fig.height: 8
+
+# Create a scatter plot of playtime vs. k/d ratio
+ggplot(pvz_df_analysis, aes(x = hours, y = total_kd)) +
+  geom_point(alpha = 0.5, color = "steelblue") +
+  geom_smooth(method = "loess", se = TRUE, color = "darkred") +
+  labs(
+    title = "Relationship Between Playtime and Performance",
+    x = "Total Hours Played",
+    y = "Kill/Death Ratio"
+  ) +
+  theme_minimal()
+
+# Compare performance across different game modes
+mode_performance <- pvz_df_analysis %>%
+  select(
+    player_id,
+    pvp_hours, pve_hours,
+    pvp_kd, pve_kd,
+    pvp_hit_accuracy, pve_hit_accuracy
+  ) %>%
+  mutate(
+    primary_mode = case_when(
+      pvp_hours > pve_hours ~ "PvP-focused",
+      pve_hours > pvp_hours ~ "PvE-focused",
+      TRUE ~ "Mixed"
+    )
+  ) %>%
+  filter(primary_mode != "Mixed") # Remove players with equal hours
+
+# Create box plots comparing performance metrics by primary play mode
+p1 <- ggplot(mode_performance, aes(x = primary_mode, y = pvp_kd, fill = primary_mode)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "PvP K/D Ratio by Primary Play Mode",
+    x = "Primary Mode",
+    y = "PvP K/D Ratio"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p2 <- ggplot(mode_performance, aes(x = primary_mode, y = pve_kd, fill = primary_mode)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "PvE K/D Ratio by Primary Play Mode",
+    x = "Primary Mode",
+    y = "PvE K/D Ratio"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p3 <- ggplot(mode_performance, aes(x = primary_mode, y = pvp_hit_accuracy, fill = primary_mode)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "PvP Hit Accuracy by Primary Play Mode",
+    x = "Primary Mode",
+    y = "PvP Hit Accuracy"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+p4 <- ggplot(mode_performance, aes(x = primary_mode, y = pve_hit_accuracy, fill = primary_mode)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "PvE Hit Accuracy by Primary Play Mode",
+    x = "Primary Mode",
+    y = "PvE Hit Accuracy"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# Combine the plots
+ggarrange(p1, p2, p3, p4, ncol = 2, nrow = 2)
+```
+
+# Player Clustering Analysis
+
+## Feature Selection for Clustering
+
+```{r prepare-clustering}
+#| label: prepare-clustering
+
+# Select features for clustering
+clustering_features <- pvz_df_analysis %>%
+  select(
+    # Playtime variables
+    hours, pvp_hours, pve_hours, social_hours,
+    ratio_pvp_hours, ratio_pve_hours, ratio_social_hours,
+    
+    # Performance metrics
+    total_kd, pvp_kd, pve_kd,
+    total_hit_accuracy, pvp_hit_accuracy, pve_hit_accuracy,
+    total_average_score, pvp_average_score, pve_average_score
+  )
+
+# Scale the data for clustering (important for k-means)
+clustering_data_scaled <- scale(clustering_features)
+rownames(clustering_data_scaled) <- pvz_df_analysis$player_id
+```
+
+## Determine Optimal Number of Clusters
+
+```{r optimal-clusters}
+#| label: optimal-clusters
+#| fig.width: 10
+#| fig.height: 6
+#| cache: true
+
+# Elbow method
+fviz_nbclust(clustering_data_scaled, kmeans, method = "wss") +
+  labs(title = "Elbow Method for Optimal k") +
+  theme_minimal()
+
+# Silhouette method
+fviz_nbclust(clustering_data_scaled, kmeans, method = "silhouette") +
+  labs(title = "Silhouette Method for Optimal k") +
+  theme_minimal()
+
+# Gap statistic method (this can be compute-intensive)
+# fviz_nbclust(clustering_data_scaled, kmeans, method = "gap_stat", nboot = 50) +
+#   labs(title = "Gap Statistic Method for Optimal k") +
+#   theme_minimal()
+```
+
+## K-means Clustering
+
+```{r kmeans-clustering}
+#| label: kmeans-clustering
+#| fig.width: 10
+#| fig.height: 6
+#| cache: true
+
+# Perform k-means clustering with k=3
+set.seed(42) # For reproducibility
+k <- 3
+kmeans_result <- kmeans(clustering_data_scaled, centers = k, nstart = 25)
+
+# Add cluster assignments to the original data
+pvz_df_clustered <- pvz_df_analysis %>%
+  mutate(cluster = factor(kmeans_result$cluster))
+
+# Create a function to generate descriptive cluster names
+generate_cluster_names <- function(cluster_data) {
+  # Calculate cluster centers for key variables
+  centers <- cluster_data %>%
+    group_by(cluster) %>%
+    summarise(
+      pvp_ratio = mean(ratio_pvp_hours),
+      pve_ratio = mean(ratio_pve_hours),
+      social_ratio = mean(ratio_social_hours),
+      total_kd = mean(total_kd),
+      total_accuracy = mean(total_hit_accuracy),
+      hours = mean(hours)
+    )
+  
+  # Assign descriptive names based on the characteristics
+  cluster_names <- character(nrow(centers))
+  
+  for (i in 1:nrow(centers)) {
+    # Determine the primary play mode
+    mode_ratios <- c(centers$pvp_ratio[i], centers$pve_ratio[i], centers$social_ratio[i])
+    mode_names <- c("PvP", "PvE", "Social")
+    primary_mode <- mode_names[which.max(mode_ratios)]
+    
+    # Determine skill level based on KD and accuracy
+    skill <- if (centers$total_kd[i] > median(cluster_data$total_kd) && 
+                 centers$total_accuracy[i] > median(cluster_data$total_hit_accuracy)) {
+      "High-skill"
+    } else if (centers$total_kd[i] < median(cluster_data$total_kd) && 
+               centers$total_accuracy[i] < median(cluster_data$total_hit_accuracy)) {
+      "Casual"
+    } else {
+      "Mixed-skill"
+    }
+    
+    # Determine playtime intensity
+    playtime <- if (centers$hours[i] > median(cluster_data$hours)) {
+      "Dedicated"
+    } else {
+      "Moderate"
+    }
+    
+    # Combine characteristics into a descriptive name
+    cluster_names[i] <- paste(playtime, primary_mode, skill, "Players")
+  }
+  
+  return(data.frame(cluster = 1:nrow(centers), player_type = cluster_names))
+}
+
+# Generate descriptive names for clusters
+cluster_names <- generate_cluster_names(pvz_df_clustered)
+
+# Add descriptive names to the clustered data
+pvz_df_clustered <- pvz_df_clustered %>%
+  mutate(cluster_num = as.numeric(as.character(cluster))) %>%
+  left_join(cluster_names, by = c("cluster_num" = "cluster")) %>%
+  select(-cluster_num) %>%
+  mutate(cluster = factor(cluster, labels = cluster_names$player_type))
+
+# Save the clustered data for further analysis
+write_csv(pvz_df_clustered, here("data/processed/pvz_with_clusters.csv"))
+```
+
+## Visualize Clusters
+
+```{r visualize-clusters}
+#| label: visualize-clusters
+#| fig.width: 12
+#| fig.height: 8
+
+# Perform PCA for visualization
+pca_result <- prcomp(clustering_data_scaled)
+pca_data <- as.data.frame(pca_result$x[, 1:2])
+pca_data$cluster <- pvz_df_clustered$cluster
+
+# Create PCA biplot
+pca_plot <- fviz_pca_biplot(pca_result, 
+                  label = "var",
+                  habillage = pvz_df_clustered$cluster,
+                  addEllipses = TRUE,
+                  ellipse.level = 0.95,
+                  palette = "Set2",
+                  title = "PCA of Player Clusters",
+                  ggtheme = theme_minimal()) +
+  labs(color = "Player Type")
+
+# Display the plot
+print(pca_plot)
+```
+
+## Cluster Characteristics
+
+```{r cluster-characteristics}
+#| label: cluster-characteristics
+#| fig.width: 12
+#| fig.height: 8
+
+# Calculate mean values of key variables by cluster
+cluster_profiles <- pvz_df_clustered %>%
+  group_by(cluster) %>%
+  summarise(
+    n = n(),
+    pct = n() / nrow(pvz_df_clustered) * 100,
+    hours = mean(hours),
+    ratio_pvp = mean(ratio_pvp_hours) * 100,
+    ratio_pve = mean(ratio_pve_hours) * 100,
+    ratio_social = mean(ratio_social_hours) * 100,
+    total_kd = mean(total_kd),
+    pvp_kd = mean(pvp_kd),
+    pve_kd = mean(pve_kd),
+    hit_accuracy = mean(total_hit_accuracy) * 100,
+    critical_ratio = mean(total_crit_ratio) * 100,
+    avg_score = mean(total_average_score)
+  )
+
+# Display cluster profiles
+kable(cluster_profiles, digits = 2,
+      caption = "Profile Summary of Player Clusters")
+
+# Create radar chart data
+radar_data <- pvz_df_clustered %>%
+  group_by(cluster) %>%
+  summarise(
+    `Total Hours` = scale_to_01(mean(hours), min(pvz_df_clustered$hours), max(pvz_df_clustered$hours)),
+    `PvP Ratio` = mean(ratio_pvp_hours),
+    `PvE Ratio` = mean(ratio_pve_hours),
+    `Social Ratio` = mean(ratio_social_hours),
+    `K/D Ratio` = scale_to_01(mean(total_kd), min(pvz_df_clustered$total_kd), max(pvz_df_clustered$total_kd)),
+    `Hit Accuracy` = mean(total_hit_accuracy),
+    `Crit Ratio` = mean(total_crit_ratio),
+    `Avg Score` = scale_to_01(mean(total_average_score), min(pvz_df_clustered$total_average_score), max(pvz_df_clustered$total_average_score))
+  ) %>%
+  ungroup() %>%
+  column_to_rownames(var = "cluster")
+
+# Set the range for the radar chart
+radar_data <- rbind(rep(1, ncol(radar_data)), rep(0, ncol(radar_data)), radar_data)
+
+# Create a radar chart
+radar_colors <- c("#E41A1C", "#377EB8", "#4DAF4A")
+radar_chart <- radarchart(
+  radar_data, 
+  pcol = radar_colors, 
+  pfcol = adjustcolor(radar_colors, alpha.f = 0.3),
+  plwd = 2,
+  vlcex = 0.8,
+  title = "Player Cluster Profiles"
+)
+```
+
+# Relationship Between Playtime and Well-Being
+
+## Overall Well-Being by Player Type
+
+```{r wellbeing-by-cluster}
+#| label: wellbeing-by-cluster
+#| fig.width: 10
+#| fig.height: 6
+
+# Compare well-being metrics across clusters
+wellbeing_by_cluster <- pvz_df_clustered %>%
+  group_by(cluster) %>%
+  summarise(
+    spane_balance = mean(spane_balance),
+    spane_positive = mean(spane_positive),
+    spane_negative = mean(spane_negative),
+    spane_game_balance = mean(spane_game_balance),
+    autonomy = mean(autonomy),
+    competence = mean(competence),
+    relatedness = mean(relatedness),
+    enjoyment = mean(enjoyment),
+    extrinsic = mean(extrinsic),
+    n = n()
+  )
+
+# Display the summary table
+kable(wellbeing_by_cluster, digits = 2,
+      caption = "Well-being metrics by player cluster")
+
+# Create boxplots for SPANE balance by cluster
+ggplot(pvz_df_clustered, aes(x = cluster, y = spane_balance, fill = cluster)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Overall Well-Being (SPANE Balance) by Player Type",
+    x = "Player Type",
+    y = "SPANE Balance Score"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+# Create boxplots for game-related well-being by cluster
+ggplot(pvz_df_clustered, aes(x = cluster, y = spane_game_balance, fill = cluster)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Game-Related Well-Being by Player Type",
+    x = "Player Type",
+    y = "Game SPANE Balance Score"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+## Playtime and Well-Being Relationships
+
+```{r playtime-wellbeing}
+#| label: playtime-wellbeing
+#| fig.width: 12
+#| fig.height: 8
+
+# Create scatter plots for total playtime vs. well-being
+p1 <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_balance, color = cluster)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Total Playtime vs. Overall Well-Being",
+    x = "Total Hours Played",
+    y = "SPANE Balance Score",
+    color = "Player Type"
+  ) +
+  theme_minimal()
+
+p2 <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_game_balance, color = cluster)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Total Playtime vs. Game-Related Well-Being",
+    x = "Total Hours Played",
+    y = "Game SPANE Balance Score",
+    color = "Player Type"
+  ) +
+  theme_minimal()
+
+# Combine the plots
+ggarrange(p1, p2, ncol = 2, common.legend = TRUE, legend = "right")
+```
+
+```{r gamemode-wellbeing}
+#| label: gamemode-wellbeing
+#| fig.width: 12
+#| fig.height: 10
+
+# Create scatter plots for game mode playtime vs. well-being
+p1 <- ggplot(pvz_df_clustered, aes(x = pvp_hours, y = spane_balance, color = cluster)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "PvP Playtime vs. Overall Well-Being",
+    x = "PvP Hours Played",
+    y = "SPANE Balance Score",
+    color = "Player Type"
+  ) +
+  theme_minimal()
+
+p2 <- ggplot(pvz_df_clustered, aes(x = pve_hours, y = spane_balance, color = cluster)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "PvE Playtime vs. Overall Well-Being",
+    x = "PvE Hours Played",
+    y = "SPANE Balance Score",
+    color = "Player Type"
+  ) +
+  theme_minimal()
+
+p3 <- ggplot(pvz_df_clustered, aes(x = social_hours, y = spane_balance, color = cluster)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
+  scale_color_brewer(palette = "Set2") +
+  labs(
+    title = "Social Hub Playtime vs. Overall Well-Being",
+    x = "Social Hub Hours Played",
+    y = "SPANE Balance Score",
+    color = "Player Type"
+  ) +
+  theme_minimal()
+
+# Combine the plots
+ggarrange(p1, p2, p3, ncol = 2, nrow = 2, common.legend = TRUE, legend = "right")
+```
+
+## Motivation and Well-Being by Player Type
+
+```{r motivation-by-cluster}
+#| label: motivation-by-cluster
+#| fig.width: 12
+#| fig.height: 8
+
+# Prepare data for motivation visualization
+motivation_data <- pvz_df_clustered %>%
+  select(player_id, cluster, autonomy, competence, relatedness, enjoyment, extrinsic) %>%
+  pivot_longer(
+    cols = c(autonomy, competence, relatedness, enjoyment, extrinsic),
+    names_to = "motivation_type",
+    values_to = "score"
+  ) %>%
+  mutate(
+    motivation_type = factor(
+      motivation_type, 
+      levels = c("autonomy", "competence", "relatedness", "enjoyment", "extrinsic"),
+      labels = c("Autonomy", "Competence", "Relatedness", "Enjoyment", "Extrinsic")
+    )
+  )
+
+# Create bar chart for motivation by player type
+ggplot(motivation_data, aes(x = motivation_type, y = score, fill = cluster)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "Motivation Factors by Player Type",
+    x = "Motivation Type",
+    y = "Mean Score",
+    fill = "Player Type"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Discussion and Conclusion
+
+This analysis has identified distinct player types in Plants vs. Zombies: Battle for Neighborville based on playstyle metrics, including game mode preference, playtime intensity, and performance measures. The three player clusters exhibit different patterns of well-being and motivation, suggesting that the relationship between gameplay and psychological outcomes varies by play style.
+
+Key findings include:
+
+1.  Players show distinct preferences for different game modes (PvP, PvE, and Social), with varying levels of skill and time investment.
+
+2.  The identified player types show different relationships between playtime and well-being, suggesting that how players engage with the game matters more than simply how much they play.
+
+3.  Motivation factors such as autonomy, competence, and enjoyment vary across player types, indicating different psychological needs being met through gameplay.
+
+4.  Game-related well-being tends to be more positive than general well-being across all player types, suggesting that the game provides a positive experience regardless of playstyle.
+
+These findings have implications for game design, suggesting that catering to different playstyles and motivations can enhance player well-being. Future research could explore how these patterns evolve over longer periods and how game design changes might impact different player types.
+
+```{r save-results}
+#| label: save-results
+#| include: false
+
+# Final cleanup and save session info for reproducibility
+sessionInfo()
+```

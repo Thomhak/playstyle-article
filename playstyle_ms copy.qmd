@@ -69,6 +69,69 @@ format:
     documentmode: man
     keep-tex: true
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = knitr::is_html_output(), 
+  message = FALSE, 
+  warning = FALSE, 
+  cache = FALSE
+  output = TRUE
+)
+```
+
+
+```{r}
+#| label: load-libraries
+if (!require("pacman")) install.packages("pacman")
+library(pacman)
+
+p_load(readxl,
+  knitr,
+  here,
+  lubridate,
+  scales,
+  janitor,
+  tidyverse,
+  oii)
+
+```
+
+```{r}
+#| label: load-data
+
+read_both_waves <- function(stub = "OII_PVZ_Authentications", ...) {
+  # Filenames of wave 1 and 2 authentications files
+  list.files(
+    here("/data/data-raw/ea"), pattern = stub, full.names = TRUE
+  ) %>% 
+    # Put wave 1 first
+    rev() %>% 
+    # Read into a list of data frames
+    map(read_csv, ...) %>% 
+    # Bind into one data frame with wave ID
+    bind_rows(.id = "wave") %>%
+    # Take only participants who filled out survey
+    filter(player_id %in% survey$player_id)
+
+survey <- read_excel(
+  here("/data/data-raw/ea/Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx")
+)
+
+survey <- survey %>% 
+  mutate(
+    # Ensure date data type
+    date = mdy_hm(date),
+    # Need another name to use in filtering telemetry
+    start_date = date
+  ) %>% 
+  # Other files use player_id
+  rename(player_id = UID)
+}
+```
+
+
+
+
 The literature on whether video games harm or improve well-being remains divided. Several studies report negative associations between playtime and measures of mental health or well-being (Ferguson & Colwell, 2019; Liu et al., 2019; Mathur & VanderWeele, 2019). Other studies find negative associations only among highly engaged players (Colder Carras et al., 2017; Przybylski & Weinstein, 2017). Yet others, find null or negligible associations (Johannes et al., 2020; Vuorre et al., 2021). The positive aspects are similarly mixed. Some studies find positive associations between playtime and well-being (Halbrook et al., 2019; Johannes et al., 2020; Villani et al., 2018), whereas others report them just for moderate usage (Przybylski & Weinstein, 2017) or specific game genres such as MMOs (Raith et al., 2021). Overall, existing evidence suggests that the relations between video games and well-being are complex, small, and potentially bidirectional. However, the inconsistency of these findings has prevented any firm conclusions from being drawn. This lack of consensus has led scholars to question the value of time spent playing games as a factor meriting study in its own right (Orben et al., 2020) 
 
 Most research on the well-being effects of video games applies what could be called a playtime paradigm, measuring how long a player engages with the video game, whilst overlooking, and not measuring, the actual play behaviour that is enacted by participants. Whilst the concept of playtime is helpful to ascertain more clearly how extreme cases of over- and under-usage may impact differentially on well-being, it gives researchers no insight into the myriad actions, behaviours, and feelings that players perform and experience. Hence, it has become increasingly clear that playtime as a unidimensional or homogenous construct has less validity than once thought (Kaye et al., 2020) and might not be informative on its own when it comes to understanding genuine player behaviour and well-being outcomes (Granic et al., 2020). This playtime paradigm is problematic, as it oversimplifies a complex phenomenon by failing to recognize that video games are multimodal virtual worlds that offer a wide variety of different experiences to each player (Kaye et al., 2020; Orben, 2019). Subsuming all these activities and experiences under one simple count of frequency and duration fails to acknowledge that they serve different functions and possibly show different effects (Dienlin & Johannes, 2020). Since this limitation calls the previous studies’ marginal findings into question, there is a strong need to start considering player-specific differences in in-game play behaviour and performance such as behavioural profiles or play styles. 
