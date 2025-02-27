@@ -1,6 +1,9 @@
 # System files
 .DS_Store
 
+# Data
+*.csv
+
 # Quarto output
 /.quarto/
 /_site/
@@ -21,3 +24,14 @@ __pycache__/
 .cursor/rules
 .mcd
 .mcd-rules
+
+# other files
+*.rmd
+*.txt
+*.docx
+*.doc
+*.pdf
+*.pptx
+*.ppt
+*.xls
+*.xlsx

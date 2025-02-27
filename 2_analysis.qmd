@@ -884,7 +884,9 @@ cluster_profiles <- pvz_df_clustered %>%
 # Display cluster profiles
 kable(cluster_profiles, digits = 2,
       caption = "Profile Summary of Player Clusters")
+```
 
+```{r radar-charts}
 # Prepare data for radar charts
 radar_metrics <- c(
   "Total Hours", 
@@ -897,30 +899,79 @@ radar_metrics <- c(
 # Extract cluster names to use as chart titles
 cluster_names <- levels(pvz_df_clustered$cluster)
 
-# Calculate radar chart data for each cluster
+# Add a z-score standardization function
+# This scales values based on how many standard deviations they are from the mean
+z_score_scale <- function(x) {
+  # Check for zero standard deviation to avoid division by zero
+  if (sd(x, na.rm = TRUE) == 0) return(rep(0, length(x)))
+  return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
+}
+
+# Helper function to convert z-scores to a 0-1 scale for radar chart display
+# Typically -3 to +3 z-scores cover 99.7% of data, so we'll use this as limits
+z_to_radar_scale <- function(z, min_z = -3, max_z = 3) {
+  # Clip extreme values to min_z and max_z
+  z_clipped <- pmax(pmin(z, max_z), min_z)
+  # Scale to 0-1 range
+  scaled <- (z_clipped - min_z) / (max_z - min_z)
+  return(scaled)
+}
+
+# Calculate z-scores for each metric across all players
+pvz_metrics_z <- pvz_df_clustered %>%
+  summarise(
+    hours_z = list(z_score_scale(hours)),
+    ratio_pve_hours_z = list(z_score_scale(ratio_pve_hours)),
+    pve_kd_z = list(z_score_scale(pve_kd)),
+    pve_hit_accuracy_z = list(z_score_scale(pve_hit_accuracy)),
+    pve_average_score_z = list(z_score_scale(pve_average_score)),
+    ratio_pvp_hours_z = list(z_score_scale(ratio_pvp_hours)),
+    pvp_kd_z = list(z_score_scale(pvp_kd)),
+    pvp_hit_accuracy_z = list(z_score_scale(pvp_hit_accuracy)),
+    pvp_average_score_z = list(z_score_scale(pvp_average_score))
+  )
+
+# Calculate radar chart data for each cluster using the z-scores
 radar_data <- pvz_df_clustered %>%
   group_by(cluster) %>%
   summarise(
-    # Apply min-max scaling to ALL metrics for better visual differentiation
-    `Total Hours` = scale_to_01(mean(hours), min(pvz_df_clustered$hours), max(pvz_df_clustered$hours)),
-    # PvE metrics first (left side)
-    `PvE Ratio` = scale_to_01(mean(ratio_pve_hours), min(pvz_df_clustered$ratio_pve_hours), max(pvz_df_clustered$ratio_pve_hours)),
-    `PvE K/D` = scale_to_01(mean(pve_kd), min(pvz_df_clustered$pve_kd), max(pvz_df_clustered$pve_kd)),
-    `PvE Accuracy` = scale_to_01(mean(pve_hit_accuracy), min(pvz_df_clustered$pve_hit_accuracy), max(pvz_df_clustered$pve_hit_accuracy)),
-    `PvE Score` = scale_to_01(mean(pve_average_score), min(pvz_df_clustered$pve_average_score), max(pvz_df_clustered$pve_average_score)),
-    # PvP metrics second (right side)
-    `PvP Ratio` = scale_to_01(mean(ratio_pvp_hours), min(pvz_df_clustered$ratio_pvp_hours), max(pvz_df_clustered$ratio_pvp_hours)),
-    `PvP K/D` = scale_to_01(mean(pvp_kd), min(pvz_df_clustered$pvp_kd), max(pvz_df_clustered$pvp_kd)),
-    `PvP Accuracy` = scale_to_01(mean(pvp_hit_accuracy), min(pvz_df_clustered$pvp_hit_accuracy), max(pvz_df_clustered$pvp_hit_accuracy)),
-    `PvP Score` = scale_to_01(mean(pvp_average_score), min(pvz_df_clustered$pvp_average_score), max(pvz_df_clustered$pvp_average_score))
+    # Calculate mean z-score for each metric within this cluster
+    hours_cluster_mean = mean(hours, na.rm = TRUE),
+    ratio_pve_hours_cluster_mean = mean(ratio_pve_hours, na.rm = TRUE),
+    pve_kd_cluster_mean = mean(pve_kd, na.rm = TRUE),
+    pve_hit_accuracy_cluster_mean = mean(pve_hit_accuracy, na.rm = TRUE),
+    pve_average_score_cluster_mean = mean(pve_average_score, na.rm = TRUE),
+    ratio_pvp_hours_cluster_mean = mean(ratio_pvp_hours, na.rm = TRUE),
+    pvp_kd_cluster_mean = mean(pvp_kd, na.rm = TRUE),
+    pvp_hit_accuracy_cluster_mean = mean(pvp_hit_accuracy, na.rm = TRUE),
+    pvp_average_score_cluster_mean = mean(pvp_average_score, na.rm = TRUE)
   ) %>%
-  ungroup()
+  ungroup() %>%
+  # Convert cluster means to z-scores
+  mutate(
+    `Total Hours` = z_to_radar_scale(z_score_scale(hours_cluster_mean)),
+    `PvE Ratio` = z_to_radar_scale(z_score_scale(ratio_pve_hours_cluster_mean)),
+    `PvE K/D` = z_to_radar_scale(z_score_scale(pve_kd_cluster_mean)),
+    `PvE Accuracy` = z_to_radar_scale(z_score_scale(pve_hit_accuracy_cluster_mean)),
+    `PvE Score` = z_to_radar_scale(z_score_scale(pve_average_score_cluster_mean)),
+    `PvP Ratio` = z_to_radar_scale(z_score_scale(ratio_pvp_hours_cluster_mean)),
+    `PvP K/D` = z_to_radar_scale(z_score_scale(pvp_kd_cluster_mean)),
+    `PvP Accuracy` = z_to_radar_scale(z_score_scale(pvp_hit_accuracy_cluster_mean)),
+    `PvP Score` = z_to_radar_scale(z_score_scale(pvp_average_score_cluster_mean))
+  ) %>%
+  # Drop the intermediate columns
+  select(
+    cluster,
+    `Total Hours`,
+    `PvE Ratio`, `PvE K/D`, `PvE Accuracy`, `PvE Score`,
+    `PvP Ratio`, `PvP K/D`, `PvP Accuracy`, `PvP Score`
+  )
 
 # Add a helper function for enhanced radar charts
 #| label: radar-chart-enhancements
 
 # Function to create an enhanced radar chart
-create_enhanced_radar <- function(cluster_data, cluster_color, cluster_title) {
+create_enhanced_radar <- function(cluster_data, cluster_color, cluster_title, actual_values) {
   # Get column names from the data
   data_cols <- colnames(cluster_data)
   
@@ -951,6 +1002,14 @@ create_enhanced_radar <- function(cluster_data, cluster_color, cluster_title) {
     seg = 4,  # Fewer segments for cleaner look
     pty = 32  # More smooth polygon edges
   )
+  
+  # Add values as text at the bottom
+  legend_text <- sprintf("Hours: %.1f, PvP K/D: %.2f, PvE K/D: %.2f", 
+                         actual_values$`Total Hours`, 
+                         actual_values$`PvP K/D`, 
+                         actual_values$`PvE K/D`)
+  
+  mtext(legend_text, side = 1, line = 2, cex = 0.8, col = cluster_color)
 }
 ```
 
@@ -965,16 +1024,17 @@ if (length(cluster_names) >= 1) {
   cluster_data <- radar_data %>%
     filter(cluster == cluster_names[1]) %>%
     select(-cluster) %>%
+    # Ensure consistent column order (PvE left, PvP right)
+    select(
+      `Total Hours`,
+      # PvE metrics (left)
+      `PvE Ratio`, `PvE K/D`, `PvE Accuracy`, `PvE Score`,
+      # PvP metrics (right)
+      `PvP Ratio`, `PvP K/D`, `PvP Accuracy`, `PvP Score`
+    ) %>%
     as.data.frame()
   
-  # Choose a color for this cluster
-  cluster_color <- "#E41A1C"  # Red
-  cluster_title <- paste("Cluster 1:", cluster_names[1])
-  
-  # Create the enhanced radar chart
-  create_enhanced_radar(cluster_data, cluster_color, cluster_title)
-  
-  # Add a subtitle with actual values for reference
+  # Get actual values for reference
   actual_values <- pvz_df_clustered %>%
     filter(cluster == cluster_names[1]) %>%
     summarise(
@@ -983,8 +1043,15 @@ if (length(cluster_names) >= 1) {
       `PvE K/D` = mean(pve_kd)
     )
   
+  # Choose a color for this cluster
+  cluster_color <- "#E41A1C"  # Red
+  cluster_title <- paste("Cluster 1:", cluster_names[1])
+  
+  # Create the enhanced radar chart
+  create_enhanced_radar(cluster_data, cluster_color, cluster_title, actual_values)
+  
   # Display a note about scaling
-  mtext("Note: All metrics are scaled relative to min/max across clusters for better differentiation", 
+  mtext("Note: Values shown as standardized scores (z-scores converted to 0-1 scale)", 
         side = 1, line = 4, cex = 0.8)
 }
 ```
@@ -1000,16 +1067,17 @@ if (length(cluster_names) >= 2) {
   cluster_data <- radar_data %>%
     filter(cluster == cluster_names[2]) %>%
     select(-cluster) %>%
+    # Ensure consistent column order (PvE left, PvP right)
+    select(
+      `Total Hours`,
+      # PvE metrics (left)
+      `PvE Ratio`, `PvE K/D`, `PvE Accuracy`, `PvE Score`,
+      # PvP metrics (right)
+      `PvP Ratio`, `PvP K/D`, `PvP Accuracy`, `PvP Score`
+    ) %>%
     as.data.frame()
   
-  # Choose a color for this cluster
-  cluster_color <- "#377EB8"  # Blue
-  cluster_title <- paste("Cluster 2:", cluster_names[2])
-  
-  # Create the enhanced radar chart
-  create_enhanced_radar(cluster_data, cluster_color, cluster_title)
-  
-  # Add a subtitle with actual values for reference
+  # Get actual values for reference
   actual_values <- pvz_df_clustered %>%
     filter(cluster == cluster_names[2]) %>%
     summarise(
@@ -1018,8 +1086,15 @@ if (length(cluster_names) >= 2) {
       `PvE K/D` = mean(pve_kd)
     )
   
+  # Choose a color for this cluster
+  cluster_color <- "#377EB8"  # Blue
+  cluster_title <- paste("Cluster 2:", cluster_names[2])
+  
+  # Create the enhanced radar chart
+  create_enhanced_radar(cluster_data, cluster_color, cluster_title, actual_values)
+  
   # Display a note about scaling
-  mtext("Note: All metrics are scaled relative to min/max across clusters for better differentiation", 
+  mtext("Note: Values shown as standardized scores (z-scores converted to 0-1 scale)", 
         side = 1, line = 4, cex = 0.8)
 }
 ```
@@ -1035,45 +1110,6 @@ if (length(cluster_names) >= 3) {
   cluster_data <- radar_data %>%
     filter(cluster == cluster_names[3]) %>%
     select(-cluster) %>%
-    as.data.frame()
-  
-  # Choose a color for this cluster
-  cluster_color <- "#4DAF4A"  # Green
-  cluster_title <- paste("Cluster 3:", cluster_names[3])
-  
-  # Create the enhanced radar chart
-  create_enhanced_radar(cluster_data, cluster_color, cluster_title)
-  
-  # Add a subtitle with actual values for reference
-  actual_values <- pvz_df_clustered %>%
-    filter(cluster == cluster_names[3]) %>%
-    summarise(
-      `Total Hours` = mean(hours),
-      `PvP K/D` = mean(pvp_kd),
-      `PvE K/D` = mean(pve_kd)
-    )
-  
-  # Display a note about scaling
-  mtext("Note: All metrics are scaled relative to min/max across clusters for better differentiation", 
-        side = 1, line = 4, cex = 0.8)
-}
-```
-
-```{r radar-charts}
-#| label: radar-charts
-#| fig.width: 15
-#| fig.height: 6
-
-# Create combined radar chart visualization for all clusters
-# Set up the plotting area for 3 radar charts in a row
-par(mfrow = c(1, 3), mar = c(1, 1, 3, 1))
-
-# Create a function for the combined radar charts with consistent metrics order
-create_cluster_radar <- function(cluster_idx, cluster_name, color) {
-  # Extract data for this cluster
-  cluster_data <- radar_data %>%
-    filter(cluster == cluster_name) %>%
-    select(-cluster) %>%
     # Ensure consistent column order (PvE left, PvP right)
     select(
       `Total Hours`,
@@ -1084,53 +1120,28 @@ create_cluster_radar <- function(cluster_idx, cluster_name, color) {
     ) %>%
     as.data.frame()
   
-  # Set up min/max for radar
-  max_min <- data.frame(
-    matrix(
-      c(rep(1, ncol(cluster_data)), rep(0, ncol(cluster_data))),
-      nrow = 2,
-      byrow = TRUE
+  # Get actual values for reference
+  actual_values <- pvz_df_clustered %>%
+    filter(cluster == cluster_names[3]) %>%
+    summarise(
+      `Total Hours` = mean(hours),
+      `PvP K/D` = mean(pvp_kd),
+      `PvE K/D` = mean(pve_kd)
     )
-  )
-  colnames(max_min) <- colnames(cluster_data)
   
-  # Combine data for plotting
-  plot_data <- rbind(max_min, cluster_data)
+  # Choose a color for this cluster
+  cluster_color <- "#4DAF4A"  # Green
+  cluster_title <- paste("Cluster 3:", cluster_names[3])
   
-  # Create radar chart
-  radarchart(
-    plot_data,
-    pcol = color,
-    pfcol = adjustcolor(color, alpha.f = 0.5),
-    plwd = 3,
-    vlcex = 0.9,
-    title = paste("Cluster", cluster_idx, ":", cluster_name),
-    cglcol = "grey80",
-    cglty = 1,
-    axislabcol = "grey30",
-    caxislabels = seq(0, 1, 0.25),
-    cglwd = 0.8,
-    centerzero = FALSE,
-    seg = 4,
-    pty = 32
-  )
+  # Create the enhanced radar chart
+  create_enhanced_radar(cluster_data, cluster_color, cluster_title, actual_values)
+  
+  # Display a note about scaling
+  mtext("Note: Values shown as standardized scores (z-scores converted to 0-1 scale)", 
+        side = 1, line = 4, cex = 0.8)
 }
-
-# Get cluster names
-cluster_names <- levels(pvz_df_clustered$cluster)
-
-# Define colors for each cluster
-cluster_colors <- c("#E41A1C", "#377EB8", "#4DAF4A")
-
-# Create radar charts for each cluster
-for (i in 1:length(cluster_names)) {
-  create_cluster_radar(i, cluster_names[i], cluster_colors[i])
-}
-
-# Add overall title
-mtext("Player Type Characteristics (PvE metrics on left, PvP metrics on right)", 
-      side = 3, line = -1.5, outer = TRUE, cex = 1.2, font = 2)
 ```
+
 
 ### Comparison of Cluster Characteristics with Barplots
 
