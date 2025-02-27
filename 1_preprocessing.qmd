@@ -824,6 +824,8 @@ telemetry_players <- telemetry_players %>%
 write_csv(telemetry_players, here("data/processed/telemetry_with_metrics.csv"))
 ```
 
+# Participants and Procedure
+
 # Combine Survey and Telemetry Data
 
 ```{r merge-data}
@@ -831,10 +833,33 @@ write_csv(telemetry_players, here("data/processed/telemetry_with_metrics.csv"))
 
 # Merge survey with telemetry data
 pvz_df <- survey %>% 
-  left_join(telemetry_players, by = "player_id")
+  right_join(telemetry_players, by = "player_id")
+
+# Check for participants without valid performance metrics
+# These would be participants with zeros or NAs for all key performance indicators
+pvz_df <- pvz_df %>%
+  # Create a flag for participants with no meaningful telemetry data
+  mutate(
+    has_telemetry = !(
+      # Check if key performance metrics are all zeros or NAs
+      (total_kill_count == 0 | is.na(total_kill_count)) &
+      (total_death_count == 0 | is.na(total_death_count)) &
+      (damage_dealt == 0 | is.na(damage_dealt)) &
+      (shots_fired == 0 | is.na(shots_fired)) &
+      (n_total_game_sessions == 0 | is.na(n_total_game_sessions))
+    )
+  )
+
+# Print summary of participants with and without telemetry
+cat("Participants without valid telemetry:", sum(!pvz_df$has_telemetry, na.rm = TRUE), "\n")
+cat("Participants with valid telemetry:", sum(pvz_df$has_telemetry, na.rm = TRUE), "\n")
+
+# Remove participants without valid telemetry data
+pvz_df_clean <- pvz_df %>%
+  filter(has_telemetry == TRUE)
 
 # Calculate ratio metrics
-pvz_df <- pvz_df %>%
+pvz_df_clean <- pvz_df_clean %>%
   mutate(
     ratio_social_hours = social_hours / hours,
     ratio_pve_hours = pve_hours / hours,
@@ -842,11 +867,59 @@ pvz_df <- pvz_df %>%
   )
 
 # Remove participants with very low playtime (< 2 minutes)
-pvz_df_clean <- pvz_df %>%
+pvz_df_clean <- pvz_df_clean %>%
   filter(hours > 0.03)
+
+# Print final dataset dimensions
+cat("Final dataset dimensions:", dim(pvz_df_clean)[1], "participants x", dim(pvz_df_clean)[2], "variables\n")
 
 # Save final dataset
 write_csv(pvz_df_clean, here("data/processed/pvz_complete.csv"))
+```
+
+```{r survey-demographics-calculation}
+#| label: survey-demographics-calculation
+#| include: false
+
+# Calculate overall survey demographics
+survey_demographics <- survey %>%
+  summarize(
+    total_participants = n(),
+    avg_age = round(mean(age, na.rm = TRUE), 1),
+    sd_age = round(sd(age, na.rm = TRUE), 1)
+  )
+
+# Calculate gender distribution in original survey
+gender_survey <- survey %>%
+  count(gender) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+# Count participants with each gender
+male_count <- gender_survey %>% filter(gender == "Male") %>% pull(n)
+female_count <- gender_survey %>% filter(gender == "Female") %>% pull(n)
+other_count <- gender_survey %>% filter(gender == "Other") %>% pull(n)
+undisclosed_count <- gender_survey %>% filter(gender == "Prefer not to say") %>% pull(n)
+```
+
+As detailed in Johannes et al. (2020), participant recruitment happened in two waves, first in early August 2020 and second in late September 2020. The response rate was \~ 0.21%. In total `r survey_demographics$total_participants` PvZ players participated in the well-being survey (`r male_count` male, `r female_count` female, `r other_count` other, and `r undisclosed_count` undisclosed) with an average age of `r survey_demographics$avg_age` (SD = `r survey_demographics$sd_age`). However, since we are interested in modelling playing styles from in-game telemetry only the participants with valid telemetry data were included in this study. After preprocessing, our final sample consists of `r nrow(pvz_df_clean)` participants with valid performance metrics.
+
+```{r final-sample-demographics}
+#| label: final-sample-demographics
+
+# Display demographics of final sample
+cat("Demographics of final sample:\n")
+cat("- Sample size:", nrow(pvz_df_clean), "\n")
+cat("- Average age:", round(mean(pvz_df_clean$age, na.rm = TRUE), 1), "(SD =", round(sd(pvz_df_clean$age, na.rm = TRUE), 1), ")\n")
+
+# Gender distribution
+gender_dist <- pvz_df_clean %>%
+  count(gender) %>%
+  mutate(percentage = n / sum(n) * 100)
+
+kable(gender_dist, caption = "Gender distribution in final sample", digits = 2)
+
+# Print summary of final dataset
+glimpse(pvz_df_clean)
 ```
 
 # Next Steps

@@ -19,3 +19,5 @@ factoextra
 cluster
 fmsb
 knitr
+kableExtra
+clustertend

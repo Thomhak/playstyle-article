@@ -1297,7 +1297,7 @@ hist(pvz_df$social_hub, breaks = 250)
 ```
 
 
-## 3. Analysis of play behaviour during a session (they are consist of different match types)
+## 3. AnalyFsis of play behaviour during a session (they are consist of different match types)
 
 # Convert date time 
 ```{r}
