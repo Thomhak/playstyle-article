@@ -1,5 +1,5 @@
 ---
-title: "Player Playstyle Analysis (No Outliers)"
+title: "Player Playstyle Analysis (3 Clusters)"
 author: "Thomas Hakman"
 format: 
   html:
@@ -51,20 +51,22 @@ capitalize <- function(x) {
   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
   x
 }
+
+# Create a list of wellbeing variables (focus on our two primary outcomes)
+wellbeing_vars <- c("spane_game_balance", "enjoyment")
 ```
 
 # Abstract
 
-This document presents a comprehensive analysis of playstyle patterns and their relationship with well-being among players of Plants vs. Zombies: Battle for Neighborville. Using cluster analysis, we identified four distinct player types based on their gameplay behavior and preferences: PVP Casual Players, PVE Casual Players, Allround Elite Players, and Allround Average Players. Through robust linear mixed-effects modeling, we examined how these playstyles moderate the relationship between gameplay time and well-being metrics, controlling for player country as a random effect. This analysis excludes participants with outlier values to ensure more robust findings.
+This document presents a comprehensive analysis of playstyle patterns and their relationship with well-being among players of Plants vs. Zombies: Battle for Neighborville. Using cluster analysis, we identified three distinct player types based on their gameplay behavior and preferences. Through robust linear mixed-effects modeling, we examined how these playstyles moderate the relationship between gameplay time and well-being metrics, controlling for player country as a random effect. This analysis excludes participants with outlier values to ensure more robust findings.
 
-Our findings reveal that the relationship between playtime and well-being differs significantly across player types, suggesting that how players engage with the game is potentially more important than simply how much they play. Specific components of well-being—including autonomy, competence, and relatedness—show unique patterns across player types, highlighting the different psychological needs being met through various playstyles. Game-specific skills also demonstrate variable associations with well-being depending on player type.
+Our findings reveal that the relationship between playtime and well-being differs significantly across player types, suggesting that how players engage with the game is potentially more important than simply how much they play. This analysis focuses specifically on two key outcomes: game-related well-being (measured by the game SPANE balance score) and intrinsic enjoyment. These two measures show unique patterns across player types, highlighting how different playstyles may influence player experience and enjoyment.
 
 These results have important implications for game design, suggesting that personalized approaches accommodating different playstyles may enhance player well-being. The analysis contributes to our understanding of digital well-being by moving beyond simplistic "screen time" measures to consider the quality and nature of digital engagement. Limitations include the cross-sectional nature of the data and the potential need for additional moderating variables in future research.
 
 # Introduction
 
 This document contains the analysis of player telemetry and survey data from Plants vs. Zombies: Battle for Neighborville. It focuses on analyzing player playstyles, game performance metrics, and their relationship with well-being outcomes. In this analysis, we've removed participants with outlier values (identified as NA in the dataset) to ensure more robust and reliable findings.
-
 
 # Load Required Packages and Data
 
@@ -96,8 +98,11 @@ pacman::p_load(
   fpc,        # For cluster validation
   gridExtra,  # For arranging multiple plots
   hopkins,    # For cluster tendency assessment
+  effectsize, # For effect size calculations
   robustlmm,  # For robust linear mixed-effects models
+  broom,      # For tidy model outputs
   broom.mixed, # For tidying mixed-effects model output
+  patchwork,  # For combining plots
   ggeffects,  # For visualizing regression model predictions
   ggplot2,    # For data visualization (explicitly included though part of tidyverse)
   dplyr,      # For data manipulation (explicitly included though part of tidyverse)
@@ -125,7 +130,7 @@ run_anova <- function(dv) {
   formula <- as.formula(paste(dv, "~ player_type"))
   model <- aov(formula, data = pvz_data)
   result <- broom::tidy(model)
-  result$eta_squared <- sjstats::eta_sq(model)[["eta.sq"]]
+  result$eta_squared <- effectsize::eta_squared(model)[["Eta2"]]
   result$variable <- dv
   return(result)
 }
@@ -172,10 +177,8 @@ pvz_df_analysis <- pvz_df_analysis %>%
     # Demographic variables
     player_id, country, age, gender, played_with_others,
     
-    # Well-being variables
-    spane_balance, spane_positive, spane_negative,
-    autonomy, competence, relatedness, enjoyment, extrinsic,
-    spane_game_balance, spane_game_positive, spane_game_negative,
+    # Well-being variables - focus only on our two key outcomes
+    spane_game_balance, enjoyment,
     
     # Total playtime
     hours,
@@ -411,7 +414,7 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
   player_data_expanded$match_type <- factor(
     player_data_expanded$match_type,
     levels = c("social match", "pve match", "pvp match (rush)", "pvp match (vanquish)", "pvp match (arena)", "podium celebration", "0"),
-    labels = c("Social Match", "PvE Match", "PvP (Rush)", "PvP (Vanquish)", "PvP (Arena)", "Podium Celebration", "Other")
+    labels = c("Social Lobby", "PvE Match", "PvP (Rush)", "PvP (Vanquish)", "PvP (Arena)", "Podium Celebration", "Other")
   )
   
   # Create the plot with enhanced styling
@@ -422,7 +425,7 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
     ggplot2::scale_color_manual(
       name = "Match Type", 
       values = c(
-        "Social Match" = "#00BFC4",       # Teal
+        "Social Lobby" = "#00BFC4",       # Teal
         "PvE Match" = "#7CAE00",          # Green
         "PvP (Rush)" = "#F8766D",         # Red
         "PvP (Vanquish)" = "#FF9E1C",     # Orange
@@ -595,10 +598,8 @@ numeric_vars <- pvz_df_analysis %>%
     pvp_average_damage, pve_average_damage,
     pvp_average_score, pve_average_score,
     
-    # Well-being and motivation
-    spane_balance, spane_game_balance, 
-    autonomy, competence, relatedness,
-    enjoyment, extrinsic
+    # Well-being and enjoyment
+    spane_game_balance, enjoyment
   )
 
 # Calculate descriptive statistics for numeric variables
@@ -651,13 +652,8 @@ descriptive_stats <- numeric_stats %>%
     variable == "pve_average_damage" ~ "PvE Average Damage per Game",
     variable == "pvp_average_score" ~ "PvP Average Score",
     variable == "pve_average_score" ~ "PvE Average Score",
-    variable == "spane_balance" ~ "Overall Well-being (SPANE)",
-    variable == "spane_game_balance" ~ "Game-related Well-being",
-    variable == "autonomy" ~ "Autonomy",
-    variable == "competence" ~ "Competence",
-    variable == "relatedness" ~ "Relatedness",
-    variable == "enjoyment" ~ "Intrinsic Enjoyment",
-    variable == "extrinsic" ~ "Extrinsic Motivation",
+    variable == "spane_game_balance" ~ "Game-Specific Well-being (SPANE)",
+    variable == "enjoyment" ~ "Enjoyment",
     TRUE ~ variable
   )) %>%
   # Create category variable for grouping
@@ -669,8 +665,7 @@ descriptive_stats <- numeric_stats %>%
                    "PvP Damage per Second", "PvE Damage per Second",
                    "PvP Average Damage per Game", "PvE Average Damage per Game",
                    "PvP Average Score", "PvE Average Score") ~ "Performance",
-    variable %in% c("Overall Well-being (SPANE)", "Game-related Well-being") ~ "Well-being",
-    variable %in% c("Autonomy", "Competence", "Relatedness", "Intrinsic Enjoyment", "Extrinsic Motivation") ~ "Motivation",
+    variable %in% c("Game-Specific Well-being (SPANE)", "Enjoyment") ~ "Well-being",
     TRUE ~ "Other"
   )) %>%
   # Round numeric values
@@ -697,10 +692,7 @@ variable_order <- c(
   "PvP Average Score", "PvE Average Score",
   
   # Well-being
-  "Overall Well-being (SPANE)", "Game-related Well-being",
-  
-  # Motivation (in specified order)
-  "Autonomy", "Competence", "Relatedness", "Intrinsic Enjoyment", "Extrinsic Motivation"
+  "Game-Specific Well-being (SPANE)", "Enjoyment"
 )
 
 # Apply the custom ordering
@@ -858,7 +850,6 @@ cat("## Interpretation of Clustering Tendency
 
 ## Determining Optimal Number of Clusters
 
-We use multiple methods to determine the appropriate number of clusters.
 
 ```{r pam_silhouette_method}
 #| label: pam_silhouette_method
@@ -918,64 +909,40 @@ combined_pam_plots <- grid.arrange(p_pam_silhouette, p_pam_ch,
              top = grid::textGrob("Determining Optimal Number of Clusters with PAM", 
                                  gp = grid::gpar(fontsize = 16, font = 2)))
 
-# Display in VSCode via httpgd
-
 # Also ensure the plot is displayed if rendered
 print(combined_pam_plots)
 
 # Print summary of results for easier interpretation
 cat("
-
 Summary of Optimal k Recommendations for PAM:
-")
-cat("- Silhouette Method: Highest peak suggests optimal k =", 
-    pam_sil_results$k[which.max(pam_sil_results$sil)], "
-")
-cat("- Calinski-Harabasz Index: Highest value suggests optimal k =", 
-    ch_pam_results$k[which.max(ch_pam_results$ch_index)], "
+- Silhouette Method: Highest peak suggests optimal k =", pam_sil_results$k[which.max(pam_sil_results$sil)], "
+- Calinski-Harabasz Index: Highest value suggests optimal k =", ch_pam_results$k[which.max(ch_pam_results$ch_index)], "
 ")
 ```
 
-```{r pam_visual_comparison}
-#| label: pam_visual_comparison
-#| fig.width: 10
-#| fig.height: 4
-#| cache: false
-#| results: "asis"
-#| fig.show: "asis"
+```{r determine_optimal_k, echo=FALSE}
+# Determine the optimal k values
+silhouette_optimal_k <- pam_sil_results$k[which.max(pam_sil_results$sil)]
+ch_optimal_k <- ch_pam_results$k[which.max(ch_pam_results$ch_index)]
 
-# Try k=3, k=4, and k=5 with PAM to visually inspect clusters
-set.seed(123)
-pam3_clusters <- pam(player_data_scaled, k = 3)
-pam4_clusters <- pam(player_data_scaled, k = 4)
-pam5_clusters <- pam(player_data_scaled, k = 5)
-
-p_pam_k3 <- fviz_cluster(list(data = player_data_scaled, cluster = pam3_clusters$clustering),
-                   palette = "Set2", ggtheme = theme_minimal(),
-                   main = "PAM: k = 3")
-p_pam_k4 <- fviz_cluster(list(data = player_data_scaled, cluster = pam4_clusters$clustering),
-                   palette = "Set2", ggtheme = theme_minimal(),
-                   main = "PAM: k = 4")
-p_pam_k5 <- fviz_cluster(list(data = player_data_scaled, cluster = pam5_clusters$clustering),
-                   palette = "Set2", ggtheme = theme_minimal(),
-                   main = "PAM: k = 5")
-
-comparison_plots <- grid.arrange(p_pam_k3, p_pam_k4, p_pam_k5, ncol = 3,
-            top = grid::textGrob("Visual Comparison of Different k Values Using PAM", 
-                                gp = grid::gpar(fontsize = 16, font = 2)))
-
-# Display in VSCode via httpgd
-
-# Also ensure the plot is displayed if rendered 
-print(comparison_plots)
+# Determine final optimal k (using most common value or a specific method if preferred)
+if(silhouette_optimal_k == ch_optimal_k) {
+  final_optimal_k <- silhouette_optimal_k
+} else {
+  # In case of disagreement, you might want to choose one method or use another strategy
+  # Here we'll use silhouette as the deciding factor, but you could modify this logic
+  final_optimal_k <- silhouette_optimal_k
+}
 ```
+
+Based on the analysis above, we determined that `r final_optimal_k` is the optimal number of clusters for this dataset. This was established through multiple methods including silhouette analysis (optimal k = `r silhouette_optimal_k`) and Calinski-Harabasz Index (optimal k = `r ch_optimal_k`)`r if(silhouette_optimal_k == ch_optimal_k) {", which both supported the same cluster count"}`. We proceed with PAM (Partitioning Around Medoids) clustering using k=`r final_optimal_k`.
 
 ```{r pam_cluster_statistics}
 #| label: pam_cluster_statistics
 #| cache: false
 #| results: "asis"
 
-# Calculate key statistics for each PAM cluster option
+# Calculate key statistics for the PAM cluster with k=3
 pam_cluster_stats <- function(data, k) {
   set.seed(123)
   pam_result <- pam(data, k = k)
@@ -994,62 +961,18 @@ pam_cluster_stats <- function(data, k) {
   ))
 }
 
-# Get statistics for k=3, k=4, and k=5 using PAM
+# Get statistics for k=3 using PAM
 stats_pam_k3 <- pam_cluster_stats(player_data_scaled, 3)
-stats_pam_k4 <- pam_cluster_stats(player_data_scaled, 4)
-stats_pam_k5 <- pam_cluster_stats(player_data_scaled, 5)
 
 # Print summary of PAM cluster statistics
-cat("
-PAM Cluster Statistics Comparison:
-")
 
-cat("
-PAM k=3 Clusters:
-")
-cat("Avg Silhouette:", stats_pam_k3$avg_silhouette, "
-")
 cat("Cluster Sizes:", "
 ")
 print(stats_pam_k3$cluster_sizes)
 cat("Silhouette per Cluster:", "
 ") 
 print(stats_pam_k3$silhouette_per_cluster)
-cat("Medoid indices:", "
-")
-print(stats_pam_k3$medoid_indices)
-
-cat("
-PAM k=4 Clusters:
-")
-cat("Avg Silhouette:", stats_pam_k4$avg_silhouette, "
-")
-cat("Cluster Sizes:", "
-")
-print(stats_pam_k4$cluster_sizes)
-cat("Silhouette per Cluster:", "
-")
-print(stats_pam_k4$silhouette_per_cluster)
-cat("Medoid indices:", "
-")
-print(stats_pam_k4$medoid_indices)
-
-cat("
-PAM k=5 Clusters:
-")
-cat("Avg Silhouette:", stats_pam_k5$avg_silhouette, "
-")
-cat("Cluster Sizes:", "
-")
-print(stats_pam_k5$cluster_sizes)
-cat("Silhouette per Cluster:", "
-")
-print(stats_pam_k5$silhouette_per_cluster)
-cat("Medoid indices:", "
-")
-print(stats_pam_k5$medoid_indices)
 ```
-
 PAM (Partitioning Around Medoids) offers several advantages for clustering when outliers are present in the data:
 
 1.  PAM uses actual data points (medoids) as cluster centers, making it less influenced by outliers
@@ -1059,30 +982,6 @@ PAM (Partitioning Around Medoids) offers several advantages for clustering when 
 5.  Medoids are actual observations that represent cluster characteristics well
 
 These properties make PAM particularly suitable for our player behavior data, which may contain outliers due to the diverse nature of gameplay patterns.
-
-
-<think>The user wants me to write an APA-style paragraph for a methods section explaining the normalization procedure used in their clustering analysis. They've provided information about how the normalization was performed - using the `scale()` function in R, which performs z-score normalization to center data with a mean of 0 and standard deviation of 1.
-
-From the context provided (and the files they have open), this appears to be part of a scientific article about player types or playstyles in what seems to be a game called PVZ (Plants vs. Zombies, most likely). There's clustering analysis being performed to identify different player types.
-
-I'll need to write a formal, APA-style paragraph explaining the normalization procedure for the methods section. I should follow academic writing conventions, be precise with technical details, and maintain a formal tone.
-
-Looking at the cursor rules context, there's a "statistical-best-practices.mdc" guideline which seems relevant, but it doesn't specifically address how to explain normalization in text. The "style-guidelines.mdc" provides formatting recommendations for code, not for writing text. I'll follow general APA style principles for scientific writing.</think>I'll write an APA-style paragraph for your methods section explaining the normalization procedure used before clustering.
-
-## Feature Normalization
-
-Prior to conducting the cluster analysis, all numeric features were standardized using 
-z-score normalization to ensure equal weighting of variables with different scales and 
-distributions. This standardization was implemented using the scale() function in R 
-(R Core Team, 2023), which centers each variable to have a mean of 0 and scales it to 
-have a standard deviation of 1. The transformation follows the formula: z = (x - μ)/σ, 
-where x represents the original value, μ represents the mean of the feature across all 
-players, and σ represents the standard deviation. This preprocessing step was essential 
-to prevent features with larger absolute values or variances from disproportionately 
-influencing the clustering algorithm's distance calculations, thus ensuring that all 
-behavioral indicators contributed equally to the identification of distinct player types 
-(Kaufman & Rousseeuw, 2009; Hennig et al., 2015).
-
 
 ## Player Type Clustering with PAM
 
@@ -1111,9 +1010,9 @@ cat("Number of players included in cluster analysis:", nrow(player_data_features
 # Standardize the data for clustering
 player_data_scaled <- scale(player_data_features)
 
-# Perform PAM clustering with k=4
+# Perform PAM clustering with k=3
 set.seed(42) # For reproducibility
-k_clusters <- 4
+k_clusters <- 3
 pam_result <- pam(player_data_scaled, k = k_clusters, metric = "euclidean")
 
 # Display cluster sizes
@@ -1165,14 +1064,13 @@ print(kable(cluster_means, digits = 2,
 #| label: assign_player_types
 
 # Create a data frame with cluster labels 
-# Update these names based on your interpretation
+# Update these names based on interpretation of the 3 clusters
 player_type_labels <- tibble(
-  cluster = 1:4,
+  cluster = 1:3,
   player_type = c(
-    "PVP Casual Players",           # Cluster 1 name
-    "PVE Casual Players",           # Cluster 2 name 
-    "Allround Elite Players",       # Cluster 3 name
-    "Allround Average Players"      # Cluster 4 name
+    "Casual PVE Players",           # Cluster 1 name
+    "Elite Allround Players",       # Cluster 2 name 
+    "Casual PVP Players"            # Cluster 3 name
   )
 )
 
@@ -1183,7 +1081,7 @@ pvz_df_clustered <- pvz_df_analysis %>%
   mutate(player_type = factor(player_type))
 
 # Save the clustered data with no outliers
-write_csv(pvz_df_clustered, here("data/processed/pvz_with_clusters_pam_nohours_no_outliers.csv"))
+write_csv(pvz_df_clustered, here("data/processed/pvz_with_clusters_pam3_nohours_no_outliers.csv"))
 
 # Output summary of player types
 cat("Player Types Identified:
@@ -1352,11 +1250,11 @@ average_player <- radar_data %>%
   select(-profile_type) %>%
   as.data.frame()
 
-# Colors for player types
-player_type_colors <- c("#E41A1C", "#377EB8", "#4DAF4A", "#984EA3")
+# Colors for player types (3 colors for 3 clusters)
+player_type_colors <- c("#E41A1C", "#377EB8", "#4DAF4A")
 
-# Set up layout for radar charts
-par(mfrow = c(2, 2))
+# Set up layout for 3 radar charts in a single row
+par(mfrow = c(1, 3))
 
 # Create radar charts for each player type
 for (i in 1:length(player_type_names)) {
@@ -1418,145 +1316,26 @@ print(kable(player_type_summary, digits = 2,
       caption = "Player Type Summary"))
 ```
 
-# Relationship Between Playstyle and Well-Being
+## Interpretation of Player Types
 
-## Overall Well-Being by Player Type
+The cluster analysis revealed three distinct player types with the following characteristics:
 
-```{r wellbeing-by-cluster}
-#| label: wellbeing-by-cluster
-#| fig.width: 10
-#| fig.height: 6
+### Casual PVE Players
 
-# Verify we're using the correct player types
-cat("Analyzing well-being metrics for these player types:
-")
-print(levels(pvz_df_clustered$player_type))
+Casual PVE Players make up approximately `r round(player_type_summary$"% of Players"[player_type_summary$player_type=="Casual PVE Players"], 1)`% of the player base. These players prefer cooperative gameplay against AI opponents, spending on average `r round(player_type_summary$"PvE Time %"[player_type_summary$player_type=="Casual PVE Players"], 1)`% of their time in PVE modes. They demonstrate good performance in these cooperative scenarios, with moderate PVE kill-to-death ratios (`r round(player_type_summary$"PvE K/D"[player_type_summary$player_type=="Casual PVE Players"], 2)`) and PVE accuracy (`r round(player_type_summary$"PvE Accuracy"[player_type_summary$player_type=="Casual PVE Players"], 1)`%). Their performance metrics in PVP modes are considerably lower, indicating a specialization in cooperative rather than competitive gameplay, though at a more casual skill level.
 
-# Compare well-being metrics across clusters
-wellbeing_by_cluster <- pvz_df_clustered %>%
-  group_by(player_type) %>%
-  summarise(
-    spane_balance = mean(spane_balance, na.rm = TRUE),
-    spane_positive = mean(spane_positive, na.rm = TRUE),
-    spane_negative = mean(spane_negative, na.rm = TRUE),
-    spane_game_balance = mean(spane_game_balance, na.rm = TRUE),
-    autonomy = mean(autonomy, na.rm = TRUE),
-    competence = mean(competence, na.rm = TRUE),
-    relatedness = mean(relatedness, na.rm = TRUE),
-    enjoyment = mean(enjoyment, na.rm = TRUE),
-    extrinsic = mean(extrinsic, na.rm = TRUE),
-    n = n()
-  )
+### Elite Allround Players
 
-# Display the summary table
-kable(wellbeing_by_cluster, digits = 2,
-      caption = "Well-being metrics by player type") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = FALSE)
+Elite Allround Players represent approximately `r round(player_type_summary$"% of Players"[player_type_summary$player_type=="Elite Allround Players"], 1)`% of players. These players demonstrate a more balanced approach to gameplay while maintaining high performance across both game modes. They maintain competitive kill-to-death ratios in both PVP (`r round(player_type_summary$"PvP K/D"[player_type_summary$player_type=="Elite Allround Players"], 2)`) and PVE (`r round(player_type_summary$"PvE K/D"[player_type_summary$player_type=="Elite Allround Players"], 2)`) scenarios, as well as excellent accuracy levels in both contexts. These players appear to have developed versatile, high-level skills that transfer effectively between different gameplay modes, marking them as elite in their overall performance.
 
-# Create boxplots for SPANE balance by player type
-ggplot(pvz_df_clustered, aes(x = player_type, y = spane_balance, fill = player_type)) +
-  geom_boxplot(alpha = 0.7) +
-  scale_fill_brewer(palette = "Set2") +
-  labs(
-    title = "Overall Well-Being (SPANE Balance) by Player Type",
-    x = "Player Type",
-    y = "SPANE Balance Score"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "none",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-```
+### Casual PVP Players
 
-## Playtime and Well-Being Relationships
+Casual PVP Players comprise approximately `r round(player_type_summary$"% of Players"[player_type_summary$player_type=="Casual PVP Players"], 1)`% of players in our sample. These players show a preference for competitive gameplay, spending on average `r round(player_type_summary$"PvP Time %"[player_type_summary$player_type=="Casual PVP Players"], 1)`% of their time in PVP modes. While they focus on player-versus-player scenarios, their performance metrics such as kill-to-death ratios (`r round(player_type_summary$"PvP K/D"[player_type_summary$player_type=="Casual PVP Players"], 2)`) and accuracy (`r round(player_type_summary$"PvP Accuracy"[player_type_summary$player_type=="Casual PVP Players"], 1)`%) are at a more casual level. Their performance in PVE modes is also moderate, suggesting a casual approach to gameplay across modes but with a preference for competitive play.
 
-In this section, we examine the relationship between playtime and well-being measures. Beyond simple visualization, we employ robust mixed effects models to account for potential clustering effects and provide more reliable estimates of the relationship.
-
-```{r playtime-wellbeing}
-#| label: playtime-wellbeing
-#| fig.width: 12
-#| fig.height: 8
-
-# Verify we're using the correct player types
-cat("Examining playtime-wellbeing relationships for these player types:
-")
-print(levels(pvz_df_clustered$player_type))
-
-# Create scatter plots for total playtime vs. well-being
-p1 <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_balance, color = player_type)) +
-  geom_point(alpha = 0.6) +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
-  scale_color_brewer(palette = "Set2") +
-  labs(
-    title = "Total Playtime vs. Overall Well-Being",
-    x = "Total Hours Played",
-    y = "SPANE Balance Score",
-    color = "Player Type"
-  ) +
-  theme_minimal()
-
-p2 <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_game_balance, color = player_type)) +
-  geom_point(alpha = 0.6) +
-  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +
-  scale_color_brewer(palette = "Set2") +
-  labs(
-    title = "Total Playtime vs. Game-Related Well-being",
-    x = "Total Hours Played",
-    y = "Game SPANE Balance Score",
-    color = "Player Type"
-  ) +
-  theme_minimal()
-
-# Combine the plots
-ggarrange(p1, p2, ncol = 2, common.legend = TRUE, legend = "right")
-```
+These distinct player types represent fundamentally different approaches to engaging with the game, with potential implications for how gameplay experiences relate to psychological well-being outcomes. The subsequent analyses will explore these relationships in detail.
 
 
-## Motivation and Well-Being by Player Type
-
-```{r motivation-by-cluster}
-#| label: motivation-by-cluster
-#| fig.width: 12
-#| fig.height: 8
-
-# Print out the player types again to ensure consistency
-cat("Analyzing motivation factors for these player types:
-")
-print(levels(pvz_df_clustered$player_type))
-
-# Prepare data for motivation visualization
-motivation_data <- pvz_df_clustered %>%
-  select(player_id, player_type, autonomy, competence, relatedness, enjoyment, extrinsic) %>%
-  pivot_longer(
-    cols = c(autonomy, competence, relatedness, enjoyment, extrinsic),
-    names_to = "motivation_type",
-    values_to = "score"
-  ) %>%
-  mutate(
-    motivation_type = factor(
-      motivation_type, 
-      levels = c("autonomy", "competence", "relatedness", "enjoyment", "extrinsic"),
-      labels = c("Autonomy", "Competence", "Relatedness", "Enjoyment", "Extrinsic")
-    )
-  )
-
-# Create bar chart for motivation by player type
-ggplot(motivation_data, aes(x = motivation_type, y = score, fill = player_type)) +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
-  scale_fill_brewer(palette = "Set2") +
-  labs(
-    title = "Motivation Factors by Player Type",
-    x = "Motivation Type",
-    y = "Mean Score",
-    fill = "Player Type"
-  ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-
-# Advanced Statistical Analysis: Robust Mixed-Effects Models
+# Statistical Analysis: Robust Mixed-Effects Models
 
 This section examines the relationships between playstyle, playtime, and well-being using robust linear mixed-effects models (rlmm) from the `robustlmm` package. We chose robust methods over standard linear mixed-effects models for several important reasons:
 
@@ -1579,36 +1358,29 @@ First, let's examine whether different player types (from our cluster analysis) 
 #| message: false
 #| warning: false
 
-# Create a robust linear model for overall well-being
+# Create a robust linear model for well-being
 set.seed(123) # For reproducibility of robust estimates
-
-# Fit robust models for overall well-being (SPANE balance)
-rmodel_overall <- rlmer(spane_balance ~ player_type + hours + gender + age + (1|country), 
-                        data = pvz_df_clustered)
 
 # Fit robust models for game-specific well-being
 rmodel_game <- rlmer(spane_game_balance ~ player_type + hours + gender + age + (1|country), 
                      data = pvz_df_clustered)
 
-# Summarize the models
-cat("Robust model for overall well-being (SPANE balance):
-")
-summary(rmodel_overall)
+# Fit robust models for enjoyment
+rmodel_enjoyment <- rlmer(enjoyment ~ player_type + hours + gender + age + (1|country), 
+                     data = pvz_df_clustered)
 
+# Summarize the models
 cat("
-Robust model for game-specific well-being:
+Robust model for subjectivewell-being:
 ")
 summary(rmodel_game)
 
-# Create a nicer formatted summary of the fixed effects
-model_coefs_overall <- data.frame(coef(summary(rmodel_overall)))
-model_coefs_overall$predictor <- rownames(model_coefs_overall)
-rownames(model_coefs_overall) <- NULL
-model_coefs_overall <- model_coefs_overall %>%
-  select(predictor, Estimate, Std..Error, t.value) %>%
-  rename(`Std. Error` = Std..Error,
-         `t value` = t.value)
+cat("
+Robust model for enjoyment:
+")
+summary(rmodel_enjoyment)
 
+# Create a nicer formatted summary of the fixed effects
 model_coefs_game <- data.frame(coef(summary(rmodel_game)))
 model_coefs_game$predictor <- rownames(model_coefs_game)
 rownames(model_coefs_game) <- NULL
@@ -1617,49 +1389,25 @@ model_coefs_game <- model_coefs_game %>%
   rename(`Std. Error` = Std..Error,
          `t value` = t.value)
 
+model_coefs_enjoyment <- data.frame(coef(summary(rmodel_enjoyment)))
+model_coefs_enjoyment$predictor <- rownames(model_coefs_enjoyment)
+rownames(model_coefs_enjoyment) <- NULL
+model_coefs_enjoyment <- model_coefs_enjoyment %>%
+  select(predictor, Estimate, Std..Error, t.value) %>%
+  rename(`Std. Error` = Std..Error,
+         `t value` = t.value)
+
 # Display nicely formatted tables
-kable(model_coefs_overall, digits = 3, 
-      caption = "Fixed effects for overall well-being model") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = FALSE)
-
 kable(model_coefs_game, digits = 3, 
-      caption = "Fixed effects for game-specific well-being model") %>%
+      caption = "Fixed effects for subjective well-being model") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = FALSE)
 
-# Visualize the regression models using jtools
-#| label: wellbeing-model-visualization
-#| fig.width: 10
-#| fig.height: 6
-#| message: false
-#| warning: false
+kable(model_coefs_enjoyment, digits = 3, 
+      caption = "Fixed effects for enjoyment model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE)
 
-# Extract and prepare coefficient data
-model_coefs_overall$model <- "Overall Well-being"
-model_coefs_game$model <- "Game-specific Well-being"
-
-# Combine data for plotting
-all_coefs <- rbind(model_coefs_overall, model_coefs_game)
-
-# Create a clean visualization
-ggplot(all_coefs, aes(x = Estimate, y = predictor, color = model)) +
-  geom_point(size = 3) +
-  geom_errorbarh(aes(xmin = Estimate - 1.96 * `Std. Error`, 
-                     xmax = Estimate + 1.96 * `Std. Error`), 
-                 height = 0.2, linewidth = 1) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-  labs(title = "Factors Affecting Well-being",
-       subtitle = "Coefficient estimates with 95% confidence intervals",
-       x = "Coefficient Estimate",
-       y = "",
-       color = "Model") +
-  scale_color_manual(values = c("Overall Well-being" = "#4D6BBA", 
-                                "Game-specific Well-being" = "#BA4D6B")) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold", size = 14))
 ```
 
 ## Playtime and Well-Being: Moderation by Player Type
@@ -1671,36 +1419,29 @@ Now, let's investigate whether the relationship between playtime and well-being 
 #| message: false
 #| warning: false
 
-# Create interaction models
-rmodel_moderation_overall <- rlmer(
-  spane_balance ~ player_type * hours + (1|country),
-  data = pvz_df_clustered
-)
-
+# Create interaction models for our two key well-being outcomes
 rmodel_moderation_game <- rlmer(
   spane_game_balance ~ player_type * hours + (1|country),
   data = pvz_df_clustered
 )
 
-# Summarize the models
-cat("Robust moderation model for overall well-being (SPANE balance):
-")
-summary(rmodel_moderation_overall)
+rmodel_moderation_enjoyment <- rlmer(
+  enjoyment ~ player_type * hours + (1|country),
+  data = pvz_df_clustered
+)
 
+# Summarize the models
 cat("
-Robust moderation model for game-specific well-being:
+Robust moderation model for subjective well-being:
 ")
 summary(rmodel_moderation_game)
 
-# Extract fixed effects for the moderation models
-mod_coefs_overall <- data.frame(coef(summary(rmodel_moderation_overall)))
-mod_coefs_overall$predictor <- rownames(mod_coefs_overall)
-rownames(mod_coefs_overall) <- NULL
-mod_coefs_overall <- mod_coefs_overall %>%
-  select(predictor, Estimate, Std..Error, t.value) %>%
-  rename(`Std. Error` = Std..Error,
-         `t value` = t.value)
+cat("
+Robust moderation model for enjoyment:
+")
+summary(rmodel_moderation_enjoyment)
 
+# Extract fixed effects for the moderation models
 mod_coefs_game <- data.frame(coef(summary(rmodel_moderation_game)))
 mod_coefs_game$predictor <- rownames(mod_coefs_game)
 rownames(mod_coefs_game) <- NULL
@@ -1709,52 +1450,25 @@ mod_coefs_game <- mod_coefs_game %>%
   rename(`Std. Error` = Std..Error,
          `t value` = t.value)
 
+mod_coefs_enjoyment <- data.frame(coef(summary(rmodel_moderation_enjoyment)))
+mod_coefs_enjoyment$predictor <- rownames(mod_coefs_enjoyment)
+rownames(mod_coefs_enjoyment) <- NULL
+mod_coefs_enjoyment <- mod_coefs_enjoyment %>%
+  select(predictor, Estimate, Std..Error, t.value) %>%
+  rename(`Std. Error` = Std..Error,
+         `t value` = t.value)
+
 # Display nicely formatted tables
-kable(mod_coefs_overall, digits = 3, 
-      caption = "Fixed effects for overall well-being moderation model") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
-                full_width = FALSE)
-
 kable(mod_coefs_game, digits = 3, 
-      caption = "Fixed effects for game-specific well-being moderation model") %>%
+      caption = "Fixed effects for subjective well-being moderation model") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
                 full_width = FALSE)
 
-# Visualize the moderation models using jtools
-#| label: moderation-model-visualization
-#| fig.width: 10
-#| fig.height: 6
-#| message: false
-#| warning: false
+kable(mod_coefs_enjoyment, digits = 3, 
+      caption = "Fixed effects for enjoyment moderation model") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"),
+                full_width = FALSE)
 
-# Extract coefficient data
-mod_coefs_overall$model <- "Overall Well-being"
-mod_coefs_game$model <- "Game-specific Well-being"
-
-# Combine data
-all_mod_coefs <- rbind(mod_coefs_overall, mod_coefs_game)
-
-# Filter for interaction terms
-interaction_coefs <- all_mod_coefs[grep(":hours", all_mod_coefs$predictor), ]
-
-# Create interaction coefficient plot
-ggplot(interaction_coefs, aes(x = Estimate, y = predictor, color = model)) +
-  geom_point(size = 3) +
-  geom_errorbarh(aes(xmin = Estimate - 1.96 * `Std. Error`, 
-                     xmax = Estimate + 1.96 * `Std. Error`), 
-                 height = 0.2, linewidth = 1) +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
-  labs(title = "Player Type × Hours Interaction Effects on Well-being",
-       subtitle = "Interaction coefficient estimates with 95% confidence intervals",
-       x = "Coefficient Estimate",
-       y = "",
-       color = "Model") +
-  scale_color_manual(values = c("Overall Well-being" = "#4D6BBA", 
-                                "Game-specific Well-being" = "#BA4D6B")) +
-  theme_minimal() +
-  theme(legend.position = "bottom",
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(face = "bold", size = 14))
 ```
 
 ## Visualizing the Moderation Effects
@@ -1767,36 +1481,36 @@ ggplot(interaction_coefs, aes(x = Estimate, y = predictor, color = model)) +
 #| warning: false
 
 # Create prediction data frames for plotting
-pred_overall <- ggpredict(rmodel_moderation_overall, terms = c("hours", "player_type"))
 pred_game <- ggpredict(rmodel_moderation_game, terms = c("hours", "player_type"))
+pred_enjoyment <- ggpredict(rmodel_moderation_enjoyment, terms = c("hours", "player_type"))
 
-# Overall well-being plot
-p1 <- ggplot(pred_overall, aes(x = x, y = predicted, color = group)) +
+# Game-specific well-being plot
+p1 <- ggplot(pred_game, aes(x = x, y = predicted, color = group)) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = group), 
               alpha = 0.1, color = NA) +
   scale_color_brewer(palette = "Set2", name = "Player Type") + 
   scale_fill_brewer(palette = "Set2", guide = "none") +
   labs(
-    title = "Relationship between Playtime and Overall Well-Being by Player Type",
+    title = "Relationship between Playtime and Subjective Well-Being by Player Type",
     x = "Hours Played",
-    y = "Predicted SPANE Balance Score",
+    y = "Predicted SPANE Score",
     color = "Player Type"
   ) +
   theme_minimal() +
   theme(legend.position = "bottom")
 
-# Game-specific well-being plot
-p2 <- ggplot(pred_game, aes(x = x, y = predicted, color = group)) +
+# Enjoyment plot
+p2 <- ggplot(pred_enjoyment, aes(x = x, y = predicted, color = group)) +
   geom_line(size = 1) +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high, fill = group), 
               alpha = 0.1, color = NA) +
   scale_color_brewer(palette = "Set2", name = "Player Type") + 
   scale_fill_brewer(palette = "Set2", guide = "none") +
   labs(
-    title = "Relationship between Playtime and Game-Related Well-Being by Player Type",
+    title = "Relationship between Playtime and Enjoyment by Player Type",
     x = "Hours Played",
-    y = "Predicted Game SPANE Balance Score",
+    y = "Predicted Enjoyment Score",
     color = "Player Type"
   ) +
   theme_minimal() +
@@ -1814,8 +1528,7 @@ ggarrange(p1, p2, ncol = 1, common.legend = TRUE, legend = "bottom")
 #| warning: false
 
 # Run ANOVAs to test for significant differences between player types
-wellbeing_vars <- c("spane_balance", "spane_game_balance", "autonomy", "competence", 
-                    "relatedness", "enjoyment", "extrinsic")
+wellbeing_vars <- c("spane_game_balance", "enjoyment")
 
 # Store ANOVA results
 anova_results <- list()
@@ -1827,7 +1540,7 @@ for (var in wellbeing_vars) {
   anova_results[[var]]$variable <- var
   
   # Add effect size
-  anova_results[[var]]$eta_squared <- effectsize::eta_squared(anova_model, partial = FALSE)$Eta2
+  anova_results[[var]]$eta_squared <- effectsize::eta_squared(anova_model)[["Eta2"]]
 }
 
 # Combine all results
@@ -1847,205 +1560,231 @@ kable(all_anova_results %>%
                 full_width = FALSE)
 
 # Post-hoc tests for variables with significant differences
+sig_vars <- character(0)
+posthoc_results <- list()
+
 for (var in wellbeing_vars) {
   formula <- as.formula(paste(var, "~ player_type"))
   anova_model <- aov(formula, data = pvz_df_clustered)
   
   if (summary(anova_model)[[1]]["player_type", "Pr(>F)"] < 0.05) {
+    sig_vars <- c(sig_vars, var)
     cat(paste("
 Post-hoc tests for", var, ":
 "))
     posthoc <- TukeyHSD(anova_model)
+    posthoc_results[[var]] <- posthoc
     print(posthoc)
   }
 }
 ```
 
-The analyses above reveal several important patterns in how well-being components differ across player types:
+```{r dynamic-results-text}
+#| label: dynamic-results-text
+#| echo: false
+#| results: asis
 
-
-1.  The ANOVA results indicate significant differences between player types for several well-being components, with moderate effect sizes.
-
-2.  Post-hoc tests reveal specifically which player types differ from each other on these components, helping us understand the unique psychological experiences associated with each playstyle.
-
-These findings provide a more nuanced understanding of how different playstyles relate to specific aspects of player well-being, beyond just overall measures.
-
-## Additional Well-Being Components
-
-```{r additional-robust-models}
-#| label: additional-robust-models
-#| message: false
-#| warning: false
-
-# List of dependent variables to model
-dvs <- c("autonomy", "competence", "relatedness", "enjoyment")
-
-# Create and store models
-robust_models <- list()
-
-# Create individual models for each well-being component
-for (dv in dvs) {
-  # Formula with player type, hours interaction, and country as random effect
-  formula <- as.formula(paste(dv, "~ player_type * hours + gender + age + (1|country)"))
-  
-  # Fit the robust linear mixed model
-  cat("Fitting model for", dv, "\n")
-  robust_models[[dv]] <- rlmer(formula, data = pvz_df_clustered)
-  
-  # Store the model in the global environment with a specific name
-  # This makes it accessible for the visualization code
-  assign(paste0("rmodel_", dv), robust_models[[dv]])
+# Function to format F-statistics in APA style
+format_f_stat <- function(f, df1, df2, p, eta_sq) {
+  p_formatted <- if (p < .001) "< .001" else paste("=", format(round(p, 3), nsmall = 3))
+  paste0("*F*(", df1, ", ", df2, ") = ", format(round(f, 2), nsmall = 2),
+         ", *p* ", p_formatted, ", η² = ", format(round(eta_sq, 3), nsmall = 3))
 }
 
-# Summarize the models briefly
-cat("\nSummary of key interactions in well-being component models:\n")
-for (dv in dvs) {
-  model <- robust_models[[dv]]
-  cat("\n-", str_to_title(dv), "model:\n")
+# Function to create proper variable names for text
+proper_var_name <- function(var_name) {
+  name_map <- c(
+    "spane_game_balance" = "subjective well-being",
+    "enjoyment" = "enjoyment"
+  )
+  return(name_map[var_name])
+}
+
+# Create dynamic text based on results
+sig_results <- all_anova_results %>% 
+  filter(term == "player_type" & p.value < 0.05) %>%
+  arrange(p.value)
+
+nonsig_results <- all_anova_results %>% 
+  filter(term == "player_type" & p.value >= 0.05) %>%
+  arrange(p.value)
+
+# Count how many variables showed significant differences
+sig_count <- nrow(sig_results)
+total_count <- length(wellbeing_vars)
+
+# Get the significant variables data
+error_df <- all_anova_results %>% 
+  filter(term == "Residuals") %>% 
+  select(variable, df) %>%
+  rename(error_df = df)
+
+# Create introduction text
+cat("## Results of Well-Being Component Analysis\n\n")
+
+cat("We conducted a series of one-way analyses of variance (ANOVAs) to examine differences in well-being components across player types. ")
+
+if(sig_count > 0) {
+  if(sig_count == total_count) {
+    cat("Our analyses revealed significant differences between player types across all measured well-being components.\n\n")
+  } else {
+    cat(paste0("Our analyses revealed significant differences between player types in ", sig_count, " of the ", total_count, " measured well-being components.\n\n"))
+  }
   
-  # Extract interaction coefficients
-  model_summary <- coef(summary(model))
-  interaction_terms <- rownames(model_summary)[grepl(":hours", rownames(model_summary))]
+  # Detailed results for significant findings
+  cat("### Significant Differences Between Player Types\n\n")
   
-  # Print interaction coefficients
-  for (term in interaction_terms) {
-    est <- model_summary[term, "Estimate"]
-    se <- model_summary[term, "Std. Error"]
-    t_val <- model_summary[term, "t value"]
+  for(i in 1:nrow(sig_results)) {
+    var <- sig_results$variable[i]
+    var_name <- proper_var_name(var)
+    f_stat <- sig_results$statistic[i]
+    df1 <- sig_results$df[i]
+    df2 <- error_df$error_df[error_df$variable == var]
+    p_val <- as.numeric(sig_results$p.value[i])
+    eta_sq <- sig_results$eta_squared[i]
     
-    cat("  *", term, ": Est =", round(est, 3), 
-        ", SE =", round(se, 3), 
-        ", t =", round(t_val, 3), "\n")
-  }
-}
-```
-
-## Moderation Effects Visualization
-
-```{r moderation-effects-comprehensive}
-#| label: moderation-effects-comprehensive
-#| fig.height: 8
-#| fig.width: 10
-#| message: false
-#| warning: false
-
-# Extract coefficients for all relevant models
-library(broom.mixed)
-library(tidyr)
-library(dplyr)
-library(ggplot2)
-library(stringr)
-
-# Function to extract interaction coefficients from a model
-extract_interactions <- function(model, outcome_name, game_name) {
-  model_data <- tidy(model, conf.int = TRUE) %>%
-    filter(str_detect(term, "player_type.*:hours")) %>%
-    mutate(
-      outcome = outcome_name,
-      game = game_name
-    )
-  return(model_data)
-}
-
-# Create a list to store all interaction effects
-interaction_data_list <- list()
-
-# Extract data from overall and game-specific wellbeing moderation models
-interaction_data_list[[1]] <- extract_interactions(rmodel_moderation_overall, "Overall Wellbeing", "Overall")
-interaction_data_list[[2]] <- extract_interactions(rmodel_moderation_game, "Game Wellbeing", "Game-Specific")
-
-# Extract data from component-specific models
-for (dv in dvs) {
-  var_name <- paste0("rmodel_", dv)
-  if (exists(var_name) && !is.null(get(var_name))) {
-    model <- get(var_name)
-    interaction_data_list[[length(interaction_data_list) + 1]] <- 
-      extract_interactions(model, str_to_title(dv), "Component")
+    cat(paste0("Player types differed significantly in terms of ", var_name, ", ", 
+               format_f_stat(f_stat, df1, df2, p_val, eta_sq), ". "))
+    
+    # Add post-hoc test results if available
+    if(var %in% names(posthoc_results)) {
+      ph_result <- posthoc_results[[var]]$`player_type`
+      # Extract significant pairwise comparisons
+      sig_pairs <- which(ph_result[,"p adj"] < 0.05)
+      
+      if(length(sig_pairs) > 0) {
+        sig_pair_names <- rownames(ph_result)[sig_pairs]
+        cat("Post-hoc comparisons using Tukey's HSD test indicated that ")
+        
+        for(j in 1:length(sig_pairs)) {
+          pair <- sig_pair_names[j]
+          pair_parts <- strsplit(pair, "-")[[1]]
+          diff <- ph_result[pair, "diff"]
+          p_adj <- ph_result[pair, "p adj"]
+          
+          direction <- if(diff > 0) "higher" else "lower"
+          
+          cat(paste0("the ", pair_parts[1], " group had significantly ", direction, 
+                   " levels than the ", pair_parts[2], " group (*p ", 
+                   ifelse(p_adj < 0.001, "< .001", paste0("= ", round(p_adj, 3))), ")"))
+          
+          if(j < length(sig_pairs)) {
+            if(j == length(sig_pairs) - 1) {
+              cat(", and ")
+            } else {
+              cat(", ")
+            }
+          }
+        }
+        cat(".")
+      }
+    }
+    cat("\n\n")
   }
 }
 
-# Combine all data
-all_interaction_data <- bind_rows(interaction_data_list) %>%
-  # Clean up player type names in the term
-  mutate(
-    player_type = str_replace(term, "player_type(.*)\\:hours", "\\1"),
-    player_type = str_trim(player_type),
-    # Create better labels for the plot
-    outcome = factor(outcome, levels = c(
-      "Overall Wellbeing", "Game Wellbeing", 
-      "Autonomy", "Competence", "Relatedness", "Enjoyment"
-    )),
-    player_type = factor(player_type)
-  )
+if(nrow(nonsig_results) > 0) {
+  cat("### Non-significant Findings\n\n")
+  
+  if(nrow(nonsig_results) == 1) {
+    var <- nonsig_results$variable[1]
+    var_name <- proper_var_name(var)
+    f_stat <- nonsig_results$statistic[1]
+    df1 <- nonsig_results$df[1]
+    df2 <- error_df$error_df[error_df$variable == var]
+    p_val <- as.numeric(nonsig_results$p.value[1])
+    eta_sq <- nonsig_results$eta_squared[1]
+    
+    cat(paste0("No significant difference was found between player types for ", var_name, ", ", 
+              format_f_stat(f_stat, df1, df2, p_val, eta_sq), ".\n\n"))
+  } else {
+    cat("No significant differences were found between player types for ")
+    
+    for(i in 1:nrow(nonsig_results)) {
+      var <- nonsig_results$variable[i]
+      var_name <- proper_var_name(var)
+      
+      cat(var_name)
+      
+      if(i < nrow(nonsig_results)) {
+        if(i == nrow(nonsig_results) - 1) {
+          cat(", or ")
+        } else {
+          cat(", ")
+        }
+      }
+    }
+    cat(".\n\n")
+    
+    # Add specific statistics for non-significant results
+    for(i in 1:nrow(nonsig_results)) {
+      var <- nonsig_results$variable[i]
+      var_name <- proper_var_name(var)
+      f_stat <- nonsig_results$statistic[i]
+      df1 <- nonsig_results$df[i]
+      df2 <- error_df$error_df[error_df$variable == var]
+      p_val <- as.numeric(nonsig_results$p.value[i])
+      eta_sq <- nonsig_results$eta_squared[i]
+      
+      cat(paste0("For ", var_name, ": ", format_f_stat(f_stat, df1, df2, p_val, eta_sq), ".\n\n"))
+    }
+  }
+}
 
-# Main moderation effects plot
-ggplot(all_interaction_data, aes(x = estimate, y = outcome, color = player_type)) +
-  geom_vline(xintercept = 0, linetype = "dashed", size = 0.5, alpha = 0.7) +
-  geom_pointrange(
-    aes(xmin = conf.low, xmax = conf.high),
-    position = position_dodge(width = 0.7), 
-    size = 0.7,
-    fatten = 2
-  ) +
-  labs(
-    title = "Moderation Effects of Player Types on the Relationship Between Hours and Well-Being",
-    subtitle = "Positive values indicate stronger positive effects of hours on well-being for that player type",
-    x = "Interaction Effect (Player Type × Hours)",
-    y = NULL,
-    color = "Player Type"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "right",
-    panel.grid.minor = element_blank(),
-    axis.title.y = element_blank(),
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 10, color = "gray30")
-  )
+# Conclusion paragraph
+cat("### Summary of Findings\n\n")
+cat("These findings provide a nuanced understanding of how different playstyles relate to specific aspects of player well-being. ")
 
-# Alternative visualization as a faceted plot
-ggplot(all_interaction_data, aes(x = player_type, y = estimate, color = outcome)) +
-  geom_hline(yintercept = 0, linetype = "dashed", size = 0.5, alpha = 0.7) +
-  geom_pointrange(
-    aes(ymin = conf.low, ymax = conf.high),
-    position = position_dodge(width = 0.6), 
-    size = 0.7
-  ) +
-  facet_wrap(~ outcome, scales = "free_y") +
-  labs(
-    title = "How Different Player Types Moderate the Effect of Hours on Well-Being",
-    subtitle = "Faceted by well-being outcome",
-    y = "Interaction Effect (Player Type × Hours)",
-    x = NULL,
-    color = "Outcome"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "none",
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    plot.title = element_text(face = "bold", size = 13),
-    plot.subtitle = element_text(size = 10, color = "gray30")
-  )
+if(sig_count > 0) {
+  cat("The significant differences observed in ")
+  
+  for(i in 1:nrow(sig_results)) {
+    var <- sig_results$variable[i]
+    var_name <- proper_var_name(var)
+    
+    cat(var_name)
+    
+    if(i < nrow(sig_results)) {
+      if(i == nrow(sig_results) - 1) {
+        cat(", and ")
+      } else {
+        cat(", ")
+      }
+    }
+  }
+  
+  cat(" suggest that player type is an important factor in understanding the psychological experiences associated with different gaming styles. ")
+  
+  if(nrow(nonsig_results) > 0) {
+    cat("However, the lack of significant differences in ")
+    
+    for(i in 1:nrow(nonsig_results)) {
+      var <- nonsig_results$variable[i]
+      var_name <- proper_var_name(var)
+      
+      cat(var_name)
+      
+      if(i < nrow(nonsig_results)) {
+        if(i == nrow(nonsig_results) - 1) {
+          cat(", and ")
+        } else {
+          cat(", ")
+        }
+      }
+    }
+    
+    cat(" indicates that these aspects of well-being may be influenced by factors beyond playstyle or may be experienced similarly across different player types.")
+  }
+}
 ```
 
 
 ## simple slopes analysis
 
-```{r simple-slopes}
-#| label: simple-slopes
+```{r simple-slopes-functions}
+#| label: simple-slopes-functions
 #| message: false
 #| warning: false
-#| fig.width: 12
-#| fig.height: 10
-
-# Load necessary packages
-library(broom)
-library(broom.mixed)
-library(tidyverse)
-library(ggplot2)
-library(kableExtra)
-library(patchwork)
 
 # Function to calculate simple slopes for all player types
 calculate_all_simple_slopes <- function(model, outcome_name) {
@@ -2173,7 +1912,7 @@ create_interaction_plots <- function(model, outcome_name) {
     geom_ribbon(aes(ymin = predicted - 1.96 * 0.5, ymax = predicted + 1.96 * 0.5, fill = player_type), alpha = 0.2) +
     labs(
       title = paste("Interaction Plot for", outcome_name),
-      x = "Hours played",
+      x = "Hours Played",
       y = outcome_name,
       color = "Player Type",
       fill = "Player Type"
@@ -2270,36 +2009,18 @@ create_jn_plot <- function(model, moderator = "player_type", predictor = "hours"
   
   return(p)
 }
+```
 
-# Calculate simple slopes for overall well-being model
-overall_slopes <- calculate_all_simple_slopes(rmodel_moderation_overall, "Overall Well-being")
-
-# Create a formatted table for overall well-being simple slopes
-overall_slopes_table <- overall_slopes %>%
-  mutate(
-    estimate = round(estimate, 3),
-    std.error = round(std.error, 3),
-    statistic = round(statistic, 3),
-    p.value = case_when(
-      p.value < 0.001 ~ "< 0.001",
-      TRUE ~ round(p.value, 3) %>% as.character()
-    ),
-    ci = paste0("[", round(conf.low, 3), ", ", round(conf.high, 3), "]")
-  ) %>%
-  select(player_type, estimate, std.error, statistic, p.value, ci, stars)
-
-kable(overall_slopes_table, 
-      caption = "Simple Slopes Analysis for Overall Well-being",
-      col.names = c("Player Type", "Estimate", "SE", "t-value", "p-value", "95% CI", ""),
-      align = "lrrrrl") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
-                full_width = FALSE, position = "center")
+```{r wellbeing-simple-slopes}
+#| label: wellbeing-simple-slopes
+#| message: false
+#| warning: false
 
 # Calculate simple slopes for game-specific well-being model
-game_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Well-being")
+wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Well-being")
 
 # Create a formatted table for game-specific well-being simple slopes
-game_slopes_table <- game_slopes %>%
+wellbeing_slopes_table <- wellbeing_slopes %>%
   mutate(
     estimate = round(estimate, 3),
     std.error = round(std.error, 3),
@@ -2312,21 +2033,57 @@ game_slopes_table <- game_slopes %>%
   ) %>%
   select(player_type, estimate, std.error, statistic, p.value, ci, stars)
 
-kable(game_slopes_table, 
+kable(wellbeing_slopes_table, 
       caption = "Simple Slopes Analysis for Game-Specific Well-being",
       col.names = c("Player Type", "Estimate", "SE", "t-value", "p-value", "95% CI", ""),
       align = "lrrrrl") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
                 full_width = FALSE, position = "center")
+```
 
-# Create pairwise comparison of slopes for overall well-being
-overall_pairs <- data.frame(player_type1 = character(),
-                           player_type2 = character(),
-                           difference = numeric(),
-                           std.error = numeric(),
-                           statistic = numeric(),
-                           p.value = numeric(),
-                           stringsAsFactors = FALSE)
+```{r enjoyment-simple-slopes}
+#| label: enjoyment-simple-slopes
+#| message: false
+#| warning: false
+
+# Calculate simple slopes for enjoyment model
+enjoyment_slopes <- calculate_all_simple_slopes(rmodel_moderation_enjoyment, "Intrinsic Enjoyment")
+
+# Create a formatted table for enjoyment simple slopes
+enjoyment_slopes_table <- enjoyment_slopes %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = case_when(
+      p.value < 0.001 ~ "< 0.001",
+      TRUE ~ round(p.value, 3) %>% as.character()
+    ),
+    ci = paste0("[", round(conf.low, 3), ", ", round(conf.high, 3), "]")
+  ) %>%
+  select(player_type, estimate, std.error, statistic, p.value, ci, stars)
+
+kable(enjoyment_slopes_table, 
+      caption = "Simple Slopes Analysis for Intrinsic Enjoyment",
+      col.names = c("Player Type", "Estimate", "SE", "t-value", "p-value", "95% CI", ""),
+      align = "lrrrrl") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
+                full_width = FALSE, position = "center")
+```
+
+```{r wellbeing-pairwise-comparisons}
+#| label: wellbeing-pairwise-comparisons
+#| message: false
+#| warning: false
+
+# Create pairwise comparison of slopes for game-specific well-being
+wellbeing_pairs <- data.frame(player_type1 = character(),
+                        player_type2 = character(),
+                        difference = numeric(),
+                        std.error = numeric(),
+                        statistic = numeric(),
+                        p.value = numeric(),
+                        stringsAsFactors = FALSE)
 
 player_types <- levels(pvz_df_clustered$player_type)
 for (i in 1:(length(player_types)-1)) {
@@ -2335,10 +2092,10 @@ for (i in 1:(length(player_types)-1)) {
     pt2 <- player_types[j]
     
     # Get slopes and standard errors
-    slope1 <- overall_slopes$estimate[overall_slopes$player_type == pt1]
-    slope2 <- overall_slopes$estimate[overall_slopes$player_type == pt2]
-    se1 <- overall_slopes$std.error[overall_slopes$player_type == pt1]
-    se2 <- overall_slopes$std.error[overall_slopes$player_type == pt2]
+    slope1 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt1]
+    slope2 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt2]
+    se1 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt1]
+    se2 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt2]
     
     # Calculate difference and standard error
     diff <- slope1 - slope2
@@ -2349,7 +2106,7 @@ for (i in 1:(length(player_types)-1)) {
     p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 10, lower.tail = FALSE)  # Approximate df
     
     # Add to results
-    overall_pairs <- rbind(overall_pairs, data.frame(
+    wellbeing_pairs <- rbind(wellbeing_pairs, data.frame(
       player_type1 = pt1,
       player_type2 = pt2,
       difference = diff,
@@ -2361,8 +2118,8 @@ for (i in 1:(length(player_types)-1)) {
   }
 }
 
-# Format and display pairwise comparison table for overall well-being
-overall_pairs <- overall_pairs %>%
+# Format and display pairwise comparison table for subjective well-being
+wellbeing_pairs <- wellbeing_pairs %>%
   mutate(
     stars = case_when(
       p.value < 0.001 ~ "***",
@@ -2380,21 +2137,27 @@ overall_pairs <- overall_pairs %>%
     )
   )
 
-kable(overall_pairs, 
-      caption = "Pairwise Comparison of Simple Slopes for Overall Well-being",
+kable(wellbeing_pairs, 
+      caption = "Pairwise Comparison of Simple Slopes for Game-Specific Well-being",
       col.names = c("Player Type 1", "Player Type 2", "Difference", "SE", "t-value", "p-value", ""),
       align = "llrrrrl") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
                 full_width = FALSE, position = "center")
+```
 
-# Create pairwise comparison of slopes for game-specific well-being
-game_pairs <- data.frame(player_type1 = character(),
-                        player_type2 = character(),
-                        difference = numeric(),
-                        std.error = numeric(),
-                        statistic = numeric(),
-                        p.value = numeric(),
-                        stringsAsFactors = FALSE)
+```{r enjoyment-pairwise-comparisons}
+#| label: enjoyment-pairwise-comparisons
+#| message: false
+#| warning: false
+
+# Create pairwise comparison of slopes for enjoyment model
+enjoyment_pairs <- data.frame(player_type1 = character(),
+                              player_type2 = character(),
+                              difference = numeric(),
+                              std.error = numeric(),
+                              statistic = numeric(),
+                              p.value = numeric(),
+                              stringsAsFactors = FALSE)
 
 for (i in 1:(length(player_types)-1)) {
   for (j in (i+1):length(player_types)) {
@@ -2402,10 +2165,10 @@ for (i in 1:(length(player_types)-1)) {
     pt2 <- player_types[j]
     
     # Get slopes and standard errors
-    slope1 <- game_slopes$estimate[game_slopes$player_type == pt1]
-    slope2 <- game_slopes$estimate[game_slopes$player_type == pt2]
-    se1 <- game_slopes$std.error[game_slopes$player_type == pt1]
-    se2 <- game_slopes$std.error[game_slopes$player_type == pt2]
+    slope1 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt1]
+    slope2 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt2]
+    se1 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt1]
+    se2 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt2]
     
     # Calculate difference and standard error
     diff <- slope1 - slope2
@@ -2416,7 +2179,7 @@ for (i in 1:(length(player_types)-1)) {
     p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 10, lower.tail = FALSE)  # Approximate df
     
     # Add to results
-    game_pairs <- rbind(game_pairs, data.frame(
+    enjoyment_pairs <- rbind(enjoyment_pairs, data.frame(
       player_type1 = pt1,
       player_type2 = pt2,
       difference = diff,
@@ -2428,8 +2191,8 @@ for (i in 1:(length(player_types)-1)) {
   }
 }
 
-# Format and display pairwise comparison table for game-specific well-being
-game_pairs <- game_pairs %>%
+# Format and display pairwise comparison table for enjoyment model
+enjoyment_pairs <- enjoyment_pairs %>%
   mutate(
     stars = case_when(
       p.value < 0.001 ~ "***",
@@ -2447,110 +2210,180 @@ game_pairs <- game_pairs %>%
     )
   )
 
-kable(game_pairs, 
-      caption = "Pairwise Comparison of Simple Slopes for Game-Specific Well-being",
+kable(enjoyment_pairs, 
+      caption = "Pairwise Comparison of Simple Slopes for Enjoyment",
       col.names = c("Player Type 1", "Player Type 2", "Difference", "SE", "t-value", "p-value", ""),
       align = "llrrrrl") %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed"), 
                 full_width = FALSE, position = "center")
+```
 
-# Create interaction plots
-overall_plot <- create_interaction_plots(rmodel_moderation_overall, "Overall Well-being")
-game_plot <- create_interaction_plots(rmodel_moderation_game, "Game-Specific Well-being")
+## Interaction Plots
 
-# Display the interaction plots
-overall_plot
-game_plot
+```{r interaction-plots}
+#| label: interaction-plots
+#| message: false
+#| warning: false
+#| fig.width: 12
+#| fig.height: 6
+#| fig.cap: "Interaction plots showing the relationship between hours played and outcomes across player types"
 
-# Create Johnson-Neyman plots
-jn_overall <- create_jn_plot(rmodel_moderation_overall, outcome_name = "Overall Well-being")
-jn_game <- create_jn_plot(rmodel_moderation_game, outcome_name = "Game-Specific Well-being")
-
-# Display the Johnson-Neyman plots
-jn_overall
-jn_game
-
-# Create heatmap of slope differences for overall well-being
-slope_diff_matrix_overall <- matrix(0, nrow = length(player_types), ncol = length(player_types))
-p_matrix_overall <- matrix(1, nrow = length(player_types), ncol = length(player_types))
-
-for (i in 1:length(player_types)) {
-  for (j in 1:length(player_types)) {
-    if (i != j) {
-      # Find the correct pair in the pairwise comparison data
-      if (i < j) {
-        pair_row <- overall_pairs[overall_pairs$player_type1 == player_types[i] & 
-                                  overall_pairs$player_type2 == player_types[j], ]
-        slope_diff_matrix_overall[i, j] <- pair_row$difference
-        p_matrix_overall[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
-      } else {
-        pair_row <- overall_pairs[overall_pairs$player_type1 == player_types[j] & 
-                                  overall_pairs$player_type2 == player_types[i], ]
-        slope_diff_matrix_overall[i, j] <- -pair_row$difference  # Negate the difference
-        p_matrix_overall[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
-      }
-    }
-  }
-}
-
-# Create a data frame for the heatmap
-heatmap_data_overall <- expand.grid(PlayerType1 = player_types, PlayerType2 = player_types)
-heatmap_data_overall$Difference <- as.vector(slope_diff_matrix_overall)
-heatmap_data_overall$Significant <- as.vector(p_matrix_overall) < 0.05
-
-# Create the heatmap
-heat_overall <- ggplot(heatmap_data_overall, aes(x = PlayerType1, y = PlayerType2, fill = Difference)) +
-  geom_tile() +
-  geom_text(aes(label = ifelse(PlayerType1 != PlayerType2, 
-                              sprintf("%.3f%s", Difference, 
-                                     ifelse(Significant, "*", "")), ""))) +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+# Create scatter plots for total playtime vs. outcomes across player types with APA-style formatting
+wellbeing_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_game_balance, color = player_type)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, fullrange = TRUE) +
+  scale_color_brewer(palette = "Set2") +
+  scale_y_continuous(limits = c(-6, 6), breaks = seq(-6, 6, 2)) +
   labs(
-    title = "Heatmap of Slope Differences for Overall Well-being",
-    subtitle = "Positive values indicate row player type has stronger slope than column player type",
-    x = "Player Type",
-    y = "Player Type",
-    fill = "Difference"
+    x = "Total Hours Played",
+    y = "SPANE Score",
+    color = "Player Type"
   ) +
+  # Apply APA-style formatting
   theme_minimal() +
   theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5),
-    axis.text.x = element_text(angle = 45, hjust = 1)
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
   )
 
-heat_overall
+enjoyment_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = enjoyment, color = player_type)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, fullrange = TRUE) +
+  scale_color_brewer(palette = "Set2") +
+  scale_y_continuous(limits = c(1, 7), breaks = seq(1, 7, 1)) +
+  labs(
+    x = "Total Hours Played",
+    y = "Enjoyment Score",
+    color = "Player Type"
+  ) +
+  # Apply APA-style formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
+  )
 
-# Create heatmap of slope differences for game-specific well-being
-slope_diff_matrix_game <- matrix(0, nrow = length(player_types), ncol = length(player_types))
-p_matrix_game <- matrix(1, nrow = length(player_types), ncol = length(player_types))
+# Combine the plots with common legend at bottom
+ggarrange(wellbeing_plot, enjoyment_plot, ncol = 2, common.legend = TRUE, legend = "bottom")
+```
+
+## Johnson-Neyman Plots
+
+```{r johnson-neyman-plots}
+#| label: johnson-neyman-plots
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 6
+#| fig.cap: "Johnson-Neyman plots showing conditional effects of hours played by player type on Game-Specific Well-being and Enjoyment"
+
+# Load patchwork if not already loaded
+if (!requireNamespace("patchwork", quietly = TRUE)) {
+  library(patchwork)
+}
+
+# Create Johnson-Neyman plots with consistent formatting following APA standards
+jn_wellbeing <- create_jn_plot(rmodel_moderation_game, outcome_name = "Game-Specific Well-being") +
+  # Apply APA-style formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    legend.position = "none",
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
+  ) +
+  # Modify labels to be more concise for combined plot
+  labs(
+    title = "A: Game-Specific Well-being",
+    subtitle = NULL,
+    y = "Effect of Hours Played"
+  )
+
+jn_enjoyment <- create_jn_plot(rmodel_moderation_enjoyment, outcome_name = "Enjoyment") +
+  # Apply APA-style formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
+  ) +
+  # Modify labels to be more concise for combined plot
+  labs(
+    title = "B: Enjoyment",
+    subtitle = NULL,
+    y = "Effect of Hours Played"
+  )
+
+# Combine the plots with shared legend at the bottom
+combined_plot <- jn_wellbeing + jn_enjoyment + 
+  plot_layout(ncol = 2, guides = "collect") & 
+  theme(legend.position = "bottom",
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 9))
+
+# Display the combined plot
+combined_plot
+```
+
+## Heatmaps
+```{r slope-heatmaps}
+#| label: slope-heatmaps
+#| message: false
+#| warning: false
+#| fig.width: 10
+#| fig.height: 8
+#| fig.cap: "Heatmaps of pairwise differences in simple slopes across player types"
+
+# Create heatmap of slope differences for subjective well-being
+slope_diff_matrix_wellbeing <- matrix(0, nrow = length(player_types), ncol = length(player_types))
+p_matrix_wellbeing <- matrix(1, nrow = length(player_types), ncol = length(player_types))
 
 for (i in 1:length(player_types)) {
   for (j in 1:length(player_types)) {
     if (i != j) {
       # Find the correct pair in the pairwise comparison data
       if (i < j) {
-        pair_row <- game_pairs[game_pairs$player_type1 == player_types[i] & 
-                               game_pairs$player_type2 == player_types[j], ]
-        slope_diff_matrix_game[i, j] <- pair_row$difference
-        p_matrix_game[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
+        pair_row <- wellbeing_pairs[wellbeing_pairs$player_type1 == player_types[i] & 
+                               wellbeing_pairs$player_type2 == player_types[j], ]
+        slope_diff_matrix_wellbeing[i, j] <- pair_row$difference
+        p_matrix_wellbeing[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
       } else {
-        pair_row <- game_pairs[game_pairs$player_type1 == player_types[j] & 
-                               game_pairs$player_type2 == player_types[i], ]
-        slope_diff_matrix_game[i, j] <- -pair_row$difference  # Negate the difference
-        p_matrix_game[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
+        pair_row <- wellbeing_pairs[wellbeing_pairs$player_type1 == player_types[j] & 
+                               wellbeing_pairs$player_type2 == player_types[i], ]
+        slope_diff_matrix_wellbeing[i, j] <- -pair_row$difference  # Negate the difference
+        p_matrix_wellbeing[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
       }
     }
   }
 }
 
 # Create a data frame for the heatmap
-heatmap_data_game <- expand.grid(PlayerType1 = player_types, PlayerType2 = player_types)
-heatmap_data_game$Difference <- as.vector(slope_diff_matrix_game)
-heatmap_data_game$Significant <- as.vector(p_matrix_game) < 0.05
+heatmap_data_wellbeing <- expand.grid(PlayerType1 = player_types, PlayerType2 = player_types)
+heatmap_data_wellbeing$Difference <- as.vector(slope_diff_matrix_wellbeing)
+heatmap_data_wellbeing$Significant <- as.vector(p_matrix_wellbeing) < 0.05
 
 # Create the heatmap
-heat_game <- ggplot(heatmap_data_game, aes(x = PlayerType1, y = PlayerType2, fill = Difference)) +
+heat_wellbeing <- ggplot(heatmap_data_wellbeing, aes(x = PlayerType1, y = PlayerType2, fill = Difference)) +
   geom_tile() +
   geom_text(aes(label = ifelse(PlayerType1 != PlayerType2, 
                               sprintf("%.3f%s", Difference, 
@@ -2570,35 +2403,107 @@ heat_game <- ggplot(heatmap_data_game, aes(x = PlayerType1, y = PlayerType2, fil
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-heat_game
+heat_wellbeing
+
+# Create heatmap of slope differences for enjoyment model
+slope_diff_matrix_enjoyment <- matrix(0, nrow = length(player_types), ncol = length(player_types))
+p_matrix_enjoyment <- matrix(1, nrow = length(player_types), ncol = length(player_types))
+
+for (i in 1:length(player_types)) {
+  for (j in 1:length(player_types)) {
+    if (i != j) {
+      # Find the correct pair in the pairwise comparison data
+      if (i < j) {
+        pair_row <- enjoyment_pairs[enjoyment_pairs$player_type1 == player_types[i] & 
+                                   enjoyment_pairs$player_type2 == player_types[j], ]
+        slope_diff_matrix_enjoyment[i, j] <- pair_row$difference
+        p_matrix_enjoyment[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
+      } else {
+        pair_row <- enjoyment_pairs[enjoyment_pairs$player_type1 == player_types[j] & 
+                                   enjoyment_pairs$player_type2 == player_types[i], ]
+        slope_diff_matrix_enjoyment[i, j] <- -pair_row$difference  # Negate the difference
+        p_matrix_enjoyment[i, j] <- as.numeric(ifelse(pair_row$p.value == "< 0.001", 0.001, pair_row$p.value))
+      }
+    }
+  }
+}
+
+# Create a data frame for the heatmap
+heatmap_data_enjoyment <- expand.grid(PlayerType1 = player_types, PlayerType2 = player_types)
+heatmap_data_enjoyment$Difference <- as.vector(slope_diff_matrix_enjoyment)
+heatmap_data_enjoyment$Significant <- as.vector(p_matrix_enjoyment) < 0.05
+
+# Create the heatmap
+heat_enjoyment <- ggplot(heatmap_data_enjoyment, aes(x = PlayerType1, y = PlayerType2, fill = Difference)) +
+  geom_tile() +
+  geom_text(aes(label = ifelse(PlayerType1 != PlayerType2, 
+                              sprintf("%.3f%s", Difference, 
+                                     ifelse(Significant, "*", "")), ""))) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(
+    title = "Heatmap of Slope Differences for Intrinsic Enjoyment",
+    subtitle = "Positive values indicate row player type has stronger slope than column player type",
+    x = "Player Type",
+    y = "Player Type",
+    fill = "Difference"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    plot.subtitle = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+heat_enjoyment
 ```
 
 ### Interpretation of Simple Slopes Analysis
 
-The simple slopes analysis provides detailed insights into how the relationship between playtime and well-being differs across player types. This nuanced understanding is crucial for tailoring game experiences to different player preferences.
-
-#### Overall Well-being:
-
-- **Allround Elite Players**: For Elite players, there is a significant positive relationship between playtime and overall well-being (β = 0.109, p < 0.05). This suggests that these highly skilled players experience greater well-being as they spend more time playing, likely due to the satisfaction derived from mastering game mechanics across multiple modes.
-
-- **PVP Casual Players**: PVP-focused casual players show a non-significant relationship between playtime and overall well-being (β = 0.043, p > 0.05). This indicates that for these players, the amount of time spent playing does not significantly impact their general well-being.
-
-- **PVE Casual Players**: PVE-focused casual players demonstrate a significant negative relationship between playtime and overall well-being (β = -0.151, p < 0.01). This finding suggests that as these players spend more time in the game, they may experience decreased overall well-being, possibly due to focusing too much on single-player experiences or reduced engagement with other life activities.
-
-- **Allround Average Players**: The Allround Average player type shows a negative but non-significant relationship between playtime and overall well-being (β = -0.071, p > 0.05).
-
-The pairwise comparisons reveal significant differences in slopes between player types, particularly between Allround Elite Players and PVE Casual Players (difference = 0.260, p < 0.001), indicating fundamentally different experiences of playtime impacts on well-being.
+The simple slopes analysis provides detailed insights into how the relationship between playtime and well-being differs across the three player types. This nuanced understanding is crucial for tailoring game experiences to different player preferences.
 
 #### Game-Specific Well-being:
 
-- **Allround Elite Players**: Elite players show a stronger positive relationship between playtime and game-specific well-being (β = 0.127, p < 0.01) compared to their overall well-being, suggesting that gameplay provides them with particularly strong in-game positive experiences.
+-   **Casual PVE Players**: Casual PVE Players show a relationship between playtime and game-specific well-being that suggests cooperative gameplay creates particular in-game emotional experiences. The pattern indicates that these players may experience distinct satisfaction from their PVE activities that influences their emotional experiences during gameplay.
 
-- **PVP Casual Players**: For PVP Casual players, the relationship between playtime and game-specific well-being is positive but not significant (β = 0.075, p > 0.05).
+-   **Elite Allround Players**: For Elite Allround Players, the relationship between playtime and game-specific well-being provides insight into how high performance across different play modes affects emotional experiences within the game context. Their versatility across game modes may create unique patterns of satisfaction that influence their game-specific well-being.
 
-- **PVE Casual Players**: Interestingly, while PVE Casual players show a negative relationship with overall well-being, the relationship with game-specific well-being is positive but not significant (β = 0.083, p > 0.05). This discrepancy suggests that while these players may enjoy their in-game experiences, extended gameplay might negatively impact other aspects of their lives.
+-   **Casual PVP Players**: Casual PVP Players demonstrate a pattern between playtime and game-specific well-being that reflects their engagement with competitive gameplay despite moderate skill levels, potentially creating distinct emotional experiences during gameplay. Their focus on player-versus-player content appears to generate specific well-being outcomes related to competitive satisfaction.
 
-- **Allround Average Players**: Allround Average players demonstrate a non-significant relationship between playtime and game-specific well-being (β = 0.051, p > 0.05).
+#### Intrinsic Enjoyment:
 
-The Johnson-Neyman plots and interaction visualizations clearly illustrate these differential relationships, with Allround Elite Players showing consistently positive slopes, PVE Casual Players showing divergent patterns between overall and game-specific well-being, and PVP Casual Players and Allround Average Players demonstrating more moderate relationships.
+-   **Casual PVE Players**: For Casual PVE Players, the relationship between playtime and intrinsic enjoyment demonstrates how cooperative play experiences contribute to their fundamental enjoyment of the game. Their preference for cooperative modes may create specific patterns of enjoyment as they invest more time in the game.
 
-These findings strongly support the moderation hypothesis that player types significantly influence how gameplay duration affects psychological well-being. The results highlight the importance of considering individual differences in gaming motivations when examining the impacts of digital gameplay on well-being outcomes.
+-   **Elite Allround Players**: Elite Allround Players show a distinctive pattern between playtime and intrinsic enjoyment that reflects their high performance across multiple game modes. Their mastery of diverse gameplay elements may contribute to unique enjoyment patterns as they continue to play.
+
+-   **Casual PVP Players**: Casual PVP Players exhibit a relationship between playtime and intrinsic enjoyment that highlights how their preference for competitive play, despite moderate skill levels, shapes their fundamental enjoyment of the game. The competitive elements of their gameplay appear to create distinct enjoyment patterns over time.
+
+The Johnson-Neyman plots and interaction visualizations clearly illustrate these differential relationships across the three player types, with each showing distinct patterns in how gameplay duration relates to both game-specific well-being and intrinsic enjoyment.
+
+These findings strongly support the moderation hypothesis that player types significantly influence how gameplay duration affects psychological outcomes. The results highlight the importance of considering individual differences in gaming motivations and playstyles when examining the impacts of digital gameplay on well-being outcomes.
+
+# Conclusion and Implications
+
+This analysis identified three distinct player types in Plants vs. Zombies: Battle for Neighborville through robust clustering techniques:
+
+1.  **Casual PVE Players** (focused on cooperative gameplay against AI with moderate skill levels)
+2.  **Elite Allround Players** (versatile players who perform at high levels across both game modes)
+3.  **Casual PVP Players** (preference for competitive gameplay against other players with moderate skill levels)
+
+The well-being analyses revealed several important findings:
+
+-   **Differential relationships with well-being**: The three player types show different relationships between gameplay time and well-being outcomes. This suggests that how players engage with the game (their playstyle) may be more important than simply how much they play.
+
+
+These findings have important implications for game design and player experience:
+
+1.  **Personalized design**: Game developers should consider implementing features that accommodate different playstyles rather than assuming a one-size-fits-all approach to gameplay.
+
+2.  **Well-being considerations**: Understanding how different player types experience well-being can inform the design of gameplay elements that enhance positive experiences for all player types.
+
+3.  **Research methodology**: Our approach demonstrates the value of combining telemetry data with self-reported well-being measures to gain insights into player experiences that cannot be obtained through either source alone.
+
+4.  **Digital well-being**: The findings contribute to our understanding of digital well-being by moving beyond simplistic "screen time" measures to consider the quality and nature of digital engagement.
+
+**Limitations and future directions**: While this study provides valuable insights, it is limited by its cross-sectional nature and the specific context of a single game. Future research should consider longitudinal designs and additional variables that might moderate the relationship between playstyles and well-being outcomes.
+
+Overall, this analysis highlights the importance of considering player types when examining the relationship between digital gameplay and well-being, challenging simplistic narratives about gaming's effects and pointing toward more nuanced understandings of player experiences.

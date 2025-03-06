@@ -1,94 +1,67 @@
 ---
-title: "The relationship between in-game player behaviour, performance, and well-being."
-shorttitle: "In-game player behaviour, performance, and well-being"
-author:
-  - name: Thomas Hakman
-    corresponding: true
-    orcid: 0009-0009-8292-2482
-    email: thomas.hakman@oii.ox.ac.uk
-        # Roles are optional. 
-    # Select from the CRediT: Contributor Roles Taxonomy https://credit.niso.org/
-    # conceptualization, data curation, formal Analysis, funding acquisition, investigation, 
-    # methodology, project administration, resources, software, supervision, validation, 
-    # visualization, writing, editing
-    roles:
-      - conceptualization
-      - writing
-    affiliations:
-      - name: University of Oxford
-        department: Oxford Internet Institute
-        address: 1 St Giles'
-        city: Oxford
-        region: Oxfordshire
-        country: UK
-        postal-code: OX1 3JS
-author-note:
-  status-changes: 
-    affiliation-change: ~
-    deceased: ~
-disclosures:
-    # Example: This study was registered at X (Identifier Y).
-    study-registration: ~
-    # Acknowledge and cite data/materials to be shared.
-    data-sharing: ~
-    # Example: This article is based on data published in [Reference].
-    # Example: This article is based on the dissertation completed by [citation].  
-    related-report: ~
-    # Example: [Author name] has been a paid consultant for Corporation X, which funded this study.
-    conflict-of-interest: The authors have no conflicts of interest to disclose.
-    # Example: This study was supported by Grant [Grant Number] from [Funding Source].
-    financial-support: ~
-    # Example: The authors are grateful to [Person] for [Reason].
-    gratitude: ~
-    # Example. Because the authors are equal contributors, order of authorship was determined by a fair coin toss.
-    authorship-agreements: ~
-abstract: "Studies analyzing the effect of video game playtime on well-being have reported widely varying findings, showing negative, positive, and no associations altogether. These inconsistencies may, in part, reflect a lack of consideration for how people play video games (i.e., playing style). In this study, we clustered and analyzed in-game behavior and performance across 28,560 matches played by 471 players in the online first-person shooter game Plants vs. Zombies: Battle for Neighborville (PvZ). Based on 13 variables derived from in-game behavior, we identified three distinct player types with characteristic playing styles. Using robust linear mixed-effects modeling, we examined how these playstyles moderate the relationship between gameplay time and well-being. We found that the relationship between playtime and well-being differs significantly across player types, with both positive and negative associations observed depending on playing style. These results challenge the implicit assumption present in research and policy that players of the same game exhibit homogeneous behavior. Our findings suggest that the effects of playing video games on well-being depend not simply on how much people play, but crucially on how they play."
-keywords: [video games, playing style, well-being, performance]
-bibliography: bibliography.bib
-lang: en
-language:
-  citation-last-author-separator: "and"
-  citation-masked-author: "Masked Citation"
-  citation-masked-date: "n.d."
-  citation-masked-title: "Masked Title"
-  email: "Email"
-  title-block-author-note: "Author Note"
-  title-block-correspondence-note: "Correspondence concerning this article should be addressed to"
-  title-block-role-introduction: "Author roles were classified using the Contributor Role Taxonomy (CRediT; https://credit.niso.org/) as follows:"
-  title-impact-statement: "Impact Statement"
-format:
-  apaquarto-docx: default
-  apaquarto-html: 
-    echo: false
-    warning: false
-    message: false
+title: "Player Playstyle Analysis (3 Clusters)"
+author: "Thomas Hakman"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
     code-fold: true
-    code-tools: false
-  apaquarto-typst: 
-    echo: false
-    warning: false
-    message: false
-  apaquarto-pdf:
-    # Can be jou (journal), man (manuscript), stu (student), or doc (document)
-    documentmode: man
-    keep-tex: true
-    echo: false
-    warning: false
-    message: false
+    theme: flatly
+    fig-width: 8
+    fig-height: 6
+    embed-resources: true    # Bundle all resources in the HTML file
+    self-contained: true     # Create a standalone HTML file
 execute:
   echo: false
-  warning: false
   message: false
+  warning: false
+  cache: false
+  eval: true                 # Ensure code is evaluated
+  output: true               # Ensure output is displayed
+  fig-show: "asis"           # Ensure figures are displayed inline
+editor: visual
+bibliography: bibliography.bib
 ---
 
-```{r setup, include=FALSE}
+```{r setup}
+#| label: setup
+#| include: false
+
+# Set global options
 knitr::opts_chunk$set(
-  echo = FALSE,
-  warning = FALSE,
+  echo = TRUE,
   message = FALSE,
-  fig.align = "center"
+  warning = FALSE,
+  cache = FALSE,
+  fig.show = "asis"  # Ensures figures are displayed inline in the viewer
 )
+
+# Basic httpgd setup for VSCode (if available)
+if (interactive() && requireNamespace("httpgd", quietly = TRUE)) {
+  library(httpgd)
+  if (!httpgd::hgd_is_active()) {
+    httpgd::hgd_open()
+  }
+  options(vsc.plot = FALSE)  # Configure VSCode to use httpgd
+  options(device = function() httpgd::hgd())
+}
+
+# Define a capitalize function for facet labels
+capitalize <- function(x) {
+  x <- as.character(x)
+  substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+  x
+}
+
+# Create a list of wellbeing variables (focus on our two primary outcomes)
+wellbeing_vars <- c("spane_game_balance", "enjoyment")
 ```
+
+# Abstract
+
+This document presents a comprehensive analysis of playstyle patterns and their relationship with well-being among players of Plants vs. Zombies: Battle for Neighborville. Using cluster analysis, we identified three distinct player types based on their gameplay behavior and preferences. Through robust linear mixed-effects modeling, we examined how these playstyles moderate the relationship between gameplay time and well-being and enjoyment. Our findings reveal that the relationship between playtime and well-being and enjoyment differ significantly across player types, suggesting that how players engage with the game is potentially more important than simply how much they play.
+
+# Introduction
 
 The literature on whether video games harm or improve well-being remains divided. Several studies report negative associations between playtime and measures of mental health or well-being [@fergusonLackConsensusScholars2019; @liuDigitalCommunicationMedia2019; @mathurFindingCommonGround2019]. Other studies find negative associations only among highly engaged players [@coldercarrasVideoGamingHyperconnected2017; @przybylski2017a]. Yet others, find null or negligible associations [@johannesVideoGamePlay2021; @vuorreTimeSpentPlaying2022]. The positive aspects are similarly mixed. Some studies find positive associations between playtime and well-being [@halbrookWhenHowVideo2019; @johannesVideoGamePlay2021; @villaniVideogamesEmotionRegulation2018], whereas others report them just for moderate usage [@przybylski2017a] or specific game genres such as MMOs [@raithMassivelyMultiplayerOnline2021]. Overall, existing evidence suggests that the relations between video games and well-being are complex, small, and potentially bidirectional. However, the inconsistency of these findings has prevented any firm conclusions from being drawn. This lack of consensus has led scholars to question the value of time spent playing games as a factor meriting study in its own right [@orbenOnlyHolisticIterative2020]
 
@@ -784,6 +757,7 @@ The raw data, materials, codebook and further details on this dataset shared Joh
 
 ```{r cluster_feature_selection}
 #| label: cluster_feature_selection
+#| echo: true
 #| warning: false
 #| message: false
 
@@ -812,6 +786,7 @@ rownames(player_data_scaled) <- pvz_df_analysis$player_id[rownames(player_data_s
 
 ```{r cluster_random_data}
 #| label: cluster_random_data
+#| echo: true
 #| warning: false
 #| message: false
 #| results: "hide"
@@ -825,6 +800,7 @@ random_cluster_data <- as.data.frame(random_cluster_data)
 
 ```{r hopkins_statistic}
 #| label: hopkins_statistic
+#| echo: true
 #| warning: false
 #| message: false
 #| results: "hide"
@@ -854,6 +830,7 @@ hopkins_random <- compute_hopkins_statistic(random_cluster_data)
 
 ```{r pca_visualization}
 #| label: pca_visualization
+#| echo: true
 #| warning: false
 #| message: false
 #| results: "hide"

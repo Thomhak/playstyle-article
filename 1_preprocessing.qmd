@@ -13,7 +13,7 @@ execute:
   echo: true
   message: false
   warning: false
-  cache: true
+  cache: false
 editor: visual
 ---
 
@@ -26,7 +26,7 @@ knitr::opts_chunk$set(
   echo = TRUE,
   message = FALSE,
   warning = FALSE,
-  cache = TRUE,
+  cache = FALSE,
   fig.path = "figures/"
 )
 ```
@@ -41,16 +41,21 @@ This document processes player telemetry and survey data from Plants vs. Zombies
 
 ```{r packages}
 #| label: load-packages
-# Load required packages
-library(tidyverse)
-library(here)
-library(lubridate)
-library(scales)
-library(janitor)
-library(magrittr)
-library(psych)
-library(readxl)
-library(knitr)
+# Install pacman if not already installed
+if (!require("pacman")) install.packages("pacman")
+
+# Load required packages using pacman
+pacman::p_load(
+  tidyverse,  # For data manipulation and visualization
+  here,       # For project-relative file paths
+  lubridate,  # For date/time handling
+  scales,     # For visualization scaling
+  janitor,    # For data cleaning
+  magrittr,   # For additional pipe operators
+  psych,      # For psychological statistics
+  readxl,     # For reading Excel files
+  knitr       # For dynamic report generation
+)
 ```
 
 ## Load Helper Functions
@@ -480,6 +485,10 @@ game_time_2week <- game_time %>%
   left_join(select(survey, player_id, start_date)) %>% 
   filter(game_start_time >= (start_date - days(14)))
 
+# NOTE: In later processing, we handle the fact that multiple characters can be
+# used in a single game session by ensuring each session is counted only once in our
+# game time calculations. We also cap unrealistically long sessions to 12 hours.
+
 # Save processed game time data
 write_csv(game_time_2week, here("data/processed/game_time_2week.csv"))
 ```
@@ -584,31 +593,53 @@ write_csv(characters_2week_nona, here("data/processed/characters_with_modes_nona
 #| label: game-time-calculations
 
 # Define a function to calculate time per player for a specific game mode
-calculate_game_time <- function(data, mode_filter, time_prefix) {
-  data %>%
-    filter({{ mode_filter }} == 1) %>%
+calculate_game_time <- function(data, mode_column, time_prefix) {
+  # Apply mode filter directly using the column name as a string
+  filtered_data <- data %>%
+    filter(!!rlang::sym(mode_column) == 1)
+  
+  # Calculate time
+  filtered_data %>%
     mutate(duration = game_end_time - game_start_time) %>%
     mutate(seconds = as.numeric(duration)) %>%
     group_by(player_id) %>%
-    summarise(seconds = sum(seconds)) %>%
+    summarise(
+      seconds = sum(seconds, na.rm = TRUE)
+    ) %>%
     mutate(hours = seconds / 60 / 60) %>%
     rename_with(~ paste0(time_prefix, "_", .), .cols = c("seconds", "hours")) %>%
     ungroup()
 }
 
-# Calculate total game time per player
-game_time_players_total <- characters_2week %>% 
+# Get unique game sessions with their mode information
+game_sessions_modes <- characters_2week %>%
+  select(player_id, game_session, social_hub, pve_session, pvp_session, game_start_time, game_end_time) %>%
+  # Group by player and session to get unique sessions with mode flags
+  group_by(player_id, game_session) %>%
+  summarise(
+    # If any character in a session was used in a specific mode, count the session as that mode
+    social_hub = max(social_hub, na.rm = TRUE),
+    pve_session = max(pve_session, na.rm = TRUE),
+    pvp_session = max(pvp_session, na.rm = TRUE),
+    # Preserve the start and end times
+    game_start_time = first(game_start_time),
+    game_end_time = first(game_end_time),
+    .groups = "drop"
+  )
+
+# Calculate total game time per player (only count each session once)
+game_time_players_total <- game_sessions_modes %>% 
   mutate(duration = game_end_time - game_start_time) %>% 
   mutate(seconds = as.numeric(duration)) %>% 
   group_by(player_id) %>% 
-  summarise(seconds = sum(seconds)) %>%
+  summarise(seconds = sum(seconds, na.rm = TRUE)) %>%
   mutate(hours = seconds / 60 / 60) %>% 
   ungroup()
 
 # Calculate game time for different modes using our function
-game_time_players_pvp <- calculate_game_time(characters_2week, pvp_session, "pvp")
-game_time_players_pve <- calculate_game_time(characters_2week, pve_session, "pve")
-game_time_players_social <- calculate_game_time(characters_2week, social_hub, "social")
+game_time_players_pvp <- calculate_game_time(game_sessions_modes, "pvp_session", "pvp")
+game_time_players_pve <- calculate_game_time(game_sessions_modes, "pve_session", "pve")
+game_time_players_social <- calculate_game_time(game_sessions_modes, "social_hub", "social")
 
 # Combine game time data with purrr's reduce
 game_time_players <- list(
@@ -630,7 +661,7 @@ write_csv(game_time_players, here("data/processed/game_time_players.csv"))
 
 ```{r performance-setup}
 #| label: performance-setup
-#| cache: true
+#| cache: false
 #| dependson: c("game-mode-classification", "game-time-calculations")
 
 # Create an empty list to store intermediate results
@@ -639,7 +670,7 @@ metrics_list <- list()
 
 ```{r overall-performance}
 #| label: overall-performance
-#| cache: true
+#| cache: false
 #| dependson: c("performance-setup")
 
 # Calculate overall performance metrics per player
@@ -657,11 +688,11 @@ gc()
 
 ```{r game-sessions}
 #| label: game-sessions
-#| cache: true
+#| cache: false
 #| dependson: c("performance-setup")
 
 # Calculate game sessions per player
-game_sessions_total <- characters_2week %>% 
+game_sessions_total <- game_sessions_modes %>% 
   count(player_id) %>%
   rename(n_total_game_sessions = n)
 
@@ -674,11 +705,11 @@ gc()
 
 ```{r sessions-by-mode}
 #| label: sessions-by-mode
-#| cache: true
+#| cache: false
 #| dependson: c("performance-setup")
 
 # Calculate sessions by game mode
-game_sessions <- characters_2week %>% 
+game_sessions <- game_sessions_modes %>% 
   group_by(player_id) %>% 
   summarise(across(social_hub:pvp_session, sum, na.rm = TRUE)) %>% 
   ungroup()
@@ -692,7 +723,7 @@ gc()
 
 ```{r pvp-performance}
 #| label: pvp-performance
-#| cache: true
+#| cache: false
 #| dependson: c("performance-setup")
 
 # PvP-specific performance metrics
@@ -711,7 +742,7 @@ gc()
 
 ```{r pve-performance}
 #| label: pve-performance
-#| cache: true
+#| cache: false
 #| dependson: c("performance-setup")
 
 # PvE-specific performance metrics
@@ -730,7 +761,7 @@ gc()
 
 ```{r combine-metrics}
 #| label: combine-metrics
-#| cache: true
+#| cache: false
 #| dependson: c("overall-performance", "game-sessions", "sessions-by-mode", "pvp-performance", "pve-performance")
 
 # Load additional data we need from previous processing
@@ -750,6 +781,12 @@ telemetry_players <- list(
 # Replace NA values with 0
 telemetry_players <- telemetry_players %>%
   mutate(across(everything(), ~replace_na(.x, 0)))
+
+# Print summary of capped sessions
+cat("Summary of capped sessions (>12 hours):\n")
+cat("Total capped sessions:", sum(telemetry_players$capped_sessions), "\n")
+cat("Players with capped sessions:", sum(telemetry_players$capped_sessions > 0), "\n")
+cat("Maximum capped sessions per player:", max(telemetry_players$capped_sessions), "\n")
 
 # Clear intermediate objects and list to free memory
 rm(metrics_list)
@@ -877,49 +914,80 @@ cat("Final dataset dimensions:", dim(pvz_df_clean)[1], "participants x", dim(pvz
 write_csv(pvz_df_clean, here("data/processed/pvz_complete.csv"))
 ```
 
-```{r survey-demographics-calculation}
-#| label: survey-demographics-calculation
-#| include: false
+# Outlier Handling
 
-# Calculate overall survey demographics
-survey_demographics <- survey %>%
-  summarize(
-    total_participants = n(),
-    avg_age = round(mean(age, na.rm = TRUE), 1),
-    sd_age = round(sd(age, na.rm = TRUE), 1)
+We need to identify and handle extreme outliers in the dataset. Following established practices, we'll replace values that are more than 5 standard deviations away from each variable's mean with NA values. This creates a case-by-case exclusion approach where participants are only excluded from analyses involving variables where they have extreme values.
+
+```{r outlier-removal}
+#| label: outlier-removal
+
+# Get list of numeric variables to check for outliers
+numeric_vars <- pvz_df_clean %>%
+  select(where(is.numeric)) %>%
+  colnames()
+
+# Calculate z-scores for each numeric variable
+pvz_with_z <- pvz_df_clean %>%
+  mutate(across(all_of(numeric_vars), 
+                ~ scale(.x)[,1],
+                .names = "{.col}_z"))
+
+# Create a list of variables with outliers
+z_cols <- colnames(pvz_with_z)[grep("_z$", colnames(pvz_with_z))]
+outlier_vars <- c()
+outlier_counts <- c()
+
+# Count outliers per variable
+for(z_col in z_cols) {
+  orig_col <- sub("_z$", "", z_col)
+  outlier_count <- sum(abs(pvz_with_z[[z_col]]) >= 5, na.rm = TRUE)
+  
+  if(outlier_count > 0) {
+    outlier_vars <- c(outlier_vars, orig_col)
+    outlier_counts <- c(outlier_counts, outlier_count)
+  }
+}
+
+# Create a summary table of outliers
+outlier_summary <- tibble(
+  name = outlier_vars,
+  Extremes = outlier_counts,
+  Extremes_p = scales::percent(outlier_counts / nrow(pvz_df_clean), accuracy = .01)
+)
+
+# Display the summary
+print(outlier_summary)
+
+# Create a cleaned version with outliers replaced by NA
+pvz_clean <- pvz_df_clean
+
+# Replace outliers with NA
+for(i in seq_along(outlier_vars)) {
+  var <- outlier_vars[i]
+  z_var <- paste0(var, "_z")
+  pvz_clean[[var]] <- ifelse(abs(pvz_with_z[[z_var]]) >= 5, NA, pvz_df_clean[[var]])
+}
+
+# Save the cleaned dataset
+write_csv(pvz_clean, here("data/processed/pvz_clean_no_outliers.csv"))
+
+# Print summary statistics
+cat("Number of variables with extreme outliers:", length(outlier_vars), "\n")
+cat("Total number of data points identified as outliers:", sum(outlier_counts), "\n")
+
+# Count participants with at least one outlier
+participants_with_outliers <- c()
+for(i in seq_along(outlier_vars)) {
+  var <- outlier_vars[i]
+  z_var <- paste0(var, "_z")
+  participants_with_outliers <- c(
+    participants_with_outliers, 
+    pvz_with_z$player_id[abs(pvz_with_z[[z_var]]) >= 5]
   )
+}
 
-# Calculate gender distribution in original survey
-gender_survey <- survey %>%
-  count(gender) %>%
-  mutate(percentage = n / sum(n) * 100)
-
-# Count participants with each gender
-male_count <- gender_survey %>% filter(gender == "Male") %>% pull(n)
-female_count <- gender_survey %>% filter(gender == "Female") %>% pull(n)
-other_count <- gender_survey %>% filter(gender == "Other") %>% pull(n)
-undisclosed_count <- gender_survey %>% filter(gender == "Prefer not to say") %>% pull(n)
-```
-
-As detailed in Johannes et al. (2020), participant recruitment happened in two waves, first in early August 2020 and second in late September 2020. The response rate was \~ 0.21%. In total `r survey_demographics$total_participants` PvZ players participated in the well-being survey (`r male_count` male, `r female_count` female, `r other_count` other, and `r undisclosed_count` undisclosed) with an average age of `r survey_demographics$avg_age` (SD = `r survey_demographics$sd_age`). However, since we are interested in modelling playing styles from in-game telemetry only the participants with valid telemetry data were included in this study. After preprocessing, our final sample consists of `r nrow(pvz_df_clean)` participants with valid performance metrics.
-
-```{r final-sample-demographics}
-#| label: final-sample-demographics
-
-# Display demographics of final sample
-cat("Demographics of final sample:\n")
-cat("- Sample size:", nrow(pvz_df_clean), "\n")
-cat("- Average age:", round(mean(pvz_df_clean$age, na.rm = TRUE), 1), "(SD =", round(sd(pvz_df_clean$age, na.rm = TRUE), 1), ")\n")
-
-# Gender distribution
-gender_dist <- pvz_df_clean %>%
-  count(gender) %>%
-  mutate(percentage = n / sum(n) * 100)
-
-kable(gender_dist, caption = "Gender distribution in final sample", digits = 2)
-
-# Print summary of final dataset
-glimpse(pvz_df_clean)
+cat("Number of participants with at least one extreme value:", 
+    length(unique(participants_with_outliers)), "\n")
 ```
 
 # Next Steps

@@ -24,14 +24,24 @@ __pycache__/
 .cursor/rules
 .mcd
 .mcd-rules
+*.md
 
 # other files
 *.rmd
 *.txt
 *.docx
 *.doc
+*.png
 *.pdf
 *.pptx
 *.ppt
 *.xls
 *.xlsx
+*.js
+*.css
+*.html
+*.json
+*.yaml
+*.yml
+*.toml
+*.woff
