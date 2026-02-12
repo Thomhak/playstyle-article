@@ -1,67 +1,37 @@
-# Player Playstyle Analysis
+# The relationship between in-game player behaviour, performance, and well-being
 
-This project analyzes the relationship between player playstyles, game performance metrics, and well-being outcomes using data from Plants vs. Zombies: Battle for Neighborville.
+This repository contains the data, materials, and code for our manuscript "The relationship between in-game player behaviour, performance, and well-being".
 
-## Project Organization
+- preprint: TBC
+- [This repository](https://github.com/Thomhak/playstyle-article) contains the analysis code and manuscript.
 
-The project is organized into the following structure:
+Authors:
+- Thomas Hakman (Oxford Internet Institute, University of Oxford)
+- Matti Vuorre (Tilburg University)
 
-```
-├── 1_preprocessing.qmd     # Data preprocessing and cleaning
-├── 2_analysis.qmd          # Analysis and visualization
-├── data/
-│   ├── processed/          # Processed data files
-│   └── raw/                # Raw data files
-├── figures/                # Generated figures
-├── scripts/
-│   └── helper_functions.R  # Helper functions for data processing and analysis
-└── README.md               # This file
-```
+## Data
 
-## Usage
+Raw data is not included in this repository. Download it from the [OSF repository](https://osf.io/cjd6z/files/4gp3r) and place files in `data/raw/ea/`.
 
-This project is organized into two main Quarto documents:
+**Original data source:**
+> Johannes, N., Vuorre, M., Magnusson, K., & Przybylski, A. K. (2021). Video game play is positively correlated with well-being. *Royal Society Open Science*, 8(2), 202049. https://doi.org/10.1098/rsos.202049
 
-1. `1_preprocessing.qmd`: Contains all data preprocessing steps, including loading raw data, cleaning, feature engineering, and saving processed datasets. Run this file first to generate the processed data files.
+## Reproduce
 
-2. `2_analysis.qmd`: Contains the analysis of the preprocessed data, including exploratory data analysis, player clustering, and well-being analysis. This file uses the processed data from the first file.
+The analysis code is written in R. The source code of the manuscript (including all data wrangling, analysis, and a preprint template that can be rendered as PDF or DOCX) is in `manuscript.qmd`. Data preprocessing is in `preprocessing_new.qmd`. Shared helper functions are in `helpers.R`.
 
-## Workflow
+1. Clone the repository.
+2. Download the raw data from [OSF](https://osf.io/cjd6z/files/4gp3r) into `data/raw/ea/`.
+3. R packages are automatically installed via `pacman` when running the scripts.
+4. Run preprocessing: `quarto render preprocessing_new.qmd`
+5. Render the manuscript (first time, fits all models from scratch):
+   ```bash
+   quarto render manuscript.qmd -P refit_models:true -P rerun_clustering:true
+   ```
+6. Subsequent renders use cached models and are much faster:
+   ```bash
+   quarto render manuscript.qmd
+   ```
+## License
 
-Follow these steps to reproduce the analysis:
-
-1. Run `1_preprocessing.qmd` first to generate all the processed datasets.
-2. Run `2_analysis.qmd` to perform the analysis and generate visualizations.
-
-## Data Description
-
-The data comes from a study conducted by EA and the Oxford Internet Institute. Players completed a survey on well-being and motivations, and EA provided telemetry data on their gameplay. The analysis combines these two data sources to examine the relationship between playstyles and well-being.
-
-## Dependencies
-
-This project requires the following R packages:
-
-- tidyverse
-- here
-- lubridate
-- scales
-- janitor
-- magrittr
-- psych
-- readxl
-- knitr
-- corrplot
-- ggpubr
-- factoextra
-- cluster
-- fmsb
-
-To install all required packages, run:
-
-```r
-install.packages(c(
-  "tidyverse", "here", "lubridate", "scales", "janitor",
-  "magrittr", "psych", "readxl", "knitr", "corrplot",
-  "ggpubr", "factoextra", "cluster", "fmsb"
-))
-```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

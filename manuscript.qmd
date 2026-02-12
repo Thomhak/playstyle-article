@@ -1,0 +1,2651 @@
+---
+title: "Digging Deeper: Video Game Play Behaviour Predicts Baseline Well-Being Differences"
+shorttitle: "In-game player behaviour, performance, and well-being"
+running-head: "Playing Style and Well-being"
+author:
+  - name: Thomas Hakman
+    corresponding: true
+    orcid: 0009-0009-8292-2482
+    email: thomas.hakman@oii.ox.ac.uk
+    affiliation:
+      - ref: 1
+  - name: Matti Vuorre
+    corresponding: false
+    orcid: 0000-0001-5052-066X
+    email: mjvuorre@uvt.nl
+    affiliations:
+      - ref: 2
+affiliations:
+  - id: 1
+    name: University of Oxford
+    department: Oxford Internet Institute
+  - id: 2
+    name: Tilburg University
+    department: Department of Social Psychology
+abstract: |
+  Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with well-being, suggesting that the quality of play may matter more than the quantity. Yet existing digital trace research captures playtime across platforms and titles without examining what happens inside the game, the granular in-game behaviours and experiences that might explain why some players benefit from play while others do not. The Integrated Model of Player experience (IMP) offers a theoretical basis for this intuition, positing that the mechanics and contexts players encounter during play shape the resulting player experience and its downstream effects on well-being. If so, players who engage with the same game in qualitatively different ways should report different well-being outcomes. We test this proposition using telemetry-driven profiling of session-level behavioural data from 413 players of the online shooter Plants vs. Zombies: Battle for Neighborville. Using Partitioning Around Medoids cluster analysis on 10 standardized performance and mode-preference metrics, we identified three distinct playstyles: Casual PVE Players (cooperative-focused), Elite Allround Players (high-performing generalists), and Casual PVP Players (competition-focused). Robust linear mixed-effects models showed that playstyle was significantly associated with both game-specific well-being and enjoyment: Casual PVE Players reported higher levels of both outcomes than Casual PVP Players. However, we found no evidence that playstyle moderated the relationship between playtime and either outcome; interaction terms and pairwise slope comparisons were consistently non-significant. These findings support a baseline-differences account, as how players engage with a game's mechanics and modes is associated with different average levels of well-being, but does not appear to change the playtime–well-being gradient. We discuss implications for moving beyond the playtime paradigm toward in-game behavioural approaches to understanding games and well-being.
+categories: [video games, playing style, well-being, performance, telemetry]
+authornote: |
+  Correspondence concerning this article should be addressed to Thomas Hakman, Oxford Internet Institute, University of Oxford. Email: thomas.hakman@oii.ox.ac.uk
+date: last-modified
+bibliography: bibliography.bib
+csl: apa.csl
+prefer-html: true
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: false
+  freeze: false
+params:
+  refit_models: true
+  rerun_clustering: true
+format:
+  html:
+    toc: true
+    toc-location: left
+    theme: cosmo
+    code-fold: true
+    html-math-method: katex
+    embed-resources: true
+  preprint-typst:
+    keep-typ: true
+  preprint-docx: default
+knitr:
+  opts_chunk:
+    dev: png
+    fig.format: png
+    dpi: 300
+---
+
+```{r}
+#| label: setup
+#| include: false
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.align = "center"
+)
+
+# Toggle model refitting via Quarto param
+eval_models <- isTRUE(params$refit_models)
+eval_clustering <- isTRUE(params$rerun_clustering)
+
+# Ensure output directory exists for cached models
+if (!dir.exists("output/models")) {
+  dir.create("output/models", recursive = TRUE)
+}
+```
+
+# Introduction
+
+Recent years have seen a remarkable shift in how researchers study the relationship between video games and well-being. Where early work relied on self-reported estimates of playtime, a new generation of studies now draws on large-scale digital trace data (i.e., objective behavioural logs collected directly from game platforms) to measure what players actually do rather than what they recall doing. This methodological advance has delivered an increasingly clear verdict: for most players, simple associations between the quantity of playtime and wellbeing are small and unlikely to be practically meaningful [@ballouOpenPlayLongitudinal2025; @johannesVideoGamePlay2021; @larrieuHowGamingMotives2023; @vuorreTimeSpentPlaying2022]. For example, longitudinal panel research using digital trace data found that within-person relations between playtime and well-being (and vice versa) were not practically significant across preregistered specifications [@vuorreTimeSpentPlaying2022]. Further platform-level analyses of adult Nintendo players also found that hours played were not meaningfully related to multiple well-being indicators across a wide range of timescales (from 1 hour to 1 year) but did show that players' subjective evaluations of gaming's life-fit were more predictive [@ballouPerceivedValueVideo2025]. Together, these studies point towards the importance of the quality rather than quantity of video game play as the possible determining factor for well-being. Yet, these studies also expose a crucial gap; while existing digital trace studies are a mile wide, they are only an inch deep. They capture playtime across platforms and titles, but not what happens inside the game, the granular in-game behaviours and experiences that might explain why some players benefit from play while others do not (ref).
+
+This trade-off between breadth and depth matters because gameplay is not a single, uniform exposure. Instead, video gaming constitutes multiple heterogeneous exposures with potentially distinct effects [@ballouHowVideoGames2025]. That is, gameplay consists of (1) context-centred exposures describing when, how long, where, and with whom one plays (e.g., time of day, play volume, social setting); (2) game-centred exposures describing what one plays (e.g., device-type, game mode, genre, business model, mechanics); and (3) player-centred exposures describing who is playing, why they are playing, how they are playing, and what they are experiencing (e.g., playstyle, purpose, motivation, player experience). When studies collapse these layers into a single playtime variable, they conflate qualitatively distinct exposures and risk both theoretical ambiguity and empirical inconsistency [@ballouHowVideoGames2025].
+
+Simply put, research needs to start modelling the quality of play with in-game digital trace data because quantity alone is insufficient; two players can accumulate the same playtime yet have markedly different player experiences depending on whether they engage in cooperative or competitive modes, succeed or struggle against in-game challenges, and interact with the mechanics in ways that support or frustrate their goals.
+
+While this makes intuitive sense, how researchers can study in-game player experience empirically without reverting to subjective self-reports remains an open question. One theoretically grounded operationalisation comes from the Integrated Model of Player experience [IMP; @elsonMoreStoriesButtons2014], which identifies three categories of game characteristics that shape the playing experience: narrative (story and setting), mechanics (rules, interaction demands, and feedback), and context (the social and situational embedding). Where user-centric theories such as self-determination theory (ref) and uses and gratifications (ref) focus primarily on motivations and player states, the IMP is game-centric and focuses on how interaction with specific in-game characteristics during play alters the play experience and subsequent wellbeing outcomes [@elsonMoreStoriesButtons2014]. In this sense, the IMP opens the "black box" of in-game behaviour by connecting the mechanics, narrative content, and social context players encounter during play to the outcomes that follow from it, thereby guiding empirically testable hypotheses about these relationships [@elsonMoreStoriesButtons2014]. Crucially, IMP positions mechanics as the foundational element of player experience; without mechanics there is no play, whereas narrative and context contribute situationally depending on the game. Therefore, a conceptually meaningful operationalisation of play quality should incorporate in-game digital trace data on mechanics-relevant indicators (e.g., in-game performance metrics), as well as contextual indicators (e.g., competitive vs. cooperative mode selection) and narrative-relevant indicators (e.g., dialogue reads vs. skips) when appropriate, rather than treating all playtime as equivalent.
+
+Methodologically, studying the quality of play requires the analysis of high-dimensional logs of in-game player behaviour. Within game analytics research, these methods are known as telemetry-driven profiling, where collections of in-game behaviours, events, and experiences are condensed into behavioural profiles, or playstyles, that describe how players engaged with a game during the measurement period [@drachen2014a; @ravariInvestigatingRelationPlaying2022]. Playstyles are distinct from player types in that the latter typically refer to stable individual characteristics (e.g., motivational profiles), whereas playstyles describe observed in-game behaviour that may vary across games and time. As such, playstyles provide researchers with a quantifiable, data-driven way to understand how players pursue a game's objectives [@sifaProfilingGamesUnderstanding2018]. Previous work has used telemetry-driven profiling to study the relationship between playstyles and personality [@beanVideoGamersPersonality2016; @vanlankveldGamesPersonalityProfiling2011], motivation [@melhartYourGameplaySays2019; @yeeGamerMotivationProfile2016], and national culture [@ravariInvestigatingRelationPlaying2022]. However, whether and how playstyles relate to wellbeing and enjoyment has remained untested, in large part because datasets combining granular session-based in-game behavioural telemetry with validated measures of mental health are exceedingly rare.
+
+The present study addresses this question by leveraging one such rare dataset, collected through a collaboration between Electronic Arts and the Oxford Internet Institute [@johannesVideoGamePlay2021]. We address three research questions. First, can distinct playstyles be identified from in-game behavioural telemetry within a single game title? Second, do players with different playstyles report different levels of game-specific well-being or enjoyment? Third, does the association between playtime and well-being or enjoyment differ between playstyles?
+
+This design contributes to current debates in two ways. First, it directly addresses the limitation of prior digital trace studies by modelling within-game behavioural heterogeneity, complementing the breadth of platform-level work with the depth of in-game analysis of playstyle. Second, it connects the behavioural heterogeneity to a theoretical account of player experience that highlights the joint role of mechanics and context in shaping meaningful outcomes. In doing so, we aim to demonstrate a practical approach for moving beyond the playtime paradigm: integrating in-game behavioural profiling of playstyles to generate more precise, testable hypotheses about the conditions under which and for whom games might support or undermine well-being.
+
+
+
+
+
+```{r}
+#| label: install-packages
+#| include: false
+#| cache: false
+
+# First ensure pacman is installed if not already
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  install.packages("pacman")
+}
+
+# Use pacman to load all required packages (will install any missing packages)
+pacman::p_load(
+  tidyverse,    # For data manipulation and visualization
+  here,         # For project-relative paths
+  lubridate,    # For date/time manipulation
+  scales,       # For scale transformations
+  janitor,      # For data cleaning
+  magrittr,     # For additional pipe operators
+  psych,        # For psychological statistics
+  corrplot,     # For correlation plots
+  ggpubr,       # For publication-ready plots
+  factoextra,   # For cluster analysis visualization
+  cluster,      # For clustering algorithms
+  fmsb,         # For radar charts
+  knitr,        # For dynamic report generation
+  tibble,       # For improved data frames
+  fpc,          # For cluster validation
+  gridExtra,    # For arranging multiple plots
+  hopkins,      # For cluster tendency assessment
+  effectsize,   # For effect size calculations
+  robustlmm,    # For robust linear mixed-effects models
+  broom,        # For tidy model outputs
+  broom.mixed,  # For tidying mixed-effects model output
+  patchwork,    # For combining plots
+  ggeffects,    # For visualizing regression model predictions
+  grid,         # For grid graphics (needed for tableGrob)
+  tinytable,    # For publication-quality tables
+  modelsummary, # For regression model tables
+  report        # For automated statistical reporting
+)
+
+# Load helper functions
+source(here("helpers.R"))
+```
+
+```{r}
+#| label: helper-functions
+#| code-summary: "Load helper functions"
+
+# Helper functions are now sourced from helpers.R in the install-packages chunk
+# This chunk is kept for any analysis-specific functions not in helpers.R
+
+# Function to run ANOVA and extract results
+run_anova <- function(dv) {
+  formula <- as.formula(paste(dv, "~ player_type"))
+  model <- aov(formula, data = pvz_data)
+  result <- broom::tidy(model)
+  result$eta_squared <- effectsize::eta_squared(model)[["Eta2"]]
+  result$variable <- dv
+  return(result)
+}
+
+# Mean helper for mode-specific telemetry metrics:
+# treat missing values as 0 and always return a finite scalar.
+mode_mean <- function(x) {
+  mean(dplyr::coalesce(x, 0), na.rm = TRUE)
+}
+
+# Safe lookup helper for inline reporting from summary tables.
+type_stat <- function(tbl, type_label, column_name, digits = 2) {
+  value <- tbl %>%
+    dplyr::filter(.data$player_type == type_label) %>%
+    dplyr::pull(.data[[column_name]]) %>%
+    dplyr::first(default = NA_real_)
+
+  if (is.na(value) || is.nan(value) || is.infinite(value)) {
+    value <- 0
+  }
+
+  sprintf(paste0("%.", digits, "f"), value)
+}
+```
+
+```{r}
+#| label: load-processed-data
+
+# Load the dataset with outliers removed
+pvz_data <- read_csv(here("data/pvz_clean_final.csv"))
+
+# Create a copy of pvz_data for analysis to maintain consistency
+pvz_df_analysis <- pvz_data
+
+```
+
+```{r}
+#| label: select-columns
+
+pvz_df_analysis <- pvz_df_analysis %>%
+  select(
+    # Demographic variables
+    player_id, country, age, gender, played_with_others,
+    
+    # Well-being variables - focus only on our two key outcomes
+    spane_game_balance, enjoyment,
+    
+    # Total playtime
+    hours,
+    
+    # PVP metrics
+    ratio_pvp_hours,
+    pvp_kd,
+    pvp_hit_accuracy,
+    pvp_dps,
+    pvp_average_damage,
+    pvp_average_score,
+    
+    # PVE metrics
+    ratio_pve_hours,
+    pve_kd,
+    pve_hit_accuracy,
+    pve_dps,
+    pve_average_damage,
+    pve_average_score
+  )
+```
+
+```{r}
+#| label: telemetry-data-filter
+#| include: false
+
+# Filter for players with valid performance metrics (> 0)
+pvz_df_analysis <- pvz_df_analysis %>%
+  filter(
+    ratio_pvp_hours > 0 | ratio_pve_hours > 0 | pvp_kd > 0 | pve_kd > 0 | pvp_hit_accuracy > 0 | pve_hit_accuracy > 0 | pvp_dps > 0 | pve_dps > 0 | pvp_average_damage > 0 | pve_average_damage > 0 | pvp_average_score > 0 | pve_average_score > 0
+  )
+
+pvz_df_analysis <- pvz_df_analysis %>%
+  filter(
+    # Keep players with valid PVP data OR valid PVE data
+    (ratio_pvp_hours > 0 & !is.na(pvp_kd) & !is.na(pvp_hit_accuracy)) |
+    (ratio_pve_hours > 0 & !is.na(pve_kd) & !is.na(pve_hit_accuracy))
+  )
+
+# Show the number of players left
+print(paste("Number of players left after filtering:", nrow(pvz_df_analysis)))
+```
+
+# Methods
+
+In this study, we analysed data reported in Johannes et al. (2021), who collected digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighbourville players.
+
+## Plants versus Zombies: Battle for Neighbourville
+
+```{r}
+#| label: survey-demographics-calculation
+#| include: false
+#| cache: false
+
+# Calculate demographics for the filtered dataset
+demographics <- pvz_df_analysis %>%
+  summarize(
+    total_participants = n(),
+    avg_age = round(mean(age, na.rm = TRUE), 1),
+    sd_age = round(sd(age, na.rm = TRUE), 1)
+  )
+
+# Normalize gender labels; treat missing/unexpected labels as undisclosed
+gender_distribution <- pvz_df_analysis %>%
+  mutate(
+    gender_clean = case_when(
+      str_trim(as.character(gender)) == "Male" ~ "Male",
+      str_trim(as.character(gender)) == "Female" ~ "Female",
+      str_trim(as.character(gender)) == "Other" ~ "Other",
+      str_trim(as.character(gender)) == "Prefer not to say" ~ "Prefer not to say",
+      TRUE ~ "Prefer not to say"
+    )
+  ) %>%
+  count(gender_clean, name = "n") %>%
+  mutate(percentage = n / sum(n) * 100)
+
+count_or_zero <- function(df, label) {
+  value <- df %>% filter(gender_clean == label) %>% pull(n)
+  if (length(value) == 0) 0L else as.integer(value)
+}
+
+# Count participants with each gender category for manuscript text
+male_count <- count_or_zero(gender_distribution, "Male")
+female_count <- count_or_zero(gender_distribution, "Female")
+other_count <- count_or_zero(gender_distribution, "Other")
+undisclosed_count <- count_or_zero(gender_distribution, "Prefer not to say")
+```
+
+```{r}
+#| label: final-sample-demographics
+#| include: false
+#| cache: false
+
+# Display demographics of final sample
+cat("Demographics of final sample:
+")
+cat("- Sample size:", nrow(pvz_df_analysis), "
+")
+cat("- Average age:", round(mean(pvz_df_analysis$age, na.rm = TRUE), 1), "(SD =", round(sd(pvz_df_analysis$age, na.rm = TRUE), 1), ")
+")
+
+# Gender distribution
+gender_dist <- pvz_df_analysis %>%
+  mutate(
+    gender = case_when(
+      str_trim(as.character(gender)) == "Male" ~ "Male",
+      str_trim(as.character(gender)) == "Female" ~ "Female",
+      str_trim(as.character(gender)) == "Other" ~ "Other",
+      str_trim(as.character(gender)) == "Prefer not to say" ~ "Prefer not to say",
+      TRUE ~ "Prefer not to say"
+    )
+  ) %>%
+  count(gender) %>%
+  mutate(percentage = n / sum(n) * 100)
+```
+
+Plants versus Zombies: Battle for Neighbourville (PvZ) is an online multiplayer First-person shooter (FPS) game released by Electronic Arts (EA) in October 2019. The gameplay is third-person, with an emphasis on shooter-style combat and exploration. Players can play 23 customizable gameplay classes that each have unique weapons, abilities, and forms of movement. The game offers the players the ability to compete against each other in various competitive Player-versus-Player (PVP) modes, including objective-based matches, team deathmatches, 2v2 arena matches, etc. The game also features several Player-versus-Environment (PVE) open zones, which feature storylines with quests and allow players to explore, find collectables, and complete side-missions. Players can earn experience points and in-game currencies, using the former to indicate progression and the latter to upgrade and buy new characters. The game was played on PC, PS4, Xbox One, and Nintendo Switch (@electronicArtsPlantsVsZombiesBattle2019).
+
+## Participants
+
+As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the well-being survey (approximately 0.21% response rate). For details on the full dataset, which also includes Animal Crossing: New Horizons players, see @johannesVideoGamePlay2021.
+Because our research questions concern mechanics-based playstyles, we applied several inclusion criteria to ensure the analytic sample consisted of players who actively engaged with the game's core mechanics. We first excluded participants without matching telemetry data (n = 48). We then excluded 57 participants whose telemetry contained no performance metrics across any activity (PvP or PvE). These players spent time in the game's social hub, an idle space for navigation and character customisation, but did not participate in any gameplay, and thus had no behavioural data from which to derive playstyle profiles. Social-hub-only players differed markedly from combat-active players in engagement: they logged substantially less playtime (Mdn = 0.12 vs. 4.82 hours; Mann–Whitney U = 1,156, p < .001) and fewer sessions (Mdn = 1 vs. 28; U = 589, p < .001), though survey response quality did not differ between groups (straightlining rates: 1.8% vs. 1.5%, χ² = 0, p = 1.0). The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (M age = `r demographics$avg_age`, SD = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents.
+Following the methodology from the original paper, values more than 6 standard deviations from a variable mean were replaced with NA on a case-by-case basis (@johannesVideoGamePlay2021). In this dataset, this procedure replaced 87 values (across 48 variables; 26 participants affected) and did not reduce the final analytic sample.
+The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (M age = `r demographics$avg_age`, SD = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents.
+
+
+## Measures
+
+### Playtime
+
+The first measure afforded by these digital trace data is playtime, yet determining this is already complex. Simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time is when the player’s account is online but not actively engaging with the objectives or mechanics of the game. Idle time can happen when a player’s computer is logged onto their account, but they are away from the keyboard. Other forms of idle time are spending time in home screens, customization menus, lobbies, and social spaces.
+In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can be present in. Every player is always in a session and could only be in one session at a time, however, multiple players could be in the same session. For example, when a player launches PvZ, they enter the hub world (where they can select what type of level or mode to play), entering the hub world starts the session timer, which ends as they choose a level or leave to join a match, which then starts a new session timer for that level.
+In total, the `r nrow(pvz_df_analysis)` players in our sample played 36,621 sessions, of which 25,937 happened in the two weeks prior to a player taking the survey. These sessions took place across 19 different maps that each facilitated different forms of gameplay, such as Player-versus-Player (PvP; 13,594 (51.27%) of sessions), 4,854 (18.31%) Player-versus-Environment (PVE), and 7,489 (28.24%) Social Hub maps. In PvP maps players battle against each other in various competitive modes such as objective-based matches, team deathmatches, and 2v2 arena matches. In PVE maps players explore open worlds that are designed for adventure with story-driven quests, side missions, and hidden collectables. The Social Hub served as an idle space for navigation and customization between matches and was excluded. This left 17,505 total sessions, 12,445 PVP sessions (71.09%) and 4,509 PVE sessions (25.76%). Players had clear preferences for which game mode they chose to play (@fig-session-timeline), which already indicated clear differences in playing styles.
+
+```{r}
+#| label: session-timeline-helper
+#| include: false
+
+# Function to plot session timeline for a player
+plot_player_sessions <- function(player_data, player_id = NULL, player_label = "Player") {
+  # If a player_id is provided, filter data for that player
+  if (!is.null(player_id)) {
+    player_data <- player_data %>%
+      filter(player_id == !!player_id)
+  }
+  
+  # Convert timestamps to POSIXct if they're not already
+  if (!inherits(player_data$game_start_time, "POSIXct")) {
+    player_data$game_start_time <- as.POSIXct(player_data$game_start_time, format = "%Y-%m-%d %H:%M:%S")
+    player_data$game_end_time <- as.POSIXct(player_data$game_end_time, format = "%Y-%m-%d %H:%M:%S")
+  }
+  
+  # Extract day of week, date, and time component
+  player_data$day_of_week <- weekdays(player_data$game_start_time)
+  player_data$date <- as.Date(player_data$game_start_time)
+  player_data$start_time_only <- as.POSIXct(format(player_data$game_start_time, format = "%H:%M:%S"), format = "%H:%M:%S")
+  player_data$end_time_only <- as.POSIXct(format(player_data$game_end_time, format = "%H:%M:%S"), format = "%H:%M:%S")
+  
+  # Identify sessions that cross midnight (where end_time is earlier than start_time)
+  player_data$crosses_midnight <- player_data$end_time_only < player_data$start_time_only
+  
+  # Create a new dataframe that will include split sessions for those crossing midnight
+  player_data_expanded <- player_data %>%
+    filter(!crosses_midnight) # Keep all sessions that don't cross midnight
+  
+  # Handle sessions that cross midnight by splitting them
+  midnight_sessions <- player_data %>%
+    filter(crosses_midnight)
+  
+  if (nrow(midnight_sessions) > 0) {
+    # For each session crossing midnight, create two rows:
+    # 1. From start time to 23:59:59
+    # 2. From 00:00:00 to end time
+    midnight <- as.POSIXct(strptime("23:59:59", format = "%H:%M:%S"), format = "%H:%M:%S")
+    midnight_start <- as.POSIXct(strptime("00:00:00", format = "%H:%M:%S"), format = "%H:%M:%S")
+    
+    # First part: from start time to midnight
+    midnight_part1 <- midnight_sessions
+    midnight_part1$end_time_only <- midnight
+    
+    # Second part: from midnight start to end time
+    midnight_part2 <- midnight_sessions
+    midnight_part2$start_time_only <- midnight_start
+    # The second part is on the next day of the week and the next date
+    midnight_part2$day_of_week <- factor(
+      weekdays(midnight_part2$game_start_time + 86400), # Add one day (86400 seconds)
+      levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+    )
+    midnight_part2$date <- midnight_part2$date + 1
+    
+    # Add both parts to the expanded dataset
+    player_data_expanded <- bind_rows(player_data_expanded, midnight_part1, midnight_part2)
+  }
+  
+  # Recode match_type based on game_level_key 
+  player_data_expanded$match_type <- "0"  # Initialize with 0 as in the original code
+  
+  # Social matches
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_social_terrain_beach"] <- "social match"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_social_terrain_summer"] <- "social match"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_socialspace"] <- "social match"
+  
+  # PVE matches
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_cheesemines"] <- "pve match"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_dreadwood"] <- "pve match"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_towncenter"] <- "pve match" 
+  
+  # PVP matches (Rush)
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_dreadwood"] <- "pvp match (rush)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_towncenter"] <- "pvp match (rush)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_farm"] <- "pvp match (rush)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_cheesemines"] <- "pvp match (rush)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_shoreline"] <- "pvp match (rush)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_resort"] <- "pvp match (rush)"
+  
+  # PVP matches (Vanquish)
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_cheesemines"] <- "pvp match (vanquish)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_zrefinery"] <- "pvp match (vanquish)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_suburbs"] <- "pvp match (vanquish)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_dreadwood"] <- "pvp match (vanquish)"
+  
+  # PVP matches (Arena)
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_4v4_battlearena_v2"] <- "pvp match (arena)"
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_4v4_superarena"] <- "pvp match (arena)"
+  
+  # Podium celebration
+  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_podiumcelebration"] <- "podium celebration"
+  
+  # Ensure day of week is a factor with ordered levels
+  player_data_expanded$day_of_week <- factor(
+    player_data_expanded$day_of_week,
+    levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+  )
+  
+  # Create a position adjustment for stacking sessions by different dates for the same day of week
+  player_data_expanded <- player_data_expanded %>%
+    group_by(day_of_week) %>%
+    mutate(
+      # Get unique dates for this day of week and assign a position index to each date
+      unique_dates = list(unique(date)),
+      date_index = match(date, unique(date)),
+      # Scale the vertical offset to be small but noticeable
+      y_offset = (date_index - 1) * 0.2,  # Creates a small vertical offset for different dates
+      # Create adjusted y-position that includes the offset
+      y_position = as.numeric(day_of_week) + y_offset
+    ) %>%
+    ungroup()
+  
+  # Sort by day of week, date, and start time
+  player_data_expanded <- player_data_expanded %>%
+    arrange(day_of_week, date, game_start_time, game_end_time)
+  
+  # Add a session ID within each day to distinguish multiple sessions on same day
+  player_data_expanded <- player_data_expanded %>%
+    group_by(day_of_week, date) %>%
+    mutate(session_id_within_day = row_number()) %>%
+    ungroup()
+  
+  # Convert match_type to factor with proper levels for consistent ordering
+  player_data_expanded$match_type <- factor(
+    player_data_expanded$match_type,
+    levels = c("social match", "pve match", "pvp match (rush)", "pvp match (vanquish)", "pvp match (arena)", "podium celebration", "0"),
+    labels = c("Social Lobby", "PvE Match", "PvP (Rush)", "PvP (Vanquish)", "PvP (Arena)", "Podium Celebration", "Other")
+  )
+  
+  # Create the plot with enhanced styling
+  plot <- player_data_expanded %>%
+    ggplot2::ggplot(aes(start_time_only, y_position, col = match_type, 
+                        group = interaction(day_of_week, date, session_id_within_day))) +
+    # Use improved color palette with better contrast
+    ggplot2::scale_color_manual(
+      name = "Match Type", 
+      values = c(
+        "Social Lobby" = "#00BFC4",       # Teal
+        "PvE Match" = "#7CAE00",          # Green
+        "PvP (Rush)" = "#F8766D",         # Red
+        "PvP (Vanquish)" = "#FF9E1C",     # Orange
+        "PvP (Arena)" = "#FFD700",        # Gold
+        "Podium Celebration" = "#C77CFF", # Purple
+        "Other" = "#A0A0A0"               # Gray
+      )
+    ) +
+    # Thicker segments with rounded ends for better visibility
+    ggplot2::geom_segment(
+      aes(xend = end_time_only, yend = y_position),
+      linewidth = 2,
+      lineend = "round"
+    ) +
+    # Add points at start/end for better visibility of short sessions
+    ggplot2::geom_point(size = 1.5, alpha = 0.6) +
+    ggplot2::geom_point(aes(x = end_time_only), size = 1.5, alpha = 0.6) +
+    # Better time axis formatting - using fixed limits for consistency
+    ggplot2::scale_x_datetime(
+      labels = scales::date_format("%H:%M"),
+      breaks = scales::date_breaks("2 hours"),
+      limits = c(
+        as.POSIXct(strptime("00:00", format = "%H:%M")),
+        as.POSIXct(strptime("23:59", format = "%H:%M"))
+      ),
+      expand = c(0.01, 0.01),
+      date_minor_breaks = "1 hour"
+    ) +
+    # Use the original day of week as the y-axis labels
+    ggplot2::scale_y_continuous(
+      breaks = 1:7,
+      labels = levels(player_data_expanded$day_of_week),
+      limits = c(0.5, 7.5)
+    ) +
+    # Empty labs - axis labels will be added to the combined figure instead
+    ggplot2::labs(
+      x = NULL, 
+      y = NULL
+    ) +
+    # Improved theme with better typography and layout
+    ggplot2::theme_minimal(base_size = 11, base_family = "sans") +
+    ggplot2::theme(
+      legend.position = "none", # Move legend to the combined figure
+      plot.margin = margin(30, 10, 30, 10), # Increased margins for better separation
+      
+      axis.text.y = element_text(face = "bold"),
+      axis.title = element_text(face = "bold"),
+      
+      panel.grid.major.x = element_line(color = "grey90"),
+      panel.grid.minor.x = element_line(color = "grey95"),
+      panel.grid.major.y = element_line(color = "grey90"),
+      panel.grid.minor.y = element_blank(),
+      
+      panel.background = element_rect(fill = "white", color = NA),
+      plot.background = element_rect(fill = "white", color = NA)
+    )
+  
+  return(plot)
+}
+```
+
+```{r}
+#| label: session-timeline-data-prep
+#| include: false
+#| cache: false
+
+# Load game session data if not already included
+game_sessions <- read_csv(here("data/processed/game_time_2week.csv"))
+
+# Make sure timestamps are in the correct format
+game_sessions$game_start_time <- as.POSIXct(game_sessions$game_start_time, format = "%Y-%m-%d %H:%M:%S")
+game_sessions$game_end_time <- as.POSIXct(game_sessions$game_end_time, format = "%Y-%m-%d %H:%M:%S")
+
+# First, get a list of player IDs in the data
+player_ids <- unique(game_sessions$player_id)
+
+# Choose specific indices
+# If those indices don't exist in our data, we'll use the first three players
+player_indices <- c(
+  min(401, length(player_ids)),  # Equivalent to slice(401) 
+  min(6, length(player_ids)),    # Equivalent to slice(6)
+  min(3, length(player_ids))     # Equivalent to slice(3)
+)
+
+selected_player_ids <- player_ids[player_indices]
+```
+
+```{r}
+#| label: create-individual-plots
+#| include: false
+#| cache: false
+
+# Create individual plots for each player with standardized x-axis
+plot1 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[1])
+)
+
+plot2 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[2])
+)
+
+# For the third plot, use the same time range for consistency
+plot3 <- plot_player_sessions(
+  game_sessions %>% filter(player_id == selected_player_ids[3])
+)
+```
+
+```{r}
+#| label: fig-session-timeline
+#| fig-cap: "Session timelines for three example players showing gaming activity across the two-week study period. Each horizontal bar represents a gaming session, with colors indicating match type (Social Lobby, PvE Match, PvP Rush/Vanquish/Arena). Each player's panel contains two rows corresponding to the two weeks of telemetry data, collapsed onto a single weekly timeline to facilitate comparison of play patterns across weeks. The three players illustrate the diversity of playing patterns observed in the data."
+#| fig-width: 12
+#| fig-height: 16
+#| code-summary: "Session timeline visualization"
+
+# Combine plots into a single figure with enhanced styling and proper spacing
+figure <- ggarrange(
+  plot2, plot3, plot1,
+  labels = c("Player A", "Player B", "Player C"),
+  font.label = list(size = 14, face = "bold", color = "black"),
+  ncol = 1, 
+  nrow = 3, 
+  common.legend = TRUE, 
+  legend = "bottom",
+  heights = c(1, 1, 1),
+  align = "v",
+  hjust = -0.1
+)
+
+# Add shared x and y labels to the combined figure
+fig_sessiontime <- annotate_figure(figure,
+                        bottom = text_grob("Time of Day (hours)", 
+                                          face = "bold", size = 12),
+                        left = text_grob("Day of Week", 
+                                         face = "bold", size = 12, rot = 90))
+
+# Display the combined figure
+fig_sessiontime
+```
+
+### Behavioural telemetry
+
+The raw telemetry contained session-based records of game events for each player. From these records, we selected and computed metrics only if they had been previously validated as informative measures of player behaviour and performance in shooter games [@drachenGunsSwordsData2012; @lugrinImmersiveFPSGames2013; @melhartYourGameplaySays2019]. Two principles guided the computation of the behavioural metrics. First, all performance metrics were constructed to be independent of total playtime. Common cumulative indicators such as ‘player level’ or ‘total kills’ were deliberately excluded because they conflate skill with playtime; a player's level may simply be higher because they played more, not because they performed better. Second, every metric was computed separately for PvP and PvE modes, because the two contexts differ fundamentally in difficulty, objectives, and opponent type; eliminating a computer-controlled enemy in PvE is not comparable to eliminating a matchmade opponent of similar rank in PvP. Pooling across modes would obscure meaningful behavioural differences.
+This resulted in 12 behavioural metrics plus one overall playtime measure. Mode ratio captured the proportion of active playtime each player devoted to PvP and PvE modes, reflecting game-mode preference. Kill/death ratio indexed combat effectiveness as the number of eliminations per death, with higher values indicating greater survivability and lethality. Hit accuracy measures the proportion of shots that connect with a target, reflecting aiming precision. Damage per second captured sustained offensive output, indicating how efficiently a player dealt damage over time. Average damage per game reflected total offensive contribution within a match, encompassing both direct combat and area-of-effect output. Average score per game provided a composite performance indicator incorporating objectives completed, assists, and other in-game scoring events beyond raw combat. Each of these five performance metrics was computed separately for PvP and PvE, yielding 10 mode-specific indicators alongside the two mode-ratio variables. See @tbl-descriptive-stats for descriptive statistics.
+
+```{r}
+#| label: tbl-descriptive-stats
+#| tbl-cap: "Descriptive Statistics for Key Variables"
+#| fig.width: 10
+#| fig.height: 6
+#| tbl-cap-location: top
+#| echo: false
+#| warning: false
+#| message: false
+#| cache: false
+
+# Create a simple APA-style descriptive statistics table
+# First, check variable types to handle them appropriately
+variable_types <- sapply(pvz_df_analysis, class)
+
+# Handle numeric variables
+numeric_vars <- pvz_df_analysis %>%
+  select(where(is.numeric)) %>%
+  select(
+    # Demographics
+    age,
+    
+    # Playtime 
+    hours, ratio_pvp_hours, ratio_pve_hours,
+    
+    # Performance metrics
+    pvp_kd, pve_kd, 
+    pvp_hit_accuracy, pve_hit_accuracy,
+    pvp_dps, pve_dps,
+    pvp_average_damage, pve_average_damage,
+    pvp_average_score, pve_average_score,
+    
+    # Well-being and enjoyment
+    spane_game_balance, enjoyment
+  )
+
+# Calculate descriptive statistics for numeric variables
+numeric_stats <- numeric_vars %>%
+  summarise(across(everything(), 
+                  list(
+                    n = ~sum(!is.na(.)),
+                    M = ~mean(., na.rm = TRUE),
+                    SD = ~sd(., na.rm = TRUE),
+                    Min = ~min(., na.rm = TRUE),
+                    Max = ~max(., na.rm = TRUE)
+                  ))) %>%
+  pivot_longer(everything(), 
+               names_to = c("variable", "stat"), 
+               names_pattern = "(.*)_(.*)",
+               values_to = "value") %>%
+  pivot_wider(names_from = stat, values_from = value)
+
+# For categorical variables like gender, just count frequencies for the footnote
+if ("gender" %in% names(pvz_df_analysis)) {
+  gender_counts <- pvz_df_analysis %>%
+    mutate(
+      gender_clean = case_when(
+        str_trim(as.character(gender)) == "Male" ~ "Male",
+        str_trim(as.character(gender)) == "Female" ~ "Female",
+        str_trim(as.character(gender)) == "Other" ~ "Other",
+        str_trim(as.character(gender)) == "Prefer not to say" ~ "Prefer not to say",
+        TRUE ~ "Prefer not to say"
+      )
+    ) %>%
+    count(gender_clean, name = "n") %>%
+    mutate(gender = gender_clean) %>%
+    select(gender, n) %>%
+    mutate(pct = n / sum(n) * 100) %>%
+    mutate(pct = round(pct, 1)) %>%
+    mutate(frequency = paste0(n, " [", pct, "]"))
+  
+  # Note: We'll add a footnote to explain gender distribution separately
+  # Using brackets instead of parentheses to avoid LaTeX issues
+  gender_note <- paste("Gender distribution:", 
+                     paste(paste0(gender_counts$gender, ": ", gender_counts$frequency), 
+                           collapse = ", "))
+} else {
+  gender_note <- NULL
+}
+
+# Format the data for the table
+descriptive_stats <- numeric_stats %>%
+  # Format variable names for better readability
+  mutate(variable = case_when(
+    variable == "age" ~ "Age",
+    variable == "hours" ~ "Total Hours Played",
+    variable == "ratio_pvp_hours" ~ "Proportion of PvP Playtime",
+    variable == "ratio_pve_hours" ~ "Proportion of PvE Playtime",
+    variable == "pvp_kd" ~ "PvP Kill/Death Ratio",
+    variable == "pve_kd" ~ "PvE Kill/Death Ratio",
+    variable == "pvp_hit_accuracy" ~ "PvP Hit Accuracy",
+    variable == "pve_hit_accuracy" ~ "PvE Hit Accuracy",
+    variable == "pvp_dps" ~ "PvP Damage per Second",
+    variable == "pve_dps" ~ "PvE Damage per Second",
+    variable == "pvp_average_damage" ~ "PvP Average Damage per Game",
+    variable == "pve_average_damage" ~ "PvE Average Damage per Game",
+    variable == "pvp_average_score" ~ "PvP Average Score",
+    variable == "pve_average_score" ~ "PvE Average Score",
+    variable == "spane_game_balance" ~ "Game-Specific Well-being (SPANE)",
+    variable == "enjoyment" ~ "Enjoyment",
+    TRUE ~ variable
+  )) %>%
+  # Create category variable for grouping
+  mutate(category = case_when(
+    variable == "Age" ~ "Demographics",
+    variable %in% c("Total Hours Played", "Proportion of PvP Playtime", "Proportion of PvE Playtime") ~ "Playtime",
+    variable %in% c("PvP Kill/Death Ratio", "PvE Kill/Death Ratio", 
+                   "PvP Hit Accuracy", "PvE Hit Accuracy",
+                   "PvP Damage per Second", "PvE Damage per Second",
+                   "PvP Average Damage per Game", "PvE Average Damage per Game",
+                   "PvP Average Score", "PvE Average Score") ~ "Performance",
+    variable %in% c("Game-Specific Well-being (SPANE)", "Enjoyment") ~ "Well-being",
+    TRUE ~ "Other"
+  )) %>%
+  # Round numeric values
+  mutate(
+    M = round(M, 2),
+    SD = round(SD, 2),
+    Min = round(Min, 2),
+    Max = round(Max, 2)
+)
+
+# Create custom ordering for variables to ensure autonomy, competence, relatedness are listed in order
+variable_order <- c(
+  # Demographics
+  "Age",
+  
+  # Playtime
+  "Total Hours Played", "Proportion of PvP Playtime", "Proportion of PvE Playtime",
+  
+  # Performance
+  "PvP Kill/Death Ratio", "PvE Kill/Death Ratio", 
+  "PvP Hit Accuracy", "PvE Hit Accuracy",
+  "PvP Damage per Second", "PvE Damage per Second",
+  "PvP Average Damage per Game", "PvE Average Damage per Game",
+  "PvP Average Score", "PvE Average Score",
+  
+  # Well-being
+  "Game-Specific Well-being (SPANE)", "Enjoyment"
+)
+
+# Apply the custom ordering
+descriptive_stats <- descriptive_stats %>%
+  mutate(variable = factor(variable, levels = variable_order)) %>%
+  arrange(variable)
+
+# Get sample size for the note
+sample_n <- nrow(pvz_df_analysis)
+
+# Create the table with tinytable
+descriptive_stats |>
+  select(Variable = variable, M, SD, Min, Max) |>
+  tt(
+    caption = "Descriptive Statistics for Key Variables",
+    notes = paste0("N = ", sample_n, ". ", gender_note)
+  ) |>
+  format_tt(j = 2:5, digits = 2)
+```
+
+
+### Well-being
+
+We assessed affective well-being with the Scale of Positive and Negative Experiences [SPANE; @dienerNewWellbeingMeasures2010; @dienerAdvancesOpenQuestions2018]. Respondents were prompted to reflect on how playing PvZ had made them feel over the past two weeks and rated how often they experienced each of six positive (positive, good, pleasant, happy, joyful, contented) and six negative (negative, bad, unpleasant, sad, afraid, angry) feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always). An overall well-being balance score was computed by subtracting the mean negative score from the mean positive score, yielding a possible range of −6 to +6, where higher values indicate more positive affect associated with play. All responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys (@leinerTooFastToo2019), however, no unusual cases were identified.
+
+### Enjoyment
+
+Enjoyment was assessed with four items from the Player Experience and Need Satisfaction scale [PENS; @ryanIntrinsicMotivationVideo2006], validated by @johnsonValidationPlayerExperience2018. The full PENS comprises subscales measuring autonomy, competence, relatedness, enjoyment, and extrinsic motivation; we used only the four-item enjoyment subscale, which captures hedonic appreciation of the play experience. Respondents were asked to reflect on their experience playing PvZ over the past two weeks and rated items such as "I think PvZ was fun to play" on a scale from 1 (Strongly disagree) to 7 (Strongly agree).
+
+## Data analysis
+
+Data were analyzed in R version 4.5.1 [@rCoreTeamRLanguageEnvironment2025]. Key packages included `fpc` for cluster validation indices [@hennig2020a], `factoextra` for multivariate visualization [@kassambara2020a], and `robustlmm` for robust mixed-effects estimation [@kollerRobustlmmRPackage2016]. Following initial data cleaning, telemetry records were matched to the same two-week window referenced by the survey items, and analyses were conducted on combat-active players with sufficient mode-specific telemetry.
+
+To test whether clustering was appropriate before fitting any cluster model, we evaluated cluster tendency using three complementary approaches. First, we computed the Hopkins statistic [@banerjee2004a], which compares distances in observed data to distances expected under spatial randomness; values near 0.5 indicate random structure, whereas larger values indicate clusterable structure. Second, we used Visual Assessment of Cluster Tendency (VAT) [@bezdek2002a], which reorders the dissimilarity matrix so potential clusters appear as darker diagonal blocks. Third, we examined Principal Component Analysis (PCA) projections to assess whether separable groupings were visible in low-dimensional space relative to random reference data. Together, these diagnostics indicated non-random structure suitable for clustering.
+
+We then identified play styles with Partitioning Around Medoids (PAM) [@kaufmanFindingGroupsData1990] on standardized in-game behavioral features. PAM was selected over k-means because it is less sensitive to extreme points and defines each cluster by an observed medoid (a real player profile), which improves robustness and interpretability for telemetry-derived behavioral profiles. Features were z-standardized before clustering, and missing mode-specific performance values were set to zero to encode no activity in that mode rather than dropping cases. The number of clusters was determined by maximizing the Calinski-Harabasz index across k = 2 to 10 [@tibshiraniEstimatingNumberClusters2001], which selected a three-cluster solution; we then checked internal coherence with silhouette widths [@kaufmanFindingGroupsData1990].
+
+To examine associations between play style, playtime, and outcomes, we fit robust linear mixed-effects models with random intercepts for country to account for baseline between-country differences in outcome levels. For both outcomes (game-specific well-being and enjoyment), we first estimated main-effects models: outcome ~ player type + hours played + gender + age + (1 | country). To address moderation (RQ3), we then estimated interaction models: outcome ~ player type * hours played + (1 | country). Outcomes were treated as continuous and approximately normally distributed, and playtime hours was modeled on its raw scale. We used simple-slopes analyses to estimate within-play-style playtime slopes and pairwise slope-difference tests to compare those slopes across play styles. Statistical significance was set at p \< .05.
+
+## Data, Materials, and Code
+
+The raw data, materials, codebook and further details on this dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>. Building on this raw data and documentation, all of the underlying wrangling and analysis code reported in this study can be found at OSF upon publication.
+
+# Results
+
+## Player Clustering Analysis
+
+```{r}
+#| label: cluster_feature_selection
+#| warning: false
+#| message: false
+
+# Select relevant features for clustering
+player_cluster_features <- pvz_df_analysis %>% 
+  select(
+    # Playstyle variables (game mode preferences)
+    ratio_pvp_hours, ratio_pve_hours,
+    
+    # PvP performance metrics
+    pvp_kd, pvp_hit_accuracy, pvp_dps, pvp_average_damage, pvp_average_score,
+    
+    # PvE performance metrics
+    pve_kd, pve_hit_accuracy, pve_dps, pve_average_damage, pve_average_score
+  ) %>%
+  # Replace NAs with 0s - makes sense because missing performance = no activity in that mode
+  replace_na(list(
+    ratio_pvp_hours = 0, ratio_pve_hours = 0,
+    pvp_kd = 0, pvp_hit_accuracy = 0, pvp_dps = 0, 
+    pvp_average_damage = 0, pvp_average_score = 0,
+    pve_kd = 0, pve_hit_accuracy = 0, pve_dps = 0,
+    pve_average_damage = 0, pve_average_score = 0
+  ))
+
+# Standardize the data (important for clustering)
+player_data_scaled <- scale(player_cluster_features)
+rownames(player_data_scaled) <- pvz_df_analysis$player_id[rownames(player_data_scaled) %in% rownames(pvz_df_analysis)]
+```
+
+### Assessing Cluster Tendency
+
+```{r}
+#| label: cluster_random_data
+#| warning: false
+#| message: false
+#| results: "hide"
+
+# Create a random dataset with the same dimensions for comparison
+set.seed(123) # For reproducibility
+random_cluster_data <- apply(player_data_scaled, 2,
+                     function(x){runif(length(x), min(x), max(x))})
+random_cluster_data <- as.data.frame(random_cluster_data)
+```
+
+```{r}
+#| label: hopkins_statistic
+#| warning: false
+#| message: false
+#| results: "hide"
+
+# Create meaningful features for clustering analysis
+# Focus on performance metrics that differentiate playstyles
+meaningful_features <- pvz_df_analysis |>
+  mutate(
+    # Only include players with some gameplay data
+    has_pvp = !is.na(pvp_kd) & ratio_pvp_hours > 0,
+    has_pve = !is.na(pve_kd) & ratio_pve_hours > 0
+  ) |>
+  filter(has_pvp | has_pve) |>  # At least one mode
+  select(
+    ratio_pvp_hours, 
+    pvp_kd, 
+    pvp_hit_accuracy,
+    pve_kd, 
+    pve_hit_accuracy
+  ) |>
+  # Replace NAs with 0 for missing performance metrics
+  # (missing performance = no activity in that mode)
+  replace_na(list(
+    ratio_pvp_hours = 0,
+    pvp_kd = 0, 
+    pvp_hit_accuracy = 0,
+    pve_kd = 0, 
+    pve_hit_accuracy = 0
+  ))
+
+# Standardize the features
+meaningful_scaled <- scale(meaningful_features)
+
+# Calculate Hopkins statistic using manual implementation 
+# (more reliable than hopkins package for constrained gaming data)
+set.seed(123)
+hopkins_results <- replicate(10, {
+  manual_hopkins(meaningful_scaled, m = 30)
+}, simplify = TRUE)
+
+# Calculate final statistics for manuscript reporting
+hopkins_mean <- mean(hopkins_results)
+hopkins_sd <- sd(hopkins_results)
+hopkins_ci_lower <- hopkins_mean - 1.96 * hopkins_sd
+hopkins_ci_upper <- hopkins_mean + 1.96 * hopkins_sd
+
+# Display results
+cat("Hopkins Statistic Results:\n")
+cat("Sample size:", nrow(meaningful_features), "observations\n")
+cat("Mean Hopkins statistic (m=30):", round(hopkins_mean, 4), "\n")
+cat("95% CI: [", round(hopkins_ci_lower, 4), ",", round(hopkins_ci_upper, 4), "]\n")
+
+# Interpretation
+if(hopkins_mean > 0.75) {
+  cat("Interpretation: Strong evidence of clustering tendency (H > 0.75)\n")
+} else if(hopkins_mean > 0.5) {
+  cat("Interpretation: Moderate clustering tendency\n") 
+} else {
+  cat("Interpretation: Data appears randomly distributed\n")
+}
+
+# Store final values for reporting in results section
+hopkins_final <- hopkins_mean
+hopkins_ci_final <- c(hopkins_ci_lower, hopkins_ci_upper)
+
+# Validation: Test on random data to ensure method works correctly
+set.seed(456)
+random_test_data <- matrix(rnorm(nrow(meaningful_features) * ncol(meaningful_features)), 
+                          nrow = nrow(meaningful_features), 
+                          ncol = ncol(meaningful_features))
+random_scaled <- scale(random_test_data)
+
+hopkins_random_check <- mean(replicate(5, {
+  manual_hopkins(random_scaled, m = 30)
+}))
+
+cat("\nValidation - Hopkins on random data:", round(hopkins_random_check, 4))
+cat(" (should be ~0.5)\n")
+```
+
+```{r}
+#| label: pca_visualization
+#| warning: false
+#| message: false
+#| results: "hide"
+
+# Visual Assessment using PCA visualization
+pca_real_data <- prcomp(player_data_scaled)
+pca_random_data <- prcomp(random_cluster_data)
+
+# Create PCA plots for comparison
+pca_plot_real <- fviz_pca_ind(pca_real_data, 
+                  title = "PCA - Player Performance Data",
+                  geom = "point", 
+                  ggtheme = theme_minimal(),
+                  legend = "none",
+                  alpha.ind = 0.7) +
+      theme(plot.title = element_text(face = "bold", size = 14))
+
+pca_plot_random <- fviz_pca_ind(pca_random_data, 
+                  title = "PCA - Random Data",
+                  geom = "point", 
+                  ggtheme = theme_minimal(),
+                  legend = "none",
+                  alpha.ind = 0.7) +
+      theme(plot.title = element_text(face = "bold", size = 14))
+```
+
+```{r}
+#| label: vat_analysis
+#| echo: false
+#| warning: false
+#| message: false
+#| results: "hide"
+
+# Using ordered dissimilarity matrices
+dist_real_data <- get_dist(player_data_scaled, method = "euclidean")
+dist_random_data <- get_dist(random_cluster_data, method = "euclidean")
+
+# Create ordered dissimilarity matrix plots (VAT approach)
+dist_plot_real <- fviz_dist(dist_real_data, 
+                show_labels = FALSE,
+                order = TRUE, # Important: order the matrix for VAT
+                gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+       ggtitle("VAT Ordered Dissimilarity Matrix - Player Data") +
+       theme(plot.title = element_text(face = "bold", size = 14))
+
+dist_plot_random <- fviz_dist(dist_random_data, 
+                show_labels = FALSE,
+                order = TRUE, # Important: order the matrix for VAT
+                gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) +
+       ggtitle("VAT Ordered Dissimilarity Matrix - Random Data") +
+       theme(plot.title = element_text(face = "bold", size = 14))
+```
+
+Before fitting cluster models, we evaluated whether the data showed non-random structure. The Hopkins statistic [@banerjee2004a] assesses cluster tendency by comparing the observed data structure to what would be expected under spatial randomness. Specifically, it measures the ratio of distances from a sample of data points to their nearest neighbors within the actual dataset, relative to distances from uniformly distributed random points to their nearest neighbors in the actual data. The statistic ranges from 0 to 1, where values near 0.5 indicate spatial randomness (no meaningful cluster structure), values substantially below 0.5 suggest regular spacing, and values substantially above 0.5 indicate clusterable structure. Values above 0.70 are generally considered strong evidence of cluster tendency, with higher values reflecting more pronounced separation between natural groupings in the feature space.
+
+The Hopkins statistic computed from our player behavioral data was high (`r round(hopkins_final, 4)`, 95% CI [`r round(hopkins_ci_final[1], 4)`, `r round(hopkins_ci_final[2], 4)`]), substantially exceeding the 0.70 threshold and indicating strong cluster tendency. As a validity check, a random dataset with identical dimensions produced a substantially lower value (`r round(hopkins_random_check, 4)`) closer to the 0.5 benchmark expected under spatial randomness. VAT plots showed clear dark diagonal blocks for the player data, consistent with separable groups, while the random reference data showed no comparable block structure (Appendix 1; @bezdek2002a). PCA visualizations converged on the same conclusion, with visible grouping in the player data but not in the random comparison. The convergence of these three independent assessments (Hopkins, VAT, and PCA) provided strong statistical evidence to reject the null hypothesis of spatial randomness, demonstrating that the player behavioral data contained meaningful, non-random structure amenable to clustering methods.
+
+
+### Determining Optimal Number of Clusters
+
+```{r}
+#| label: pam_silhouette_method
+#| fig.width: 10
+#| fig.height: 4
+#| cache: false
+#| results: "asis"
+#| fig.show: "hide"  # Changed from "asis" to "hide" to prevent displaying here
+
+# PAM optimal cluster determination
+# -------------------------------------
+# Calinski-Harabasz Index (CH index) for PAM
+ch_index_pam <- function(data, max_k = 10) {
+  ch_values <- numeric(max_k - 1)
+  for (i in 2:max_k) {
+    pam_result <- pam(data, k = i)
+    ch_values[i-1] <- fpc::calinhara(data, pam_result$clustering)
+  }
+  k_values <- 2:max_k
+  return(data.frame(k = k_values, ch_index = ch_values))
+}
+
+ch_pam_results <- ch_index_pam(player_data_scaled)
+p_pam_ch <- ggplot(ch_pam_results, aes(x = k, y = ch_index)) +
+  geom_line() +
+  geom_point() +
+  scale_x_continuous(breaks = 2:10) +
+  labs(title = "Calinski-Harabasz Index",
+       x = "Number of clusters k",
+       y = "CH Index (higher is better)") +
+  theme_minimal()
+
+# Display the plot
+p_pam_ch
+```
+
+```{r}
+#| label: determine_optimal_k
+#| echo: false
+# Determine the optimal k value based on CH Index
+ch_optimal_k <- ch_pam_results$k[which.max(ch_pam_results$ch_index)]
+final_optimal_k <- ch_optimal_k
+```
+
+To select the number of clusters, we evaluated PAM solutions for k = 2 to 10 using the Calinski-Harabasz (CH) index, where higher values indicate better separation relative to within-cluster dispersion [@kaufmanFindingGroupsData1990; @tibshiraniEstimatingNumberClusters2001]. The CH index peaked at k = `r final_optimal_k` (Appendix 2), supporting a three-cluster solution as the best trade-off between fit and parsimony. This solution also yielded interpretable profiles consistent with prior telemetry-based playstyle research [@drachenGunsSwordsData2012; @drachen2014a; @melhartYourGameplaySays2019].
+
+### PAM Clustering
+
+```{r}
+#| label: prepare_player_data
+
+# Prepare player data for clustering
+player_data_features <- pvz_df_analysis %>% 
+  select(
+    # Game mode preferences
+    ratio_pvp_hours, ratio_pve_hours,
+    
+    # Performance metrics
+    pvp_kd, pve_kd, 
+    pvp_hit_accuracy, pve_hit_accuracy,
+    pvp_average_score, pve_average_score,
+    pvp_dps, pve_dps
+  ) %>%
+  # Replace NAs with 0s instead of removing them
+  replace_na(list(
+    ratio_pvp_hours = 0, ratio_pve_hours = 0,
+    pvp_kd = 0, pve_kd = 0,
+    pvp_hit_accuracy = 0, pve_hit_accuracy = 0,
+    pvp_average_score = 0, pve_average_score = 0,
+    pvp_dps = 0, pve_dps = 0
+  ))
+
+# Standardize the data for clustering
+player_data_scaled <- scale(player_data_features)
+
+# Perform PAM clustering with k=3
+set.seed(42) # For reproducibility
+k_clusters <- 3
+pam_result <- pam(player_data_scaled, k = k_clusters, metric = "euclidean")
+
+```
+
+```{r}
+#| label: pam_cluster_statistics
+#| cache: false
+#| include: false
+
+# Calculate silhouette coefficient for each cluster using the existing pam_result
+sil <- pam_result$silinfo$widths
+sil_per_cluster <- tapply(sil[, 3], sil[, 1], mean)
+
+# Store key statistics
+stats_pam_k3 <- list(
+  k = k_clusters,
+  avg_silhouette = pam_result$silinfo$avg.width,
+  silhouette_per_cluster = sil_per_cluster,
+  cluster_sizes = table(pam_result$clustering),
+  medoid_indices = pam_result$id.med
+)
+```
+
+Having selected k = 3 on the basis of the CH index, we assessed the internal validity of this solution using silhouette analysis [@kaufmanFindingGroupsData1990], which quantifies how well each observation fits its assigned cluster relative to the nearest neighbouring cluster. The average silhouette width was `r round(stats_pam_k3$avg_silhouette, 2)`. According to Kaufman and Rousseeuw's interpretive guidelines, values above 0.25 indicate strong structure and values between 0.10 and 0.25 indicate weak but still meaningful structure; the overall value thus falls at the boundary, suggesting reasonable though not crisp separation. Per-cluster silhouette widths ranged from `r round(min(stats_pam_k3$silhouette_per_cluster), 2)` to `r round(max(stats_pam_k3$silhouette_per_cluster), 2)`, with one cluster exceeding the 0.25 threshold and the remaining two showing acceptable cohesion. No negative silhouette values were observed, confirming that every observation was assigned to its most appropriate cluster. The substantive interpretation of these three clusters is presented below.
+
+
+
+
+```{r}
+#| label: cluster_profiles
+#| include: false
+
+# Define the feature columns used in clustering
+feature_columns <- c("ratio_pvp_hours", "ratio_pve_hours", 
+                    "pvp_kd", "pve_kd", 
+                    "pvp_hit_accuracy", "pve_hit_accuracy",
+                    "pvp_average_score", "pve_average_score",
+                    "pvp_dps", "pve_dps")
+
+# Get cluster medoids (representative players)
+medoid_indices <- pam_result$id.med
+medoid_data <- pvz_df_analysis[medoid_indices, ]
+medoid_features <- medoid_data %>%
+  select(all_of(feature_columns))
+medoid_features$cluster <- 1:k_clusters
+
+# Calculate mean values by cluster for interpretation
+cluster_means <- pvz_df_analysis %>%
+  # First add the cluster assignments
+  mutate(cluster = pam_result$clustering) %>%
+  group_by(cluster) %>%
+  summarize(across(all_of(feature_columns), mean, na.rm = TRUE), .groups = "drop")
+
+# Display medoid profiles 
+medoid_features |>
+  tt(caption = "Cluster Medoids (Feature Values of Representative Players)") |>
+  format_tt(digits = 2)
+
+# Display cluster means
+cluster_means |>
+  tt(caption = "Cluster Means - Average Feature Values") |>
+  format_tt(digits = 2)
+```
+
+```{r}
+#| label: assign_player_types
+#| code-summary: "Assign player type labels to clusters"
+
+# Create a data frame with cluster labels 
+# Update these names based on interpretation of the 3 clusters
+player_type_labels <- tibble(
+  cluster = 1:3,
+  player_type = c(
+    "Casual PVP Players",           # Cluster 1 name
+    "Casual PVE Players",       # Cluster 2 name 
+    "Elite Allround Players"            # Cluster 3 name
+  )
+)
+
+# Add cluster assignments and type labels to the dataframe
+pvz_df_clustered <- pvz_df_analysis %>%
+  mutate(cluster = pam_result$clustering) %>%
+  left_join(player_type_labels, by = "cluster") %>%
+  mutate(player_type = factor(player_type))
+
+# Save the clustered data with no outliers
+write_csv(pvz_df_clustered, here("data/processed/pvz_with_clusters_pam3_nohours_no_outliers.csv"))
+
+```
+
+```{r}
+#| label: compute-key-statistics
+#| code-summary: "Compute key statistics for inline reporting"
+
+# Calculate player type summary statistics for inline reporting
+player_type_summary <- pvz_df_clustered %>%
+  group_by(player_type) %>%
+  summarise(
+    n = n(),
+    pct = n() / nrow(pvz_df_clustered) * 100,
+    pvp_time_pct = mode_mean(ratio_pvp_hours) * 100,
+    pve_time_pct = mode_mean(ratio_pve_hours) * 100,
+    pvp_kd = mode_mean(pvp_kd),
+    pve_kd = mode_mean(pve_kd),
+    pvp_accuracy = mode_mean(pvp_hit_accuracy) * 100,
+    pve_accuracy = mode_mean(pve_hit_accuracy) * 100,
+    wellbeing_mean = mean(spane_game_balance, na.rm = TRUE),
+    enjoyment_mean = mean(enjoyment, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Extract model coefficients for inline reporting
+get_model_coef <- function(model, term) {
+  coefs <- coef(summary(model))
+  if (term %in% rownames(coefs)) {
+    return(list(
+      b = coefs[term, "Estimate"],
+      se = coefs[term, "Std. Error"],
+      t = coefs[term, "t value"]
+    ))
+  }
+  return(NULL)
+}
+
+# Store key coefficients after models are fit (will be populated after model fitting)
+```
+
+```{r}
+#| label: radar_functions
+
+# Function to scale values using z-scores
+z_score_scale <- function(x) {
+  if (sd(x, na.rm = TRUE) == 0) return(rep(0, length(x)))
+  return((x - mean(x, na.rm = TRUE)) / sd(x, na.rm = TRUE))
+}
+
+# Convert z-scores to 0-1 scale for radar chart
+z_to_radar_scale <- function(z, min_z = -2.5, max_z = 2.5) {
+  z_clipped <- pmax(pmin(z, max_z), min_z)
+  scaled <- (z_clipped - min_z) / (max_z - min_z)
+  return(scaled)
+}
+
+# Function to create radar chart with average player comparison
+create_player_type_radar <- function(data, avg_data, color, title) {
+  # Get column names
+  data_cols <- colnames(data)
+  
+  # Create max and min rows
+  max_min <- data.frame(matrix(c(rep(1, length(data_cols)), rep(0, length(data_cols))), 
+                             nrow = 2, byrow = TRUE))
+  colnames(max_min) <- data_cols
+  
+  # Combine data for plotting (max, min, average, player type)
+  plot_data <- rbind(max_min, avg_data, data)
+  
+  # Create radar chart
+  radarchart(
+    plot_data, 
+    pcol = c("gray50", color),        # Colors for average and player type (darker gray)
+    pfcol = c(adjustcolor("gray50", alpha.f = 0.15), adjustcolor(color, alpha.f = 0.4)), # Fill colors
+    plwd = c(2.5, 3.5),              
+    plty = c(2, 1),                  # Line type (dashed for average, solid for player type)
+    vlcex = 1.1,                     
+    title = title,
+    cglcol = "grey70",
+    cglty = 1,
+    axislabcol = "grey20",           
+    caxislabels = seq(0, 1, 0.25),
+    cglwd = 1,                       
+    pty = 32,                        # Use 32-sided polygon for smoother lines
+    axistype = 0,                    
+    centerzero = FALSE,              # Do not center at zero
+    seg = 4,                         
+    cex.main = 1.4                   
+  )
+  
+  # Add legend for player type vs average
+  legend(
+    "bottomright", 
+    legend = c("Average Player", title),
+    col = c("gray50", color),
+    lty = c(2, 1),
+    lwd = c(2.5, 3.5),
+    bty = "n",     # No box around legend
+    cex = 1.0,     # Larger font size
+    pt.cex = 1.2   # Larger symbol size
+  )
+}
+```
+
+```{r}
+#| label: player_type_summary
+#| include: false
+
+# Create a summary of player types
+player_type_summary <- pvz_df_clustered %>%
+  group_by(player_type) %>%
+  summarise(
+    Count = n(),
+    `% of Players` = n() / nrow(pvz_df_clustered) * 100,
+    `PvP Time %` = mode_mean(ratio_pvp_hours) * 100,
+    `PvE Time %` = mode_mean(ratio_pve_hours) * 100,
+    `PvP K/D` = mode_mean(pvp_kd),
+    `PvE K/D` = mode_mean(pve_kd),
+    `PvP Accuracy` = mode_mean(pvp_hit_accuracy) * 100,
+    `PvE Accuracy` = mode_mean(pve_hit_accuracy) * 100
+  )
+```
+
+```{r}
+#| label: player_type_inline_values
+#| include: false
+
+# Keep inline text simple: pull one row per player type, then named scalars
+pt_pve <- player_type_summary %>% filter(player_type == "Casual PVE Players")
+pt_elite <- player_type_summary %>% filter(player_type == "Elite Allround Players")
+pt_pvp <- player_type_summary %>% filter(player_type == "Casual PVP Players")
+
+pve_pct_players <- round(pt_pve$`% of Players`, 1)
+pve_time <- round(pt_pve$`PvE Time %`, 1)
+pve_pve_kd <- round(pt_pve$`PvE K/D`, 2)
+pve_pve_acc <- round(pt_pve$`PvE Accuracy`, 1)
+
+elite_pct_players <- round(pt_elite$`% of Players`, 1)
+elite_pvp_kd <- round(pt_elite$`PvP K/D`, 2)
+elite_pve_kd <- round(pt_elite$`PvE K/D`, 2)
+elite_pvp_acc <- round(pt_elite$`PvP Accuracy`, 1)
+elite_pve_acc <- round(pt_elite$`PvE Accuracy`, 1)
+
+pvp_pct_players <- round(pt_pvp$`% of Players`, 1)
+pvp_time <- round(pt_pvp$`PvP Time %`, 1)
+pvp_pvp_kd <- round(pt_pvp$`PvP K/D`, 2)
+pvp_pvp_acc <- round(pt_pvp$`PvP Accuracy`, 1)
+```
+
+### Interpretation of Playstyles
+
+Following established approaches to telemetry-based player profiling [@drachenGunsSwordsData2012; @drachen2014a; @bauckhageClusteringGameBehavior2015; @melhartYourGameplaySays2019; @sifaProfilingGamesUnderstanding2018], we labelled the three clusters on the basis of their dominant mode preferences and performance levels (@fig-radar-charts). The labels reflect two dimensions that emerged from the data: the game mode players predominantly engaged with (PVE vs. PVP) and their overall performance level (casual vs. elite).
+
+Casual PVE Players (`r pve_pct_players`% of the sample) allocated the majority of their playtime to cooperative PVE modes (`r pve_time`%), achieving moderate performance within that context (PVE K/D: M = `r pve_pve_kd`; PVE Accuracy: M = `r pve_pve_acc`%) while showing markedly lower metrics in PVP. This profile suggests a specialisation in story-driven exploration and cooperative play over competitive engagement.
+
+Elite Allround Players (`r elite_pct_players`% of the sample), the largest cluster, maintained high performance across both gameplay contexts, with kill-to-death ratios and accuracy rates substantially above the sample mean in both PVP (K/D: M = `r elite_pvp_kd`; Accuracy: M = `r elite_pvp_acc`%) and PVE (K/D: M = `r elite_pve_kd`; Accuracy: M = `r elite_pve_acc`%). Rather than specialising in one mode, these players engaged broadly and performed well regardless of context, distinguishing them as the most proficient segment.
+
+Casual PVP Players (`r pvp_pct_players`% of the sample) devoted the majority of their time to competitive PVP modes (`r pvp_time`%), yet their performance was moderate (PVP K/D: M = `r pvp_pvp_kd`; PVP Accuracy: M = `r pvp_pvp_acc`%), falling well below Elite Allround Players. Performance in PVE was similarly modest. This pattern indicates a preference for competitive engagement that is not accompanied by correspondingly high skill, suggesting a casual orientation to play within a competitive context.
+
+```{r}
+#| label: radar-caption-values
+#| include: false
+
+# Calculate summary values for each player type for the figure caption
+radar_caption_data <- pvz_df_clustered %>%
+  group_by(player_type) %>%
+  summarise(
+    pvp_ratio = mode_mean(ratio_pvp_hours),
+    pve_ratio = mode_mean(ratio_pve_hours),
+    pvp_kd = mode_mean(pvp_kd),
+    pve_kd = mode_mean(pve_kd),
+    .groups = "drop"
+  )
+
+radar_caption <- paste0(
+
+"Radar charts showing performance and playstyle profiles for each player type relative to the average player (dashed line). Values are standardized scores (z-scores converted to 0-1 scale). ",
+"Mean values: Casual PVE Players (PvP Ratio: ", type_stat(radar_caption_data, "Casual PVE Players", "pvp_ratio", 2),
+", PvE Ratio: ", type_stat(radar_caption_data, "Casual PVE Players", "pve_ratio", 2),
+", PvP K/D: ", type_stat(radar_caption_data, "Casual PVE Players", "pvp_kd", 2),
+", PvE K/D: ", type_stat(radar_caption_data, "Casual PVE Players", "pve_kd", 2), "); ",
+"Elite Allround Players (PvP Ratio: ", type_stat(radar_caption_data, "Elite Allround Players", "pvp_ratio", 2),
+", PvE Ratio: ", type_stat(radar_caption_data, "Elite Allround Players", "pve_ratio", 2),
+", PvP K/D: ", type_stat(radar_caption_data, "Elite Allround Players", "pvp_kd", 2),
+", PvE K/D: ", type_stat(radar_caption_data, "Elite Allround Players", "pve_kd", 2), "); ",
+"Casual PVP Players (PvP Ratio: ", type_stat(radar_caption_data, "Casual PVP Players", "pvp_ratio", 2),
+", PvE Ratio: ", type_stat(radar_caption_data, "Casual PVP Players", "pve_ratio", 2),
+", PvP K/D: ", type_stat(radar_caption_data, "Casual PVP Players", "pvp_kd", 2),
+", PvE K/D: ", type_stat(radar_caption_data, "Casual PVP Players", "pve_kd", 2), "). ",
+"PvE = Player versus Environment; PvP = Player versus Player; K/D = Kill/Death ratio; DPS = Damage per second."
+)
+```
+
+```{r}
+#| label: fig-radar-charts
+#| fig-cap: !expr radar_caption
+#| fig-height: 6
+#| fig-width: 14
+#| out-width: "100%"
+#| code-summary: "Player type radar chart visualization"
+
+# Define metrics for radar charts in a more logical order, 
+# grouping related metrics together
+radar_metrics <- c(
+  # PvE metrics grouped together
+  "PvE Ratio", "PvE K/D", "PvE Accuracy", "PvE Score", "PvE DPS",
+  # PvP metrics grouped together
+  "PvP Ratio", "PvP K/D", "PvP Accuracy", "PvP Score", "PvP DPS"
+)
+
+# Get player type names
+player_type_names <- player_type_labels$player_type
+
+# Calculate radar chart data for both average player and player types
+# First collect the raw metrics for all players and player types
+metrics_data <- pvz_df_analysis %>%
+  # Add a column for the average player
+  mutate(profile_type = "Average Player") %>%
+  # Bind the clustered data with profile types
+  bind_rows(
+    pvz_df_clustered %>%
+      select(
+        player_id, player_type, 
+        ratio_pve_hours, ratio_pvp_hours,
+        pve_kd, pvp_kd,
+        pve_hit_accuracy, pvp_hit_accuracy,
+        pve_average_score, pvp_average_score,
+        pve_dps, pvp_dps
+      ) %>%
+      rename(profile_type = player_type)
+  ) %>%
+  # Group by profile type (average or a player type)
+  group_by(profile_type) %>%
+  # Calculate means for each metric
+  summarise(
+    ratio_pve_mean = mode_mean(ratio_pve_hours),
+    pve_kd_mean = mode_mean(pve_kd),
+    pve_accuracy_mean = mode_mean(pve_hit_accuracy),
+    pve_score_mean = mode_mean(pve_average_score),
+    pve_dps_mean = mode_mean(pve_dps),
+    ratio_pvp_mean = mode_mean(ratio_pvp_hours),
+    pvp_kd_mean = mode_mean(pvp_kd),
+    pvp_accuracy_mean = mode_mean(pvp_hit_accuracy),
+    pvp_score_mean = mode_mean(pvp_average_score),
+    pvp_dps_mean = mode_mean(pvp_dps)
+  ) %>%
+  ungroup()
+
+# Create vectors of all values for each metric to calculate z-scores across all profiles
+all_ratio_pve <- metrics_data$ratio_pve_mean
+all_pve_kd <- metrics_data$pve_kd_mean
+all_pve_accuracy <- metrics_data$pve_accuracy_mean
+all_pve_score <- metrics_data$pve_score_mean
+all_pve_dps <- metrics_data$pve_dps_mean
+all_ratio_pvp <- metrics_data$ratio_pvp_mean
+all_pvp_kd <- metrics_data$pvp_kd_mean
+all_pvp_accuracy <- metrics_data$pvp_accuracy_mean
+all_pvp_score <- metrics_data$pvp_score_mean
+all_pvp_dps <- metrics_data$pvp_dps_mean
+
+# Now apply z-score scaling to create the radar data
+radar_data <- metrics_data %>%
+  mutate(
+    `PvE Ratio` = z_to_radar_scale(z_score_scale(all_ratio_pve)[row_number()]),
+    `PvE K/D` = z_to_radar_scale(z_score_scale(all_pve_kd)[row_number()]),
+    `PvE Accuracy` = z_to_radar_scale(z_score_scale(all_pve_accuracy)[row_number()]),
+    `PvE Score` = z_to_radar_scale(z_score_scale(all_pve_score)[row_number()]),
+    `PvE DPS` = z_to_radar_scale(z_score_scale(all_pve_dps)[row_number()]),
+    `PvP Ratio` = z_to_radar_scale(z_score_scale(all_ratio_pvp)[row_number()]),
+    `PvP K/D` = z_to_radar_scale(z_score_scale(all_pvp_kd)[row_number()]),
+    `PvP Accuracy` = z_to_radar_scale(z_score_scale(all_pvp_accuracy)[row_number()]),
+    `PvP Score` = z_to_radar_scale(z_score_scale(all_pvp_score)[row_number()]),
+    `PvP DPS` = z_to_radar_scale(z_score_scale(all_pvp_dps)[row_number()])
+  ) %>%
+  # Keep only relevant columns
+  select(
+    profile_type,
+    `PvE Ratio`, `PvE K/D`, `PvE Accuracy`, `PvE Score`, `PvE DPS`,
+    `PvP Ratio`, `PvP K/D`, `PvP Accuracy`, `PvP Score`, `PvP DPS`
+  )
+
+# Extract the average player data
+average_player <- radar_data %>%
+  filter(profile_type == "Average Player") %>%
+  select(-profile_type) %>%
+  as.data.frame()
+
+# Colors for player types - more distinct and colorblind-friendly palette
+player_type_colors <- c("#E41A1C", "#377EB8", "#4DAF4A")
+
+# Set up a better layout with proper margins for larger text
+# Increased bottom margin for legend text
+par(mfrow = c(1, 3), mar = c(5, 2, 4, 2), oma = c(2, 0, 2, 0))
+
+# Create radar charts for each player type
+for (i in 1:length(player_type_names)) {
+  # Extract data for this player type
+  type_data <- radar_data %>%
+    filter(profile_type == player_type_names[i]) %>%
+    select(-profile_type) %>%
+    as.data.frame()
+  
+  # Create radar chart with average player comparison
+  create_player_type_radar(
+    type_data, 
+    average_player,
+    player_type_colors[i], 
+    player_type_names[i]
+  )
+}
+# Reset layout
+par(mfrow = c(1, 1))
+```
+
+## Well-being differences between player types 
+
+```{r}
+#| label: player-type-wellbeing-model
+#| code-summary: "Fit robust mixed-effects models for well-being outcomes"
+#| message: false
+#| warning: false
+#| include: false
+
+# Create a robust linear model for well-being
+set.seed(123) # For reproducibility of robust estimates
+
+# Check if models should be refit or loaded from cache
+if (eval_models || !model_exists("rmodel_game") || !model_exists("rmodel_enjoyment")) {
+  # Fit robust models for game-specific well-being
+  rmodel_game <- rlmer(spane_game_balance ~ player_type + hours + gender + age + (1|country), 
+                       data = pvz_df_clustered)
+  
+  # Fit robust models for enjoyment
+  rmodel_enjoyment <- rlmer(enjoyment ~ player_type + hours + gender + age + (1|country), 
+                       data = pvz_df_clustered)
+  
+  # Save models to cache
+  save_model(rmodel_game, "rmodel_game")
+  save_model(rmodel_enjoyment, "rmodel_enjoyment")
+} else {
+  # Load cached models
+  rmodel_game <- load_model("rmodel_game")
+  rmodel_enjoyment <- load_model("rmodel_enjoyment")
+}
+
+# Display models side-by-side using modelsummary
+modelsummary(
+  list("Well-being (SPANE)" = rmodel_game, "Enjoyment" = rmodel_enjoyment),
+  estimate = "{estimate} ({std.error})",
+  statistic = "t = {statistic}",
+  gof_omit = "AIC|BIC|RMSE|Log",
+  coef_rename = c(
+    "(Intercept)" = "Intercept",
+    "player_typeElite Allround Players" = "Elite Allround Players",
+    "player_typeCasual PVP Players" = "Casual PVP Players",
+    "hours" = "Hours Played",
+    "genderMale" = "Gender (Male)",
+    "genderOther" = "Gender (Other)",
+    "genderPrefer not to say" = "Gender (Undisclosed)",
+    "age" = "Age"
+  ),
+  title = "Robust Linear Mixed-Effects Models Predicting Well-being and Enjoyment",
+  notes = "Reference category for play style: Casual PVE Players. Reference category for gender: Female. Country included as random effect."
+)
+
+# Extract coefficients for inline reporting
+coefs_game <- coef(summary(rmodel_game))
+coefs_enjoyment <- coef(summary(rmodel_enjoyment))
+```
+
+We fitted robust linear mixed-effects models predicting each outcome from player type, hours played, gender, and age, with random intercepts for country (Appendix 3). Casual PVE Players served as the reference category. Relative to these players, both Casual PVP Players (b = `r round(coefs_game["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeCasual PVP Players", "t value"], 2)`) and Elite Allround Players (b = `r round(coefs_game["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeElite Allround Players", "t value"], 2)`) reported significantly lower game-specific well-being. For enjoyment, Casual PVP Players again scored lower than Casual PVE Players (b = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeCasual PVP Players", "t value"], 2)`), whereas the difference between Elite Allround and Casual PVE Players was smaller and not statistically reliable (b = `r round(coefs_enjoyment["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeElite Allround Players", "t value"], 2)`). Hours played was positively associated with both outcomes (well-being: b = `r round(coefs_game["hours", "Estimate"], 2)`, SE = `r round(coefs_game["hours", "Std. Error"], 2)`, t = `r round(coefs_game["hours", "t value"], 2)`; enjoyment: b = `r round(coefs_enjoyment["hours", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["hours", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["hours", "t value"], 2)`).
+
+## Does Playstyle Moderate the Playtime–Well-being Relationship?
+
+```{r}
+#| label: moderation-models
+#| code-summary: "Fit moderation models (play style × hours interaction)"
+#| message: false
+#| warning: false
+#| include: false
+
+# Check if models should be refit or loaded from cache
+if (eval_models || !model_exists("rmodel_moderation_game") || !model_exists("rmodel_moderation_enjoyment")) {
+  # Create interaction models for our two key well-being outcomes
+  rmodel_moderation_game <- rlmer(
+    spane_game_balance ~ player_type * hours + (1|country),
+    data = pvz_df_clustered
+  )
+
+  rmodel_moderation_enjoyment <- rlmer(
+    enjoyment ~ player_type * hours + (1|country),
+    data = pvz_df_clustered
+  )
+  
+  # Save models to cache
+  save_model(rmodel_moderation_game, "rmodel_moderation_game")
+  save_model(rmodel_moderation_enjoyment, "rmodel_moderation_enjoyment")
+} else {
+  # Load cached models
+  rmodel_moderation_game <- load_model("rmodel_moderation_game")
+  rmodel_moderation_enjoyment <- load_model("rmodel_moderation_enjoyment")
+}
+
+# Display moderation models side-by-side using modelsummary
+modelsummary(
+  list("Well-being (SPANE)" = rmodel_moderation_game, "Enjoyment" = rmodel_moderation_enjoyment),
+  estimate = "{estimate} ({std.error})",
+  statistic = "t = {statistic}",
+  gof_omit = "AIC|BIC|RMSE|Log",
+  coef_rename = c(
+    "(Intercept)" = "Intercept",
+    "player_typeElite Allround Players" = "Elite Allround Players",
+    "player_typeCasual PVP Players" = "Casual PVP Players",
+    "hours" = "Hours Played",
+    "player_typeElite Allround Players:hours" = "Elite Allround × Hours",
+    "player_typeCasual PVP Players:hours" = "Casual PVP × Hours"
+  ),
+  title = "Moderation Models: Play Style × Hours Interaction",
+  notes = "Reference category for play style: Casual PVE Players. Country included as random effect."
+)
+
+# Extract coefficients for inline reporting
+coefs_mod_game <- coef(summary(rmodel_moderation_game))
+coefs_mod_enjoyment <- coef(summary(rmodel_moderation_enjoyment))
+```
+
+To test whether the playtime–outcome association differed across playstyles, we added player type × hours interaction terms to the models (Appendix 4). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PVE Players. None of the interaction terms reached significance: for well-being, neither Casual PVP Players (Δb = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "t value"], 2)`) nor Elite Allround Players (Δb = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "t value"], 2)`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PVP: Δb = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "t value"], 2)`; Elite Allround: Δb = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "t value"], 2)`). Baseline playstyle differences in intercepts remained in the interaction models, particularly for Casual PVP Players (well-being: b = `r round(coefs_mod_game["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players", "t value"], 2)`; enjoyment: b = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "t value"], 2)`).
+
+```{r}
+#| label: wellbeing-anova
+#| message: false
+#| warning: false
+#| include: false
+
+# Run ANOVAs to test for significant differences between player types
+wellbeing_vars <- c("spane_game_balance", "enjoyment")
+
+# Store ANOVA results and models
+anova_results <- list()
+anova_models <- list()
+
+for (var in wellbeing_vars) {
+  formula <- as.formula(paste(var, "~ player_type"))
+  anova_model <- aov(formula, data = pvz_df_clustered)
+  anova_models[[var]] <- anova_model
+  anova_results[[var]] <- broom::tidy(anova_model)
+  anova_results[[var]]$variable <- var
+  
+  # Add effect size
+  anova_results[[var]]$eta_squared <- effectsize::eta_squared(anova_model)[["Eta2"]]
+  
+  # Add residual df
+  anova_results[[var]]$df_residual <- summary(anova_model)[[1]]["Residuals", "Df"]
+}
+
+# Combine all results
+all_anova_results <- bind_rows(anova_results)
+
+# Display results in a nice table
+all_anova_results |> 
+  filter(term == "player_type") |>
+  select(Variable = variable, df, SS = sumsq, F = statistic, p = p.value, `η²` = eta_squared) |>
+  mutate(
+    p = case_when(
+      p < 0.001 ~ "< .001^†^",
+      p < 0.05 ~ paste0(sprintf("%.3f", round(p, 3)), "^†^"),
+      TRUE ~ sprintf("%.3f", round(p, 3))
+    ),
+    `η²` = round(`η²`, 3)
+  )
+
+# Post-hoc tests for variables with significant differences
+posthoc_results <- list()
+
+for (var in wellbeing_vars) {
+  if (summary(anova_models[[var]])[[1]]["player_type", "Pr(>F)"] < 0.05) {
+    posthoc <- TukeyHSD(anova_models[[var]])
+    posthoc_results[[var]] <- broom::tidy(posthoc)
+  }
+}
+
+# Extract key statistics for inline reporting
+wellbeing_anova <- all_anova_results |> 
+  filter(term == "player_type" & variable == "spane_game_balance")
+enjoyment_anova <- all_anova_results |> 
+  filter(term == "player_type" & variable == "enjoyment")
+
+# Extract post-hoc p-values
+wellbeing_posthoc <- posthoc_results[["spane_game_balance"]]
+enjoyment_posthoc <- posthoc_results[["enjoyment"]]
+
+# Get specific comparisons (TukeyHSD tidy output uses 'contrast' column)
+wb_pvp_pve <- wellbeing_posthoc |> 
+  filter(grepl("Casual PVP.*Casual PVE|Casual PVE.*Casual PVP", contrast))
+enj_pvp_pve <- enjoyment_posthoc |> 
+  filter(grepl("Casual PVP.*Casual PVE|Casual PVE.*Casual PVP", contrast))
+enj_pvp_elite <- enjoyment_posthoc |> 
+  filter(grepl("Casual PVP.*Elite|Elite.*Casual PVP", contrast))
+```
+
+```{r}
+#| label: fig-anova-boxplots
+#| fig-cap: "Distribution of well-being outcomes by play style. Panel A shows game-specific well-being (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
+#| fig-width: 10
+#| fig-height: 5
+#| message: false
+#| warning: false
+
+# Create boxplot for game-specific well-being
+p_wellbeing <- ggplot(pvz_df_clustered, aes(x = player_type, y = spane_game_balance, fill = player_type)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  geom_jitter(width = 0.2, alpha = 0.2, size = 1) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "A. Game-Specific Well-being",
+    x = NULL,
+    y = "SPANE Balance Score"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 15, hjust = 1),
+    panel.grid.major.x = element_blank()
+  )
+
+# Create boxplot for enjoyment
+p_enjoyment <- ggplot(pvz_df_clustered, aes(x = player_type, y = enjoyment, fill = player_type)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = 21) +
+  geom_jitter(width = 0.2, alpha = 0.2, size = 1) +
+  scale_fill_brewer(palette = "Set2") +
+  labs(
+    title = "B. Enjoyment",
+    x = NULL,
+    y = "Enjoyment Score"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 15, hjust = 1),
+    panel.grid.major.x = element_blank()
+  )
+
+# Combine plots
+p_wellbeing + p_enjoyment
+```
+
+```{r}
+#| label: dynamic-results-text
+#| echo: false
+
+# Function to format p-value for inline text
+format_p_inline <- function(p) {
+  if (length(p) == 0 || is.na(p[1])) return("N/A")
+  p <- p[1]  # Take first value if vector
+  if (p < .001) return("< .001")
+  sprintf("= %.3f", p)
+}
+```
+
+These playstyle differences were corroborated by one-way ANOVAs (well-being: *F*(`r wellbeing_anova$df`, `r wellbeing_anova$df_residual`) = `r sprintf("%.2f", wellbeing_anova$statistic)`, *p* `r format_p_inline(wellbeing_anova$p.value)`, η² = `r sprintf("%.3f", wellbeing_anova$eta_squared)`; enjoyment: *F*(`r enjoyment_anova$df`, `r enjoyment_anova$df_residual`) = `r sprintf("%.2f", enjoyment_anova$statistic)`, *p* `r format_p_inline(enjoyment_anova$p.value)`, η² = `r sprintf("%.3f", enjoyment_anova$eta_squared)`) and Tukey HSD post-hoc tests, which confirmed that Casual PVP Players scored lower than Casual PVE Players on both well-being (*p* `r format_p_inline(wb_pvp_pve$adj.p.value)`) and enjoyment (*p* `r format_p_inline(enj_pvp_pve$adj.p.value)`), and lower than Elite Allround Players on enjoyment (*p* `r format_p_inline(enj_pvp_elite$adj.p.value)`) (@fig-anova-boxplots).
+
+
+```{r}
+#| label: simple-slopes-functions
+#| message: false
+#| warning: false
+#| include: false
+
+# Function to calculate simple slopes for all player types
+calculate_all_simple_slopes <- function(model, outcome_name) {
+  # For robust mixed models, extract coefficients manually
+  coefs <- fixef(model)
+  vcov_matrix <- vcov(model)
+  
+  # Get player types
+  player_types <- levels(pvz_df_clustered$player_type)
+  
+  # Base effect of hours (for reference level)
+  hours_effect <- coefs["hours"]
+  hours_se <- sqrt(vcov_matrix["hours", "hours"])
+  
+  # Create results dataframe
+  results <- data.frame(
+    player_type = player_types[1],  # reference level
+    estimate = hours_effect,
+    std.error = hours_se,
+    statistic = hours_effect / hours_se,
+    p.value = 2 * pt(abs(hours_effect / hours_se), 
+                    df = nrow(pvz_df_clustered) - length(coefs), 
+                    lower.tail = FALSE),
+    stringsAsFactors = FALSE
+  )
+  
+  # Calculate for other player types
+  for (i in 2:length(player_types)) {
+    pt <- player_types[i]
+    interaction_term <- paste0("player_type", pt, ":hours")
+    
+    if (interaction_term %in% names(coefs)) {
+      # Calculate slope
+      slope <- hours_effect + coefs[interaction_term]
+      
+      # Calculate SE using delta method (simplified)
+      var_hours <- vcov_matrix["hours", "hours"]
+      var_inter <- vcov_matrix[interaction_term, interaction_term]
+      cov_hours_inter <- vcov_matrix["hours", interaction_term]
+      slope_se <- sqrt(var_hours + var_inter + 2*cov_hours_inter)
+      
+      # t-statistic and p-value
+      t_stat <- slope / slope_se
+      p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - length(coefs), lower.tail = FALSE)
+      
+      # Add to results
+      results <- rbind(results, data.frame(
+        player_type = pt,
+        estimate = slope,
+        std.error = slope_se,
+        statistic = t_stat,
+        p.value = p_val,
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+  
+  # Add confidence intervals and formatting
+  results <- results %>%
+    mutate(
+      outcome = outcome_name,
+      conf.low = estimate - 1.96 * std.error,
+      conf.high = estimate + 1.96 * std.error,
+      significant = p.value < 0.05,
+      sig = case_when(
+        p.value < 0.001 ~ "^†^",
+        p.value < 0.01 ~ "^†^",
+        p.value < 0.05 ~ "^†^",
+        TRUE ~ ""
+      )
+    )
+  
+  return(results)
+}
+
+# Function to create interaction plots for all player types
+create_interaction_plots <- function(model, outcome_name) {
+  # Extract fixed effects
+  fixed_effects <- fixef(model)
+  
+  # Get player types
+  player_types <- levels(pvz_df_clustered$player_type)
+  
+  # Create a grid of values for hours
+  hours_range <- range(pvz_df_clustered$hours, na.rm = TRUE)
+  hours_grid <- seq(from = hours_range[1], to = hours_range[2], length.out = 100)
+  
+  # Get the coefficient for hours (main effect)
+  hours_coef <- fixed_effects["hours"]
+  
+  # Create a dataframe to store predictions
+  predictions <- data.frame()
+  
+  # For each player type, calculate predicted values across hours range
+  for (i in 1:length(player_types)) {
+    pt <- player_types[i]
+    
+    # Calculate intercept
+    if (i == 1) {
+      # Reference level
+      intercept <- fixed_effects["(Intercept)"]
+      slope <- hours_coef
+    } else {
+      # Other levels
+      intercept <- fixed_effects["(Intercept)"] + fixed_effects[paste0("player_type", pt)]
+      interaction_term <- paste0("player_type", pt, ":hours")
+      slope <- hours_coef + fixed_effects[interaction_term]
+    }
+    
+    # Calculate predictions
+    pred <- intercept + slope * hours_grid
+    
+    # Add to predictions dataframe
+    predictions <- rbind(predictions, data.frame(
+      player_type = pt,
+      hours = hours_grid,
+      predicted = pred
+    ))
+  }
+  
+  # Create the plot
+  p <- ggplot(predictions, aes(x = hours, y = predicted, color = player_type)) +
+    geom_line(size = 1.2) +
+    geom_ribbon(aes(ymin = predicted - 1.96 * 0.5, ymax = predicted + 1.96 * 0.5, fill = player_type), alpha = 0.2) +
+    labs(
+      title = paste("Interaction Plot for", outcome_name),
+      x = "Hours Played",
+      y = outcome_name,
+      color = "Player Type",
+      fill = "Player Type"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank()
+    ) +
+    scale_color_brewer(palette = "Set2") +
+    scale_fill_brewer(palette = "Set2")
+  
+  return(p)
+}
+
+# Function to create Johnson-Neyman plot
+create_jn_plot <- function(model, moderator = "player_type", predictor = "hours", outcome_name) {
+  # For rlmerMod models, we'll use a custom approach
+  # This function creates a simplified version of Johnson-Neyman plot
+  
+  # Extract fixed effects
+  fixed_effects <- fixef(model)
+  vcov_matrix <- vcov(model)
+  
+  # Get player types
+  player_types <- levels(pvz_df_clustered$player_type)
+  
+  # Create a dataframe to store slopes and confidence intervals
+  jn_data <- data.frame(
+    player_type = player_types,
+    slope = numeric(length(player_types)),
+    se = numeric(length(player_types)),
+    lower_ci = numeric(length(player_types)),
+    upper_ci = numeric(length(player_types)),
+    stringsAsFactors = FALSE
+  )
+  
+  # Get the coefficient for hours (main effect)
+  hours_coef <- fixed_effects["hours"]
+  hours_se <- sqrt(vcov_matrix["hours", "hours"])
+  
+  # For each player type, calculate slope and CI
+  for (i in 1:length(player_types)) {
+    pt <- player_types[i]
+    
+    if (i == 1) {
+      # Reference level
+      jn_data$slope[i] <- hours_coef
+      jn_data$se[i] <- hours_se
+    } else {
+      # Other levels
+      interaction_term <- paste0("player_type", pt, ":hours")
+      slope <- hours_coef + fixed_effects[interaction_term]
+      
+      # Calculate SE using delta method (simplified)
+      var_hours <- vcov_matrix["hours", "hours"]
+      var_inter <- vcov_matrix[interaction_term, interaction_term]
+      cov_hours_inter <- vcov_matrix["hours", interaction_term]
+      slope_se <- sqrt(var_hours + var_inter + 2*cov_hours_inter)
+      
+      jn_data$slope[i] <- slope
+      jn_data$se[i] <- slope_se
+    }
+    
+    # Calculate 95% confidence intervals
+    jn_data$lower_ci[i] <- jn_data$slope[i] - 1.96 * jn_data$se[i]
+    jn_data$upper_ci[i] <- jn_data$slope[i] + 1.96 * jn_data$se[i]
+  }
+  
+  # Determine significance
+  jn_data$significant <- (jn_data$lower_ci > 0) | (jn_data$upper_ci < 0)
+  
+  # Create the plot
+  p <- ggplot(jn_data, aes(x = player_type, y = slope, color = significant)) +
+    geom_point(size = 3) +
+    geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+    labs(
+      title = paste("Conditional Effect of", predictor, "on", outcome_name),
+      subtitle = "by Player Type with 95% Confidence Intervals",
+      x = "Player Type",
+      y = paste("Effect of", predictor),
+      color = "Significant"
+    ) +
+    theme_minimal() +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5),
+      legend.position = "bottom",
+      panel.grid.minor = element_blank()
+    ) +
+    scale_color_manual(values = c("gray50", "blue"))
+  
+  return(p)
+}
+```
+
+```{r}
+#| label: wellbeing-simple-slopes
+#| message: false
+#| warning: false
+#| include: false
+
+# Calculate simple slopes for game-specific well-being model
+wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Well-being")
+
+# Create a formatted table for game-specific well-being simple slopes
+wellbeing_slopes_table <- wellbeing_slopes %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = case_when(
+      p.value < 0.001 ~ paste0("< .001", sig),
+      p.value < 0.05 ~ paste0(sprintf("%.3f", round(p.value, 3)), sig),
+      TRUE ~ sprintf("%.3f", round(p.value, 3))
+    ),
+    ci = paste0("[", round(conf.low, 3), ", ", round(conf.high, 3), "]")
+  ) %>%
+  select(`Player Type` = player_type, b = estimate, SE = std.error, t = statistic, p = p.value, `95% CI` = ci)
+```
+
+```{r}
+#| label: enjoyment-simple-slopes
+#| message: false
+#| warning: false
+#| include: false
+
+# Calculate simple slopes for enjoyment model
+enjoyment_slopes <- calculate_all_simple_slopes(rmodel_moderation_enjoyment, "Intrinsic Enjoyment")
+
+# Create a formatted table for enjoyment simple slopes
+enjoyment_slopes_table <- enjoyment_slopes %>%
+  mutate(
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = case_when(
+      p.value < 0.001 ~ paste0("< .001", sig),
+      p.value < 0.05 ~ paste0(sprintf("%.3f", round(p.value, 3)), sig),
+      TRUE ~ sprintf("%.3f", round(p.value, 3))
+    ),
+    ci = paste0("[", round(conf.low, 3), ", ", round(conf.high, 3), "]")
+  ) %>%
+  select(`Player Type` = player_type, b = estimate, SE = std.error, t = statistic, p = p.value, `95% CI` = ci)
+```
+
+```{r}
+#| label: wellbeing-pairwise-comparisons
+#| message: false
+#| warning: false
+#| include: false
+
+# Create pairwise comparison of slopes for game-specific well-being
+wellbeing_pairs <- data.frame(player_type1 = character(),
+                        player_type2 = character(),
+                        difference = numeric(),
+                        std.error = numeric(),
+                        statistic = numeric(),
+                        p.value = numeric(),
+                        stringsAsFactors = FALSE)
+
+player_types <- levels(pvz_df_clustered$player_type)
+for (i in 1:(length(player_types)-1)) {
+  for (j in (i+1):length(player_types)) {
+    pt1 <- player_types[i]
+    pt2 <- player_types[j]
+    
+    # Get slopes and standard errors
+    slope1 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt1]
+    slope2 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt2]
+    se1 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt1]
+    se2 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt2]
+    
+    # Calculate difference and standard error
+    diff <- slope1 - slope2
+    diff_se <- sqrt(se1^2 + se2^2)  # Simplified approach, assumes independence
+    
+    # Calculate test statistic and p-value
+    t_stat <- diff / diff_se
+    p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 10, lower.tail = FALSE)  # Approximate df
+    
+    # Add to results
+    wellbeing_pairs <- rbind(wellbeing_pairs, data.frame(
+      player_type1 = pt1,
+      player_type2 = pt2,
+      difference = diff,
+      std.error = diff_se,
+      statistic = t_stat,
+      p.value = p_val,
+      stringsAsFactors = FALSE
+    ))
+  }
+}
+
+# Format and display pairwise comparison table for subjective well-being
+wellbeing_pairs <- wellbeing_pairs %>%
+  mutate(
+    sig = case_when(
+      p.value < 0.001 ~ "^†^",
+      p.value < 0.01 ~ "^†^",
+      p.value < 0.05 ~ "^†^", 
+      TRUE ~ ""
+    ),
+    difference = round(difference, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = case_when(
+      p.value < 0.001 ~ paste0("< .001", sig),
+      p.value < 0.05 ~ paste0(sprintf("%.3f", round(p.value, 3)), sig),
+      TRUE ~ sprintf("%.3f", round(p.value, 3))
+    )
+  ) |>
+  rename(`Type 1` = player_type1, `Type 2` = player_type2, Diff = difference, SE = std.error, t = statistic, p = p.value)
+```
+
+```{r}
+#| label: enjoyment-pairwise-comparisons
+#| message: false
+#| warning: false
+#| include: false
+
+# Create pairwise comparison of slopes for enjoyment model
+enjoyment_pairs <- data.frame(player_type1 = character(),
+                              player_type2 = character(),
+                              difference = numeric(),
+                              std.error = numeric(),
+                              statistic = numeric(),
+                              p.value = numeric(),
+                              stringsAsFactors = FALSE)
+
+for (i in 1:(length(player_types)-1)) {
+  for (j in (i+1):length(player_types)) {
+    pt1 <- player_types[i]
+    pt2 <- player_types[j]
+    
+    # Get slopes and standard errors
+    slope1 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt1]
+    slope2 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt2]
+    se1 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt1]
+    se2 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt2]
+    
+    # Calculate difference and standard error
+    diff <- slope1 - slope2
+    diff_se <- sqrt(se1^2 + se2^2)  # Simplified approach, assumes independence
+    
+    # Calculate test statistic and p-value
+    t_stat <- diff / diff_se
+    p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 10, lower.tail = FALSE)  # Approximate df
+    
+    # Add to results
+    enjoyment_pairs <- rbind(enjoyment_pairs, data.frame(
+      player_type1 = pt1,
+      player_type2 = pt2,
+      difference = diff,
+      std.error = diff_se,
+      statistic = t_stat,
+      p.value = p_val,
+      stringsAsFactors = FALSE
+    ))
+  }
+}
+
+# Format and display pairwise comparison table for enjoyment model
+enjoyment_pairs <- enjoyment_pairs %>%
+  mutate(
+    sig = case_when(
+      p.value < 0.001 ~ "^†††^",
+      p.value < 0.01 ~ "^††^",
+      p.value < 0.05 ~ "^†^", 
+      TRUE ~ ""
+    ),
+    difference = round(difference, 3),
+    std.error = round(std.error, 3),
+    statistic = round(statistic, 3),
+    p.value = case_when(
+      p.value < 0.001 ~ paste0("< .001", sig),
+      p.value < 0.05 ~ paste0(sprintf("%.3f", round(p.value, 3)), sig),
+      TRUE ~ sprintf("%.3f", round(p.value, 3))
+    )
+  ) |>
+  rename(`Type 1` = player_type1, `Type 2` = player_type2, Diff = difference, SE = std.error, t = statistic, p = p.value)
+```
+
+```{r}
+#| label: fig-interaction-plots
+#| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across play styles. Left panel shows game-specific well-being (SPANE balance score); right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PVE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PVP Players show no significant relationship."
+#| fig-width: 12
+#| fig-height: 6
+#| code-summary: "Interaction plots for moderation analysis"
+#| message: false
+#| warning: false
+
+# Create scatter plots for total playtime vs. outcomes across player types with APA-style formatting
+wellbeing_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_game_balance, color = player_type)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, fullrange = TRUE) +
+  scale_color_brewer(palette = "Set2") +
+  scale_y_continuous(limits = c(-6, 6), breaks = seq(-6, 6, 2)) +
+  labs(
+    x = "Total Hours Played",
+    y = "SPANE Score",
+    color = "Play Style"
+  ) +
+  # Apply APA-style formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
+  )
+
+enjoyment_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = enjoyment, color = player_type)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2, fullrange = TRUE) +
+  scale_color_brewer(palette = "Set2") +
+  scale_y_continuous(limits = c(1, 7), breaks = seq(1, 7, 1)) +
+  labs(
+    x = "Total Hours Played",
+    y = "Enjoyment Score",
+    color = "Play Style"
+  ) +
+  # Apply APA-style formatting
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 12, face = "bold", hjust = 0),
+    plot.subtitle = element_text(size = 10, hjust = 0),
+    axis.title = element_text(size = 11),
+    axis.text = element_text(size = 10),
+    panel.grid.minor = element_blank(),
+    panel.border = element_rect(fill = NA, color = "black", size = 0.5),
+    panel.background = element_rect(fill = "white")
+  )
+
+# Combine the plots with common legend at bottom
+ggarrange(wellbeing_plot, enjoyment_plot, ncol = 2, common.legend = TRUE, legend = "bottom")
+```
+
+```{r}
+#| label: simple-slopes-inline-values
+#| echo: false
+
+# Extract simple slopes values for inline reporting
+# Wellbeing slopes
+wb_pve <- wellbeing_slopes |> filter(player_type == "Casual PVE Players")
+wb_pvp <- wellbeing_slopes |> filter(player_type == "Casual PVP Players")
+wb_elite <- wellbeing_slopes |> filter(player_type == "Elite Allround Players")
+
+# Enjoyment slopes  
+enj_pve <- enjoyment_slopes |> filter(player_type == "Casual PVE Players")
+enj_pvp <- enjoyment_slopes |> filter(player_type == "Casual PVP Players")
+enj_elite <- enjoyment_slopes |> filter(player_type == "Elite Allround Players")
+
+# Wellbeing pairwise comparisons (need numeric version before formatting)
+wb_pairs_numeric <- data.frame(player_type1 = character(),
+                               player_type2 = character(),
+                               difference = numeric(),
+                               std.error = numeric(),
+                               statistic = numeric(),
+                               p.value = numeric(),
+                               stringsAsFactors = FALSE)
+
+for (i in 1:(length(player_types)-1)) {
+  for (j in (i+1):length(player_types)) {
+    pt1 <- player_types[i]
+    pt2 <- player_types[j]
+    slope1 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt1]
+    slope2 <- wellbeing_slopes$estimate[wellbeing_slopes$player_type == pt2]
+    se1 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt1]
+    se2 <- wellbeing_slopes$std.error[wellbeing_slopes$player_type == pt2]
+    diff <- slope1 - slope2
+    diff_se <- sqrt(se1^2 + se2^2)
+    t_stat <- diff / diff_se
+    p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 6, lower.tail = FALSE)
+    wb_pairs_numeric <- bind_rows(wb_pairs_numeric, data.frame(
+      player_type1 = pt1, player_type2 = pt2,
+      difference = diff, std.error = diff_se, statistic = t_stat, p.value = p_val
+    ))
+  }
+}
+
+# Enjoyment pairwise comparisons
+enj_pairs_numeric <- data.frame(player_type1 = character(),
+                                player_type2 = character(),
+                                difference = numeric(),
+                                std.error = numeric(),
+                                statistic = numeric(),
+                                p.value = numeric(),
+                                stringsAsFactors = FALSE)
+
+for (i in 1:(length(player_types)-1)) {
+  for (j in (i+1):length(player_types)) {
+    pt1 <- player_types[i]
+    pt2 <- player_types[j]
+    slope1 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt1]
+    slope2 <- enjoyment_slopes$estimate[enjoyment_slopes$player_type == pt2]
+    se1 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt1]
+    se2 <- enjoyment_slopes$std.error[enjoyment_slopes$player_type == pt2]
+    diff <- slope1 - slope2
+    diff_se <- sqrt(se1^2 + se2^2)
+    t_stat <- diff / diff_se
+    p_val <- 2 * pt(abs(t_stat), df = nrow(pvz_df_clustered) - 6, lower.tail = FALSE)
+    enj_pairs_numeric <- bind_rows(enj_pairs_numeric, data.frame(
+      player_type1 = pt1, player_type2 = pt2,
+      difference = diff, std.error = diff_se, statistic = t_stat, p.value = p_val
+    ))
+  }
+}
+
+# Helper function to format p-values for inline text
+fmt_p <- function(p) {
+  if (p < 0.001) return("< .001")
+  sprintf("= %.3f", p)
+}
+```
+
+To further probe the interaction, simple slopes analyses decomposed the playtime–outcome association within each playstyle (@fig-interaction-plots). Only Elite Allround Players showed a significant positive slope for both well-being (b = `r round(wb_elite$estimate, 3)`, *p* `r fmt_p(wb_elite$p.value)`) and enjoyment (b = `r round(enj_elite$estimate, 3)`, *p* `r fmt_p(enj_elite$p.value)`). Slopes for Casual PVE Players (well-being: b = `r round(wb_pve$estimate, 3)`, *p* `r fmt_p(wb_pve$p.value)`; enjoyment: b = `r round(enj_pve$estimate, 3)`, *p* `r fmt_p(enj_pve$p.value)`) and Casual PVP Players (well-being: b = `r round(wb_pvp$estimate, 3)`, *p* `r fmt_p(wb_pvp$p.value)`; enjoyment: b = `r round(enj_pvp$estimate, 3)`, *p* `r fmt_p(enj_pvp$p.value)`) were not significant. Critically, pairwise comparisons of slopes revealed no significant differences between any pair of playstyles (all *p*s > .05), confirming that the playtime–outcome gradient does not differ meaningfully across groups. Taken together, these results indicate that playstyle is associated with different baseline levels of well-being and enjoyment but does not moderate the relationship between playtime and either outcome.
+
+# Discussion
+
+This study addressed three questions: whether distinct playstyles can be identified from in-game behavioural telemetry within a single game, whether players with different playstyles report different levels of well-being and enjoyment, and whether the association between playtime and these outcomes differs across playstyles. The findings clearly support the first two propositions but not the third. Three distinct playstyles were recoverable from behavioural telemetry, and these playstyles were associated with significant differences in baseline well-being and enjoyment. However, we found no evidence that playstyle moderated the playtime–outcome relationship.
+
+The three playstyles identified through PAM clustering, Casual PVE Players, Elite Allround Players, and Casual PVP Players, are conceptually consistent with player segments previously identified in other shooter titles. @drachenGunsSwordsData2012 identified player types in *Battlefield 2: Bad Company 2* that parallel our casual and elite profiles, and @melhartYourGameplaySays2019 found comparable segments in *Tom Clancy's The Division*, including PVE-focused and competitively skilled players. The recurrence of these patterns across different games suggests that such typologies may capture fundamental approaches to gameplay rather than game-specific idiosyncrasies. This finding directly supports the heterogeneous exposures framework [@ballouHowVideoGames2025]: even within a single title, players encounter qualitatively different game-centred exposures depending on the modes they select and the mechanics they engage with.
+
+```{r}
+#| label: discussion-statistics
+#| echo: false
+# Extract coefficients for inline reporting
+coef_pvp_wellbeing <- get_model_coef(rmodel_game, "player_typeCasual PVP Players")
+coef_pvp_enjoyment <- get_model_coef(rmodel_enjoyment, "player_typeCasual PVP Players")
+coef_elite_wellbeing <- get_model_coef(rmodel_game, "player_typeElite Allround Players")
+coef_elite_enjoyment <- get_model_coef(rmodel_enjoyment, "player_typeElite Allround Players")
+coef_hours_game <- get_model_coef(rmodel_moderation_game, "hours")
+coef_hours_enjoyment <- get_model_coef(rmodel_moderation_enjoyment, "hours")
+```
+
+Our robust mixed-effects models and complementary ANOVAs converged on a consistent pattern: Casual PVE Players reported higher game-specific well-being and enjoyment than Casual PVP Players, while Elite Allround Players fell between the two groups on enjoyment but were also lower than Casual PVE Players on well-being. These baseline differences indicate that different styles of engagement with the same game are associated with different psychological experiences, even after controlling for playtime, age, and gender.
+
+The higher well-being among Casual PVE Players is noteworthy given that Elite Allround Players demonstrated substantially higher performance metrics across all modes. If competence alone drove well-being, the most skilled players should report the most positive experiences. Prior work does suggest that competence satisfaction positively predicts well-being in gaming contexts [@klimmt2009a; @przybylskiMotivationalModelVideo2010; @tamboriniMediaEnjoymentNeed2011; @ryanHappinessHumanPotentials2001]. However, our findings suggest that the *context* in which competence is exercised matters as well, consistent with the IMP's emphasis on both mechanics and context as jointly shaping player experience [@elsonMoreStoriesButtons2014]. Cooperative PVE environments may afford a subjective experience that is more exploratory than competitive PVP modes, potentially increasing perceived autonomy over how to engage with game content. This interpretation is speculative and requires direct measurement of need satisfaction across playstyles in future work, but it aligns with the broader pattern that *how* players engage with a game is more informative for average well-being than *how much* they play.
+
+Contrary to our expectations, we found no evidence that playstyle moderates the association between playtime and well-being or enjoyment. Interaction terms were consistently non-significant, and pairwise comparisons of simple slopes confirmed that the playtime gradient did not differ across playstyles. Although Elite Allround Players showed the only significant positive simple slope, this did not translate into a significant difference from the slopes of other groups.
+
+This null finding has important implications for the playtime debate. Recent large-scale digital trace studies have established that playtime alone is not meaningfully associated with well-being for most players [@ballouOpenPlayLongitudinal2025; @johannesVideoGamePlay2021; @vuorreTimeSpentPlaying2022]. One plausible explanation for these aggregate null findings is that playtime effects are heterogeneous—positive for some styles of play, negative for others, and averaging to near-zero overall. Our results do not support this explanation; the playtime–well-being slope was consistently small and did not vary by playstyle. The present data therefore cannot be used to argue that the playtime paradigm is inadequate because it overlooks differential playtime effects across player types.
+
+Perhaps the more parsimonious interpretation is simply that playtime is not a meaningful determinant of well-being in the first place, not because the relationship is masked by heterogeneity, but because time spent playing is too blunt a measure to capture what matters. This reading aligns with @ballouPerceivedValueVideo2025, who found that players' subjective evaluations of how well gaming fits their life predicted well-being an order of magnitude more strongly than playtime itself. Similarly, in our data, the baseline well-being differences between playstyles substantially exceed any playtime-related effects. The consistent null slopes across all three playstyles thus converge with the broader accumulating evidence that quality of play determines the wellbeing outcomes, not the quantity.
+
+What the data *do* show is that the playtime paradigm is incomplete in a critical respect: it misses qualitative differences in play that are associated with meaningful variation in average well-being. Playtime treats all minutes of play as equivalent, but players who devote their time to cooperative PVE gameplay report higher well-being than those who spend comparable time in competitive PVP modes. This between-group difference in levels—rather than in slopes—is the primary empirical contribution of the present study. In this respect, our results complement rather than contradict platform-level research: playtime may indeed be uninformative as a predictor of well-being, but the behavioural composition of that playtime is not.
+
+Furthermore, this study addresses the fundamental trade-off in the current generation of digital trace research on games and well-being between breadth and depth. Where platform-level datasets capture play across large numbers of games, long time horizons, and diverse platforms, offering unprecedented breadth in behavioural coverage [@ballouOpenPlayLongitudinal2025; @ballouPerceivedValueVideo2025; @vuorreTimeSpentPlaying2022]. Yet these approaches typically lack behavioural granularity regarding what happens *within* a game—whether players compete or cooperate, what roles they adopt, and how they perform under different in-game demands. This matters because in-game interaction patterns are precisely the level at which many plausible well-being-relevant mechanisms operate, including social connectedness, competence experiences, and stress from competitive evaluation [@elsonMoreStoriesButtons2014]. By sacrificing the breadth of platform-level work for the depth of session-level behavioural profiling within a single title, we demonstrate what becomes visible at finer resolution: meaningful behavioural subgroups with distinct well-being correlates.
+
+Still, neither approach alone provides a complete picture, and we see strong potential in future study designs that combine them. A platform-level dataset augmented with targeted in-game behavioural telemetry from selected titles could capture *both* the breadth of cross-game play patterns *and* the depth of within-game behavioural profiles, allowing researchers to test whether the playstyle–wellbeing associations documented here generalise beyond a single game or whether they are moderated by platform- and genre-level factors. We also see value in combining digital trace data with experimental designs that would enable stronger causal inference. For example, randomising players to specific game modes or restricting play to certain conditions to examine effects on well-being. Digital trace data is uniquely suited to complement such designs because it allows researchers to monitor adherence (whether participants follow assigned play patterns) and substitution (what games or modes participants switch to under intervention), addressing key threats to validity in field experiments on gaming behaviour.
+
+## Limitations
+
+Several limitations constrain interpretation of these findings. First, the study examines a single game with a specific player population recruited by the developer, and we lack evidence that the identified playstyles generalise to other games, genres, or player populations. Unlike personality traits, playstyles may be contextual and fluid, varying with game design and a player's development over time. Second, while our behavioural telemetry provided comprehensive metrics on core gameplay mechanics and performance, it captured only a subset of potential in-game behaviours. Notably absent were indicators of social interaction—an important dimension of multiplayer gaming experiences that the IMP identifies as part of the contextual layer of player experience [@elsonMoreStoriesButtons2014]. Third, the cross-sectional design precludes causal inference. The observed associations between playstyle and well-being may reflect selection effects (e.g., players with higher baseline well-being may gravitate toward cooperative play) rather than the influence of play behaviour on outcomes. Fourth, the silhouette coefficient for the three-cluster solution, while above the threshold for meaningful structure, fell at the boundary between weak and strong clustering, suggesting that playstyle variation in this game may be better described as a continuum than as discrete types. Finally, while we have proposed mechanistic interpretations through the lens of the IMP and need satisfaction theory, these remain speculative—future work should directly measure autonomy, competence, and relatedness across playstyles to test whether these mediate the observed associations.
+
+## Conclusion
+
+This study demonstrates that players of the same game engage with it in qualitatively different ways and that these differences are associated with meaningful variation in well-being and enjoyment. However, we found no evidence that playstyle moderates the playtime–well-being relationship. These findings contribute to digital trace research in two respects. First, they provide empirical support for the view that gameplay constitutes heterogeneous exposures with distinct psychological correlates, even within a single title. Second, they demonstrate a practical methodology, telemetry-driven profiling, for incorporating in-game behavioural depth into well-being research. At the same time, the null moderation results caution against overclaiming, the present data show that *what* players do is associated with how they feel, but not that different styles of play change *how playtime itself relates to well-being*. As richer forms of in-game data become available through industry–academic partnerships, researchers should dig deeper and continue to develop more granular, theory-driven approaches to understanding player experience and its relationship to psychological outcomes.
+
+# References
+
+::: {#refs}
+:::
+
+# Appendix
+
+## Appendix 1: Cluster Tendency Assessment
+
+```{r}
+#| label: appendix_cluster_tendency
+#| fig.width: 12
+#| fig.height: 10
+#| echo: false
+#| warning: false
+#| message: false
+#| fig.cap: "Cluster tendency assessment comparing player data (left column) to random data (right column). Top row: Visual Assessment of Cluster Tendency (VAT) ordered dissimilarity matrices. Bottom row: PCA visualizations. The player data shows clear clustering structure (dark blocks in VAT, visible groupings in PCA) while random data shows no such patterns."
+
+# Combine all four plots into a 2x2 grid
+grid.arrange(
+  dist_plot_real + labs(title = "A: VAT - Player Data"),
+  dist_plot_random + labs(title = "B: VAT - Random Data"),
+  pca_plot_real + labs(title = "C: PCA - Player Data"),
+  pca_plot_random + labs(title = "D: PCA - Random Data"),
+  ncol = 2, nrow = 2
+)
+```
+
+## Appendix 2: Cluster Validation Plots
+
+```{r}
+#| label: appendix_cluster_validation_plots
+#| fig.width: 6
+#| fig.height: 4
+#| echo: false
+#| warning: false
+#| message: false
+#| fig.cap: "Cluster validation using the Calinski-Harabasz Index across k = 2 to 10."
+
+# Display CH-index plot in appendix
+p_pam_ch
+```
+
+The plot above shows the validation method used to determine the optimal number of clusters. The Calinski-Harabasz Index evaluates cluster validity based on the ratio of between-cluster to within-cluster variance, with higher values indicating better separation between clusters. The index indicated that k = 3 was the optimal number of clusters for our player data.
+
+## Appendix 3: Statistical Tables for Interpretation
+
+```{r}
+#| label: appendix_stat_tables_prep
+#| include: false
+#| cache: false
+
+fmt_p_table <- function(p) {
+  case_when(
+    is.na(p) ~ "NA",
+    p < 0.001 ~ "< .001",
+    TRUE ~ sprintf("%.3f", p)
+  )
+}
+
+tidy_rlmer_table <- function(model, outcome, model_name) {
+  as.data.frame(coef(summary(model))) %>%
+    tibble::rownames_to_column("term") %>%
+    as_tibble() %>%
+    rename(
+      estimate = Estimate,
+      std_error = `Std. Error`,
+      t_value = `t value`
+    ) %>%
+    mutate(
+      outcome = outcome,
+      model = model_name,
+      p_approx = 2 * pnorm(-abs(t_value)),
+      significant = p_approx < 0.05
+    )
+}
+
+term_map <- c(
+  "(Intercept)" = "Intercept",
+  "player_typeCasual PVP Players" = "Casual PVP vs Casual PVE",
+  "player_typeElite Allround Players" = "Elite Allround vs Casual PVE",
+  "hours" = "Hours played",
+  "genderMale" = "Gender: Male (vs Female)",
+  "genderOther" = "Gender: Other (vs Female)",
+  "genderPrefer not to say" = "Gender: Undisclosed (vs Female)",
+  "age" = "Age",
+  "player_typeCasual PVP Players:hours" = "Casual PVP × Hours",
+  "player_typeElite Allround Players:hours" = "Elite Allround × Hours"
+)
+
+make_term_label <- function(term) {
+  dplyr::recode(term, !!!term_map, .default = term)
+}
+
+tbl_main_model <- bind_rows(
+  tidy_rlmer_table(rmodel_game, "Well-being (SPANE)", "Main effects"),
+  tidy_rlmer_table(rmodel_enjoyment, "Enjoyment", "Main effects")
+) %>%
+  mutate(term_label = make_term_label(term)) %>%
+  filter(term != "(Intercept)")
+
+tbl_moderation_model <- bind_rows(
+  tidy_rlmer_table(rmodel_moderation_game, "Well-being (SPANE)", "Moderation"),
+  tidy_rlmer_table(rmodel_moderation_enjoyment, "Enjoyment", "Moderation")
+) %>%
+  mutate(term_label = make_term_label(term)) %>%
+  filter(term != "(Intercept)")
+
+tbl_anova <- all_anova_results %>%
+  filter(term == "player_type") %>%
+  mutate(
+    outcome = recode(
+      variable,
+      "spane_game_balance" = "Well-being (SPANE)",
+      "enjoyment" = "Enjoyment"
+    ),
+    significant = p.value < 0.05
+  )
+
+tbl_posthoc <- bind_rows(
+  wellbeing_posthoc %>% mutate(outcome = "Well-being (SPANE)"),
+  enjoyment_posthoc %>% mutate(outcome = "Enjoyment")
+) %>%
+  mutate(significant = adj.p.value < 0.05)
+
+tbl_simple_slopes <- bind_rows(
+  wellbeing_slopes %>% mutate(outcome = "Well-being (SPANE)"),
+  enjoyment_slopes %>% mutate(outcome = "Enjoyment")
+) %>%
+  mutate(significant = p.value < 0.05)
+
+tbl_slope_pairs <- bind_rows(
+  wb_pairs_numeric %>% mutate(outcome = "Well-being (SPANE)"),
+  enj_pairs_numeric %>% mutate(outcome = "Enjoyment")
+) %>%
+  mutate(significant = p.value < 0.05)
+
+tbl_significant_findings <- bind_rows(
+  tbl_main_model %>%
+    filter(significant) %>%
+    transmute(
+      analysis = model,
+      outcome,
+      test = term_label,
+      effect = estimate,
+      statistic = t_value,
+      p_value = p_approx
+    ),
+  tbl_moderation_model %>%
+    filter(significant) %>%
+    transmute(
+      analysis = model,
+      outcome,
+      test = term_label,
+      effect = estimate,
+      statistic = t_value,
+      p_value = p_approx
+    ),
+  tbl_anova %>%
+    filter(significant) %>%
+    transmute(
+      analysis = "ANOVA",
+      outcome,
+      test = "Overall play-style effect",
+      effect = eta_squared,
+      statistic = statistic,
+      p_value = p.value
+    ),
+  tbl_posthoc %>%
+    filter(significant) %>%
+    transmute(
+      analysis = "Post-hoc (Tukey HSD)",
+      outcome,
+      test = contrast,
+      effect = estimate,
+      statistic = NA_real_,
+      p_value = adj.p.value
+    ),
+  tbl_simple_slopes %>%
+    filter(significant) %>%
+    transmute(
+      analysis = "Simple slopes",
+      outcome,
+      test = player_type,
+      effect = estimate,
+      statistic = statistic,
+      p_value = p.value
+    ),
+  tbl_slope_pairs %>%
+    filter(significant) %>%
+    transmute(
+      analysis = "Pairwise slope differences",
+      outcome,
+      test = paste(player_type1, "vs", player_type2),
+      effect = difference,
+      statistic = statistic,
+      p_value = p.value
+    )
+) %>%
+  arrange(analysis, outcome)
+```
+
+```{r}
+#| label: appendix_table_main_effects
+#| echo: false
+#| warning: false
+#| message: false
+
+tbl_main_model %>%
+  transmute(
+    Outcome = outcome,
+    Term = term_label,
+    Estimate = round(estimate, 3),
+    SE = round(std_error, 3),
+    t = round(t_value, 3),
+    `Approx. p` = fmt_p_table(p_approx),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Main-Effects Robust Mixed Models (Approximate Significance)") %>%
+  format_tt(digits = 3)
+```
+
+```{r}
+#| label: appendix_table_moderation
+#| echo: false
+#| warning: false
+#| message: false
+
+tbl_moderation_model %>%
+  transmute(
+    Outcome = outcome,
+    Term = term_label,
+    Estimate = round(estimate, 3),
+    SE = round(std_error, 3),
+    t = round(t_value, 3),
+    `Approx. p` = fmt_p_table(p_approx),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Moderation Models (Play Style × Hours; Approximate Significance)") %>%
+  format_tt(digits = 3)
+```
+
+```{r}
+#| label: appendix_table_anova_posthoc
+#| echo: false
+#| warning: false
+#| message: false
+
+tbl_anova %>%
+  transmute(
+    Outcome = outcome,
+    `df1` = df,
+    `df2` = df_residual,
+    F = round(statistic, 2),
+    p = fmt_p_table(p.value),
+    `Eta-squared` = round(eta_squared, 3),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Omnibus ANOVA Tests by Outcome") %>%
+  format_tt(digits = 3)
+
+tbl_posthoc %>%
+  transmute(
+    Outcome = outcome,
+    Contrast = contrast,
+    Estimate = round(estimate, 3),
+    `CI Low` = round(conf.low, 3),
+    `CI High` = round(conf.high, 3),
+    `Adj. p` = fmt_p_table(adj.p.value),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Post-hoc Tukey HSD Comparisons by Outcome") %>%
+  format_tt(digits = 3)
+```
+
+```{r}
+#| label: appendix_table_slopes
+#| echo: false
+#| warning: false
+#| message: false
+
+tbl_simple_slopes %>%
+  transmute(
+    Outcome = outcome,
+    `Play Style` = player_type,
+    b = round(estimate, 3),
+    SE = round(std.error, 3),
+    t = round(statistic, 3),
+    p = fmt_p_table(p.value),
+    `CI Low` = round(conf.low, 3),
+    `CI High` = round(conf.high, 3),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Simple Slopes by Play Style and Outcome") %>%
+  format_tt(digits = 3)
+
+tbl_slope_pairs %>%
+  transmute(
+    Outcome = outcome,
+    Contrast = paste(player_type1, "vs", player_type2),
+    Diff = round(difference, 3),
+    SE = round(std.error, 3),
+    t = round(statistic, 3),
+    p = fmt_p_table(p.value),
+    Significant = if_else(significant, "Yes", "No")
+  ) %>%
+  tt(caption = "Pairwise Differences Between Simple Slopes") %>%
+  format_tt(digits = 3)
+```
+
+```{r}
+#| label: appendix_table_significant_findings
+#| echo: false
+#| warning: false
+#| message: false
+
+tbl_significant_findings %>%
+  transmute(
+    Analysis = analysis,
+    Outcome = outcome,
+    Test = test,
+    Effect = round(effect, 3),
+    Statistic = round(statistic, 3),
+    p = fmt_p_table(p_value)
+  ) %>%
+  tt(caption = "Significant Findings Summary (p < .05)") %>%
+  format_tt(digits = 3)
+```
+
+These appendix tables summarize all model terms, omnibus tests, post-hoc contrasts, simple slopes, and pairwise slope differences to support interpretation of statistically significant findings. For robust mixed-effects models (`rlmer`), p-values are reported as normal-approximation values derived from t-statistics and should be interpreted as approximate.

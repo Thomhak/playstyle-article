@@ -1,0 +1,1069 @@
+---
+title: "Player Playstyle Data Preprocessing"
+author: "Thomas Hakman"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    theme: flatly
+    fig-width: 8
+    fig-height: 6
+execute:
+  echo: true
+  message: false
+  warning: false
+  cache: false
+editor: visual
+---
+
+```{r setup}
+#| label: setup
+#| include: false
+
+# Set global options
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  cache = FALSE,
+  fig.path = "figures/"
+)
+```
+
+# Introduction
+
+This document processes player telemetry and survey data from Plants vs. Zombies: Battle for Neighborville. The preprocessing steps prepare the data for analysis of the relationship between playtime, playstyle, and well-being outcomes.
+
+# Data Preparation
+
+## Load Packages
+
+```{r packages}
+#| label: load-packages
+# Install pacman if not already installed
+if (!require("pacman")) install.packages("pacman")
+
+# Load required packages using pacman
+pacman::p_load(
+  tidyverse,  # For data manipulation and visualization
+  here,       # For project-relative file paths
+  lubridate,  # For date/time handling
+  scales,     # For visualization scaling
+  janitor,    # For data cleaning
+  magrittr,   # For additional pipe operators
+  psych,      # For psychological statistics
+  readxl,     # For reading Excel files
+  knitr       # For dynamic report generation
+)
+```
+
+## Load Helper Functions
+
+```{r helper-functions}
+#| label: helper-functions
+
+# Helper functions for PvZ data analysis
+# These functions support the main preprocessing steps
+
+# Function to read both waves of telemetry data into a single table
+read_both_waves <- function(stub = "OII_PVZ_Authentications", data_dir = "data/raw/ea", ...) {
+  # Find files matching the pattern
+  files <- list.files(
+    here::here(data_dir), pattern = stub, full.names = TRUE
+  )
+  
+  # Validate that files were found
+  if (length(files) == 0) {
+    stop(
+      "No files found matching pattern: ", stub, " in ", data_dir, "\n",
+      "Please download data from: https://osf.io/cjd6z/files/4gp3r"
+    )
+  }
+  
+  # Filenames of wave 1 and 2 files
+  files %>% 
+    # Put wave 1 first (they are in reverse order)
+    rev() %>% 
+    # Read into a list of data frames
+    purrr::map(readr::read_csv, ...) %>% 
+    # Bind into one data frame with wave ID
+    dplyr::bind_rows(.id = "wave")
+}
+
+# Function to create performance metrics from player data
+calculate_performance_metrics <- function(df, prefix = "total") {
+  # Handle cases where denominators might be zero
+  df <- df %>%
+    dplyr::mutate(
+      # Set death count to 1 if 0 to avoid division by zero
+      dplyr::across(
+        dplyr::contains("death_count"), 
+        ~ ifelse(.x == 0, 1, .x)
+      )
+    )
+  
+  # Create column names based on prefix
+  kill_count_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "kill_count")
+  death_count_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "death_count")
+  shots_hit_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "shots_hit")
+  shots_fired_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "shots_fired")
+  crit_hit_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "critical_hit_count")
+  damage_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "damage_dealt")
+  sessions_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "sessions")
+  seconds_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "seconds")
+  score_col <- paste0(prefix, ifelse(prefix == "", "", "_"), "score")
+  
+  # Calculate and return metrics
+  df %>%
+    dplyr::mutate(
+      # KD ratio
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "kd") := 
+        .data[[kill_count_col]] / .data[[death_count_col]],
+      
+      # Hit accuracy
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "hit_accuracy") := 
+        .data[[shots_hit_col]] / .data[[shots_fired_col]],
+      
+      # Critical hit ratio
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "crit_ratio") := 
+        .data[[crit_hit_col]] / .data[[shots_hit_col]],
+      
+      # Damage per second
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "dps") := 
+        .data[[damage_col]] / .data[[seconds_col]],
+      
+      # Damage per game
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "average_damage") := 
+        .data[[damage_col]] / .data[[sessions_col]],
+      
+      # Score per second
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "sps") := 
+        .data[[score_col]] / .data[[seconds_col]],
+      
+      # Score per game
+      !!paste0(prefix, ifelse(prefix == "", "", "_"), "average_score") := 
+        .data[[score_col]] / .data[[sessions_col]]
+    ) %>%
+    # Replace NaN with 0
+    dplyr::mutate(
+      dplyr::across(
+        tidyselect::everything(), 
+        ~ ifelse(is.nan(.x), 0, .x)
+      )
+    )
+}
+
+# Function to summarize mode-specific playing time
+summarize_mode_hours <- function(df, mode_col, start_col = "game_start_time", end_col = "game_end_time") {
+  df %>%
+    dplyr::filter(.data[[mode_col]] == 1) %>%
+    dplyr::mutate(duration = .data[[end_col]] - .data[[start_col]]) %>%
+    dplyr::mutate(seconds = as.numeric(duration)) %>%
+    dplyr::group_by(player_id) %>%
+    dplyr::summarise(
+      seconds = sum(seconds, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    dplyr::mutate(hours = seconds / 60 / 60) %>%
+    dplyr::rename_with(
+      ~ paste0(gsub("_session", "", mode_col), "_", .),
+      c(seconds, hours)
+    )
+}
+
+# Function to calculate SPANE scales
+calculate_spane <- function(df, prefix = "spane") {
+  positive_items <- c(1, 3, 5, 7, 10, 12)
+  negative_items <- c(2, 4, 6, 8, 9, 11)
+  
+  df %>%
+    dplyr::mutate(
+      # Positive affect
+      !!paste0(prefix, "_positive") := rowMeans(
+        dplyr::select(
+          .,
+          paste0(prefix, "_", positive_items)
+        ),
+        na.rm = TRUE
+      ),
+      # Negative affect
+      !!paste0(prefix, "_negative") := rowMeans(
+        dplyr::select(
+          .,
+          paste0(prefix, "_", negative_items)
+        ),
+        na.rm = TRUE
+      ),
+      # Affect balance
+      !!paste0(prefix, "_balance") := .data[[paste0(prefix, "_positive")]] - 
+        .data[[paste0(prefix, "_negative")]]
+    )
+}
+
+# Function to create motivation scales
+calculate_motivation_scales <- function(df) {
+  df %>%
+    dplyr::mutate(
+      autonomy = rowMeans(
+        dplyr::select(., dplyr::starts_with("autonomy_")), 
+        na.rm = TRUE
+      ),
+      competence = rowMeans(
+        dplyr::select(., dplyr::starts_with("competence_")), 
+        na.rm = TRUE
+      ),
+      relatedness = rowMeans(
+        dplyr::select(., dplyr::starts_with("relatedness_")), 
+        na.rm = TRUE
+      ),
+      enjoyment = rowMeans(
+        dplyr::select(., dplyr::starts_with("enjoyment_")), 
+        na.rm = TRUE
+      ),
+      extrinsic = rowMeans(
+        dplyr::select(., dplyr::starts_with("extrinsic_")), 
+        na.rm = TRUE
+      )
+    )
+}
+```
+
+## Data Source and Download Instructions
+
+The data comes from a study conducted by EA and the Oxford Internet Institute investigating the relationship between video game play and well-being.
+
+**Data Repository**: <https://osf.io/cjd6z/>
+
+**Direct Download**: <https://osf.io/cjd6z/files/4gp3r>
+
+### To Download the Data:
+
+1.  Visit the OSF project page: <https://osf.io/cjd6z/>
+2.  Download the complete dataset from: <https://osf.io/cjd6z/files/4gp3r>
+3.  Extract the downloaded files to `data/raw/ea/` in the project directory
+4.  The data directory should contain:
+    -   `Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx` (survey data)
+    -   `OII_PVZ_Authentications_*.csv` (authentication logs)
+    -   `OII_PVZ_Character_*.csv` (character performance data)
+    -   `OII_PVZ_Game_Time_*.csv` (session timing data)
+
+### Citation
+
+If you use this data, please cite the original study:
+
+> Johannes, N., Vuorre, M., Magnusson, K., & Przybylski, A. K. (2021). Video game play is positively correlated with well-being. *Royal Society Open Science*, 8(2), 202049. <https://doi.org/10.1098/rsos.202049>
+
+## Load Raw Data
+
+```{r raw-data-paths}
+#| label: raw-data-paths
+
+# Store all file paths in a central location for easy updates
+data_paths <- list(
+  survey = here("data/raw/ea/Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx"),
+  telemetry_dir = here("data/raw/ea")
+)
+
+# Check if data directory exists
+if (!dir.exists(data_paths$telemetry_dir)) {
+  stop(
+    "Data directory not found: ", data_paths$telemetry_dir, "\n",
+    "Please download the data from: https://osf.io/cjd6z/files/4gp3r\n",
+    "Extract to: data/raw/ea/"
+  )
+}
+
+# Check if survey file exists
+if (!file.exists(data_paths$survey)) {
+  stop(
+    "Survey file not found: ", data_paths$survey, "\n",
+    "Please download the data from: https://osf.io/cjd6z/files/4gp3r\n",
+    "Extract to: data/raw/ea/"
+  )
+}
+
+# List available telemetry files
+telemetry_files <- list.files(
+  data_paths$telemetry_dir, 
+  pattern = "OII_PVZ_", 
+  full.names = TRUE
+)
+
+# Validate that we have the required telemetry files
+required_patterns <- c("Authentications", "Character", "Game_Time")
+for (pattern in required_patterns) {
+  matching_files <- grep(pattern, telemetry_files, value = TRUE)
+  if (length(matching_files) == 0) {
+    stop(
+      "Missing required telemetry file matching pattern: ", pattern, "\n",
+      "Please download the complete dataset from: https://osf.io/cjd6z/files/4gp3r"
+    )
+  }
+}
+
+cat("✓ All required data files found\n")
+cat("Survey file:", data_paths$survey, "\n")
+cat("Telemetry files:", length(telemetry_files), "files\n")
+```
+
+## Load Survey Data
+
+```{r survey-load}
+#| label: survey-load
+
+survey <- read_excel(data_paths$survey)
+
+# Validate survey data structure
+expected_cols <- c("UID", "date", "Q1", "Q2", "Q3", "hCountry")
+missing_cols <- setdiff(expected_cols, names(survey))
+if (length(missing_cols) > 0) {
+  stop(
+    "Survey data is missing expected columns: ", 
+    paste(missing_cols, collapse = ", "), "\n",
+    "Please verify you have the correct survey file."
+  )
+}
+
+survey <- survey %>% 
+  mutate(
+    # Ensure date data type
+    date = mdy_hm(date),
+    # Additional date variable for filtering telemetry
+    start_date = date
+  ) %>% 
+  # Rename ID column to match telemetry files
+  rename(player_id = UID)
+
+cat("✓ Survey data loaded:", nrow(survey), "participants\n")
+```
+
+## Clean Survey Data
+
+```{r survey-clean}
+#| label: survey-clean
+
+# Rename variables with meaningful names
+survey <- 
+  survey |> 
+  dplyr::select(
+    # meta-info
+    player_id,
+    start_date, date,
+    survey_duration = qtime,
+    of_age = Q2,
+    consent = Q3,
+    
+    # demographics
+    played = Q1,
+    country = hCountry,
+    survey_language = PRELANG,
+    age = D1,
+    gender = D2,
+    gender_other = D2r3oe,
+    experience = D3,
+    
+    # well-being
+    starts_with("A1"), # general well-being in the two weeks
+    straightliner_spane = hA1Straight,
+    
+    # motivations
+    played_with_others = NSat1, # filter question for relatedness items
+    NSat2r1:NSat2r3,
+    NSat2r4:NSat2r6,
+    NSat2r7:NSat2r9,
+    NSat2r10:NSat2r13,
+    NSat2r14:NSat2r17,
+    straightliner_motivations = hNSat2Straight,
+    
+    # self-reported play
+    active_play_hours = GT1c1,
+    active_play_minutes = GT1c2,
+    within_estimate = GT2,
+    between_estimate = GT3,
+    starts_with("GT4")
+  ) |>
+  rename_with(~str_replace(.x, "A1r", "spane_"), starts_with("A1")) |>
+  rename_with(~str_replace(.x, "NSat2r", "autonomy_"), NSat2r1:NSat2r3) |>
+  rename_with(~str_replace(.x, "NSat2r", "competence_"), NSat2r4:NSat2r6) |>
+  rename_with(~str_replace(.x, "NSat2r", "relatedness_"), NSat2r7:NSat2r9) |>
+  rename_with(~str_replace(.x, "NSat2r", "enjoyment_"), NSat2r10:NSat2r13) |>
+  rename_with(~str_replace(.x, "NSat2r", "extrinsic_"), NSat2r14:NSat2r17) |>
+  rename_with(~str_replace(.x, "GT4r", "spane_game_"), starts_with("GT4"))
+
+# Assign proper variable types and factor levels
+survey <- survey |>   
+  mutate(
+    across(
+      c(
+        player_id,
+        of_age:survey_language,
+        gender,
+        played_with_others
+      ),
+      as.factor
+    ),
+    
+    across(
+      c(of_age:played, played_with_others),
+      ~ fct_recode(
+        .x,
+        "Yes" = "1",
+        "No" = "2"
+      )
+    ),
+    
+    gender = fct_recode(
+      gender,
+      "Male" = "1",
+      "Female" = "2",
+      "Other" = "3",
+      "Prefer not to say" = "4"
+    ),
+    
+    country = fct_recode(
+      country,
+      "US" = "1",
+      "UK" = "2",
+      "Canada" = "5"
+    ),
+    
+    survey_language = fct_recode(
+      survey_language,
+      "English" = "1",
+      "French" = "2"
+    )
+  )
+
+# Apply reverse scoring for appropriate items
+survey <- survey |> 
+  mutate(
+    across(
+      c(
+        starts_with("spane"), # 1 was never
+        between_estimate, # those estimates also had 1: much more than typically
+        within_estimate,
+        relatedness_9,  # This is the 3rd relatedness item (NSat2r9)
+        enjoyment_11,   # This is the 2nd enjoyment item (NSat2r11)
+        enjoyment_12    # This is the 3rd enjoyment item (NSat2r12)
+      ),
+      ~ 8 - .x
+    )
+  )
+
+# Create indicators for straightliners
+survey <- survey |> 
+  mutate(across(contains("straightliner"), ~.x==1))
+```
+
+## Create Survey Scales
+
+```{r survey-scales}
+#| label: survey-scales
+
+# General SPANE scale (well-being)
+survey <- survey |> 
+  mutate(
+    spane_positive = rowMeans(pick(spane_1, spane_3, spane_5, spane_7, spane_10, spane_12), na.rm = TRUE),
+    spane_negative = rowMeans(pick(spane_2, spane_4, spane_6, spane_8, spane_9, spane_11), na.rm = TRUE),
+    spane_balance = spane_positive - spane_negative
+  )
+
+# Motivation scales
+survey <- survey |> 
+  mutate(
+    autonomy = rowMeans(pick(starts_with("autonomy")), na.rm = TRUE),
+    competence = rowMeans(pick(starts_with("competence")), na.rm = TRUE),
+    relatedness = rowMeans(pick(starts_with("relatedness")), na.rm = TRUE),
+    enjoyment = rowMeans(pick(starts_with("enjoyment")), na.rm = TRUE),
+    extrinsic = rowMeans(pick(starts_with("extrinsic")), na.rm = TRUE)
+  )
+
+# SPANE because of playing game
+survey <- survey |> 
+  mutate(
+    spane_game_positive = rowMeans(pick(spane_game_1, spane_game_3, spane_game_5, spane_game_7, spane_game_10, spane_game_12), na.rm = TRUE),
+    spane_game_negative = rowMeans(pick(spane_game_2, spane_game_4, spane_game_6, spane_game_8, spane_game_9, spane_game_11), na.rm = TRUE),
+    spane_game_balance = spane_game_positive - spane_game_negative
+  )
+
+# Hours of estimated play
+survey <- survey |>
+  mutate(
+    active_play_minutes = active_play_minutes / 60,
+    active_play = active_play_hours + active_play_minutes
+  )
+
+# Save processed survey data
+write_csv(survey, here("data/processed/survey_processed.csv"))
+```
+
+# Telemetry Data Processing
+
+## Load Game Time Data
+
+```{r game-time-load}
+#| label: game-time-load
+
+game_time_raw <- read_both_waves("OII_PVZ_Game_Time") %>%
+  # Only include survey participants 
+  filter(player_id %in% survey$player_id)
+```
+
+## Process Game Time Data
+
+```{r game-time-process}
+#| label: game-time-process
+
+# Handle missing start times
+game_time <- game_time_raw %>% 
+  mutate(
+    # If start time is missing, set to end time (will result in 0 duration)
+    game_start_time = coalesce(game_start_time, game_end_time)
+  ) %>%
+  # Collapse rows by session
+  group_by(player_id, game_session) %>% 
+  mutate(
+    game_start_time = min(game_start_time),
+    game_end_time = max(game_end_time),
+  ) %>% 
+  # Take the first of each (identical) person-session combo
+  slice(1) %>% 
+  ungroup()
+
+# Filter to sessions within 14 days before survey
+game_time_2week <- game_time %>% 
+  left_join(dplyr::select(survey, player_id, start_date)) %>% 
+  filter(game_start_time >= (start_date - days(14)))
+
+# NOTE: In later processing, we handle the fact that multiple characters can be
+# used in a single game session by ensuring each session is counted only once in our
+# game time calculations. We also cap unrealistically long sessions to 12 hours.
+
+# Save processed game time data
+write_csv(game_time_2week, here("data/processed/game_time_2week.csv"))
+```
+
+## Load Authentication Data
+
+```{r auth-load}
+#| label: auth-load
+
+authentications_raw <- read_both_waves("OII_PVZ_Authentications") %>%
+  # Only include survey participants
+  filter(player_id %in% survey$player_id)
+
+# Filter to 14 days before survey
+authentications_2week <- authentications_raw %>% 
+  left_join(dplyr::select(survey, player_id, start_date)) %>% 
+  filter(date >= (as_date(start_date) - days(14)))
+
+# Count authentications per player
+authentications_players <- authentications_2week %>% 
+  count(player_id, name = "authentications")
+
+# Save processed authentication data
+write_csv(authentications_players, here("data/processed/authentications_players.csv"))
+```
+
+## Load Character Performance Data
+
+```{r character-load}
+#| label: character-load
+
+characters_raw <- read_both_waves("OII_PVZ_Character") %>%
+  # Only include survey participants
+  filter(player_id %in% survey$player_id)
+
+# Add session timing info and filter to 14 days before survey
+characters_2week <- characters_raw %>%
+  left_join(
+    game_time_2week %>% 
+      dplyr::select(player_id, game_session, game_start_time, game_end_time),
+    by = c("player_id", "game_session")
+  ) %>%
+  left_join(dplyr::select(survey, player_id, start_date)) %>% 
+  filter(game_start_time >= (start_date - days(14)))
+
+# Save for further processing
+write_csv(characters_2week, here("data/processed/characters_2week.csv"))
+```
+
+# Game Mode Classification
+
+```{r game-mode-classification}
+#| label: game-mode-classification
+
+# Create game mode classification variables
+characters_2week <- characters_2week %>%
+  mutate(
+    # Social hub sessions (no combat)
+    social_hub = case_when(
+      game_level_key == "dsub_social_terrain_summer" & is.na(score) ~ 1,
+      TRUE ~ 0
+    ),
+    
+    # PvE sessions
+    pve_session = case_when(
+      game_level_key %in% c(
+        "dsub_region_cheesemines", 
+        "dsub_region_dreadwood", 
+        "dsub_region_towncenter"
+      ) ~ 1,
+      TRUE ~ 0
+    ),
+    
+    # PvP sessions
+    pvp_session = case_when(
+      game_level_key %in% c(
+        "dsub_rush_dreadwood", "dsub_rush_towncenter", 
+        "dsub_tvm_cheesemines", "dsub_tvm_zrefinery", 
+        "dsub_tvm_suburbs", "dsub_tvm_dreadwood", 
+        "dsub_rush_farm", "dsub_rush_cheesemines", 
+        "dsub_rush_shoreline", "dsub_rush_resort", 
+        "dsub_4v4_battlearena_v2", "dsub_4v4_superarena"
+      ) ~ 1,
+      # Giddy Park with combat data is also PvP
+      game_level_key == "dsub_social_terrain_summer" & !is.na(score) ~ 1,
+      TRUE ~ 0
+    )
+  )
+
+# Remove sessions without performance data (mainly social hub)
+characters_2week_nona <- characters_2week %>% 
+  drop_na(total_kill_count:shots_hit)
+
+# Save processed data
+write_csv(characters_2week, here("data/processed/characters_with_modes.csv"))
+write_csv(characters_2week_nona, here("data/processed/characters_with_modes_nona.csv"))
+```
+
+# Game Time Calculations
+
+```{r game-time-calculations}
+#| label: game-time-calculations
+
+# Define a function to calculate time per player for a specific game mode
+calculate_game_time <- function(data, mode_column, time_prefix) {
+  # Apply mode filter directly using the column name as a string
+  filtered_data <- data %>%
+    filter(!!rlang::sym(mode_column) == 1)
+  
+  # Calculate time
+  filtered_data %>%
+    mutate(duration = game_end_time - game_start_time) %>%
+    mutate(seconds = as.numeric(duration)) %>%
+    group_by(player_id) %>%
+    summarise(
+      seconds = sum(seconds, na.rm = TRUE)
+    ) %>%
+    mutate(hours = seconds / 60 / 60) %>%
+    rename_with(~ paste0(time_prefix, "_", .), .cols = c("seconds", "hours")) %>%
+    ungroup()
+}
+
+# Get unique game sessions with their mode information
+game_sessions_modes <- characters_2week %>%
+  dplyr::select(player_id, game_session, social_hub, pve_session, pvp_session, game_start_time, game_end_time) %>%
+  # Group by player and session to get unique sessions with mode flags
+  group_by(player_id, game_session) %>%
+  summarise(
+    # If any character in a session was used in a specific mode, count the session as that mode
+    social_hub = max(social_hub, na.rm = TRUE),
+    pve_session = max(pve_session, na.rm = TRUE),
+    pvp_session = max(pvp_session, na.rm = TRUE),
+    # Preserve the start and end times
+    game_start_time = first(game_start_time),
+    game_end_time = first(game_end_time),
+    .groups = "drop"
+  )
+
+# Calculate total game time per player (only count each session once)
+game_time_players_total <- game_sessions_modes %>% 
+  mutate(duration = game_end_time - game_start_time) %>% 
+  mutate(seconds = as.numeric(duration)) %>% 
+  group_by(player_id) %>% 
+  summarise(seconds = sum(seconds, na.rm = TRUE)) %>%
+  mutate(hours = seconds / 60 / 60) %>% 
+  ungroup()
+
+# Calculate game time for different modes using our function
+game_time_players_pvp <- calculate_game_time(game_sessions_modes, "pvp_session", "pvp")
+game_time_players_pve <- calculate_game_time(game_sessions_modes, "pve_session", "pve")
+game_time_players_social <- calculate_game_time(game_sessions_modes, "social_hub", "social")
+
+# Combine game time data with purrr's reduce
+game_time_players <- list(
+  game_time_players_total, 
+  game_time_players_social, 
+  game_time_players_pve, 
+  game_time_players_pvp
+) %>%
+  reduce(left_join, by = "player_id")
+
+# Replace NA values with 0 (no time spent in that mode)
+game_time_players[is.na(game_time_players)] <- 0
+
+# Save processed game time data
+write_csv(game_time_players, here("data/processed/game_time_players.csv"))
+```
+
+# Performance Metrics Calculation
+
+```{r performance-setup}
+#| label: performance-setup
+#| cache: false
+#| dependson: c("game-mode-classification", "game-time-calculations")
+
+# Create an empty list to store intermediate results
+metrics_list <- list()
+```
+
+```{r overall-performance}
+#| label: overall-performance
+#| cache: false
+#| dependson: c("performance-setup")
+
+# Calculate overall performance metrics per player
+characters_players <- characters_2week %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Store in our list
+metrics_list$characters_players <- characters_players
+
+# Force garbage collection
+gc()
+```
+
+```{r game-sessions}
+#| label: game-sessions
+#| cache: false
+#| dependson: c("performance-setup")
+
+# Calculate game sessions per player
+game_sessions_total <- game_sessions_modes %>% 
+  count(player_id) %>%
+  rename(n_total_game_sessions = n)
+
+# Store in our list
+metrics_list$game_sessions_total <- game_sessions_total
+
+# Force garbage collection
+gc()
+```
+
+```{r sessions-by-mode}
+#| label: sessions-by-mode
+#| cache: false
+#| dependson: c("performance-setup")
+
+# Calculate sessions by game mode
+game_sessions <- game_sessions_modes %>% 
+  group_by(player_id) %>% 
+  summarise(across(social_hub:pvp_session, sum, na.rm = TRUE)) %>% 
+  ungroup()
+
+# Store in our list
+metrics_list$game_sessions <- game_sessions
+
+# Force garbage collection
+gc()
+```
+
+```{r pvp-performance}
+#| label: pvp-performance
+#| cache: false
+#| dependson: c("performance-setup")
+
+# PvP-specific performance metrics
+pvp_telemetry <- characters_2week %>%
+  filter(pvp_session == 1) %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  rename_with(~ paste0("pvp_", .), -player_id)
+
+# Store in our list
+metrics_list$pvp_telemetry <- pvp_telemetry
+
+# Force garbage collection
+gc()
+```
+
+```{r pve-performance}
+#| label: pve-performance
+#| cache: false
+#| dependson: c("performance-setup")
+
+# PvE-specific performance metrics
+pve_telemetry <- characters_2week %>%
+  filter(pve_session == 1) %>%
+  group_by(player_id) %>% 
+  summarise(across(total_kill_count:shots_hit, sum, na.rm = TRUE)) %>%
+  rename_with(~ paste0("pve_", .), -player_id)
+
+# Store in our list
+metrics_list$pve_telemetry <- pve_telemetry
+
+# Force garbage collection
+gc()
+```
+
+```{r combine-metrics}
+#| label: combine-metrics
+#| cache: false
+#| dependson: c("overall-performance", "game-sessions", "sessions-by-mode", "pvp-performance", "pve-performance")
+
+# Load additional data we need from previous processing
+metrics_list$game_time_players <- game_time_players
+
+# Combine telemetry data using purrr's reduce function
+telemetry_players <- list(
+  metrics_list$characters_players,
+  metrics_list$game_time_players,
+  metrics_list$game_sessions,
+  metrics_list$game_sessions_total,
+  metrics_list$pvp_telemetry,
+  metrics_list$pve_telemetry
+) %>%
+  reduce(left_join, by = "player_id")
+
+# Replace NA values with 0
+telemetry_players <- telemetry_players %>%
+  mutate(across(everything(), ~replace_na(.x, 0)))
+
+# Print summary of capped sessions
+cat("Summary of capped sessions (>12 hours):\n")
+cat("Total capped sessions:", sum(telemetry_players$capped_sessions), "\n")
+cat("Players with capped sessions:", sum(telemetry_players$capped_sessions > 0), "\n")
+cat("Maximum capped sessions per player:", max(telemetry_players$capped_sessions), "\n")
+
+# Clear intermediate objects and list to free memory
+rm(metrics_list)
+gc()
+
+# Save processed telemetry data
+write_csv(telemetry_players, here("data/processed/telemetry_players.csv"))
+```
+
+# Derived Performance Metrics
+
+```{r derived-metrics}
+#| label: derived-metrics
+
+# Define a function to calculate performance ratios
+calculate_ratio <- function(numerator, denominator) {
+  numerator / denominator
+}
+
+# Calculate derived performance metrics
+telemetry_players <- telemetry_players %>%
+  # Handle divisions by zero for K/D ratio
+  mutate(
+    across(
+      c(total_death_count, pvp_total_death_count, pve_total_death_count),
+      ~ ifelse(.x == 0, 1, .x)
+    )
+  ) %>%
+  # Calculate all ratio metrics with purrr
+  mutate(
+    # K/D ratios
+    total_kd = calculate_ratio(total_kill_count, total_death_count),
+    pve_kd = calculate_ratio(pve_total_kill_count, pve_total_death_count),
+    pvp_kd = calculate_ratio(pvp_total_kill_count, pvp_total_death_count),
+    
+    # Hit accuracy ratios
+    total_hit_accuracy = calculate_ratio(shots_hit, shots_fired),
+    pve_hit_accuracy = calculate_ratio(pve_shots_hit, pve_shots_fired),
+    pvp_hit_accuracy = calculate_ratio(pvp_shots_hit, pvp_shots_fired),
+    
+    # Critical hit ratios
+    total_crit_ratio = calculate_ratio(critical_hit_count, shots_hit),
+    pve_crit_ratio = calculate_ratio(pve_critical_hit_count, pve_shots_hit),
+    pvp_crit_ratio = calculate_ratio(pvp_critical_hit_count, pvp_shots_hit),
+    
+    # Damage per game
+    total_average_damage = calculate_ratio(damage_dealt, n_total_game_sessions),
+    pve_average_damage = calculate_ratio(pve_damage_dealt, pve_session),
+    pvp_average_damage = calculate_ratio(pvp_damage_dealt, pvp_session),
+    
+    # Damage per second
+    total_dps = calculate_ratio(damage_dealt, seconds),
+    pve_dps = calculate_ratio(pve_damage_dealt, pve_seconds),
+    pvp_dps = calculate_ratio(pvp_damage_dealt, pvp_seconds),
+    
+    # Score per game
+    total_average_score = calculate_ratio(score, n_total_game_sessions),
+    pve_average_score = calculate_ratio(pve_score, pve_session),
+    pvp_average_score = calculate_ratio(pvp_score, pvp_session),
+    
+    # Score per second
+    total_sps = calculate_ratio(score, seconds),
+    pve_sps = calculate_ratio(pve_score, pve_seconds),
+    pvp_sps = calculate_ratio(pvp_score, pvp_seconds)
+  )
+
+# Replace NaN values with 0
+telemetry_players <- telemetry_players %>%
+  mutate(across(everything(), ~ifelse(is.nan(.x), 0, .x)))
+
+# Save processed metrics
+write_csv(telemetry_players, here("data/processed/telemetry_with_metrics.csv"))
+```
+
+# Participants and Procedure
+
+# Combine Survey and Telemetry Data
+
+```{r merge-data}
+#| label: merge-data
+
+# Merge survey with telemetry data
+pvz_df <- survey %>% 
+  right_join(telemetry_players, by = "player_id")
+
+# Check for participants without valid performance metrics
+# These would be participants with zeros or NAs for all key performance indicators
+pvz_df <- pvz_df %>%
+  # Create a flag for participants with no meaningful telemetry data
+  mutate(
+    has_telemetry = !(
+      # Check if key performance metrics are all zeros or NAs
+      (total_kill_count == 0 | is.na(total_kill_count)) &
+      (total_death_count == 0 | is.na(total_death_count)) &
+      (damage_dealt == 0 | is.na(damage_dealt)) &
+      (shots_fired == 0 | is.na(shots_fired)) &
+      (n_total_game_sessions == 0 | is.na(n_total_game_sessions))
+    )
+  )
+
+# Print summary of participants with and without telemetry
+cat("Participants without valid telemetry:", sum(!pvz_df$has_telemetry, na.rm = TRUE), "\n")
+cat("Participants with valid telemetry:", sum(pvz_df$has_telemetry, na.rm = TRUE), "\n")
+
+# Remove participants without valid telemetry data
+pvz_df_clean_final <- pvz_df %>%
+  filter(has_telemetry == TRUE)
+
+# Calculate ratio metrics
+pvz_df_clean_final <- pvz_df_clean_final %>%
+  mutate(
+    ratio_social_hours = social_hours / hours,
+    ratio_pve_hours = pve_hours / hours,
+    ratio_pvp_hours = pvp_hours / hours
+  )
+
+# Keep participants with ANY measurable playtime (>0 hours)
+
+pvz_df_clean_final <- pvz_df_clean_final %>%
+  filter(hours > 0)
+
+# Print final dataset dimensions
+cat("Final dataset dimensions:", dim(pvz_df_clean_final)[1], "participants x", dim(pvz_df_clean_final)[2], "variables\n")
+
+# Save final dataset
+write_csv(pvz_df_clean_final, here("data/processed/pvz_complete.csv"))
+
+# Update pvz_df_clean to match the final version for consistency
+pvz_df_clean <- pvz_df_clean_final
+```
+
+## Sample Construction Summary
+
+As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the well-being survey (approximately 0.21% response rate). For details on the full dataset, which also includes *Animal Crossing: New Horizons* players, see @johannesVideoGamePlay2021.
+
+Because our research questions concern mechanics-based playstyles, we applied several inclusion criteria to ensure the analytic sample consisted of players who actively engaged with the game's core mechanics. We first excluded participants without matching telemetry data (n = 47). We then excluded one participant with zero recorded playtime in the telemetry window. Next, we excluded 49 participants whose telemetry contained no non-zero performance or mode-engagement indicators, followed by 8 additional participants who did not have the required non-missing mode-specific performance values for clustering. These participants did not provide sufficient behavioural information to derive mechanics-based playstyles. The final analytic sample consisted of 413 combat-active players (M age = 35.0, SD = 11.8; 319 male, 81 female, 1 other, 12 undisclosed), representing 79.7% of the original 518 respondents.
+
+# Outlier Handling
+
+We identify and handle extreme outliers in the dataset using a 6 SD threshold. Following the methodology from the original paper, values more than 6 standard deviations from a variable mean were replaced with NA on a case-by-case basis. In this dataset, this procedure replaced 87 values (across 48 variables; 26 participants affected) and did not reduce the final analytic sample used in the clustering pipeline.
+
+```{r outlier-removal}
+#| label: outlier-removal
+
+# Get list of numeric variables to check for outliers
+numeric_vars <- pvz_df_clean_final %>%
+  dplyr::select(where(is.numeric)) %>%
+  colnames()
+
+# Calculate z-scores for each numeric variable
+pvz_with_z_final <- pvz_df_clean_final %>%
+  mutate(across(all_of(numeric_vars), 
+                ~ scale(.x)[,1],
+                .names = "{.col}_z"))
+
+# Create a list of variables with outliers (>6 SD)
+z_cols_final <- colnames(pvz_with_z_final)[grep("_z$", colnames(pvz_with_z_final))]
+outlier_vars_final <- c()
+outlier_counts <- c()
+
+# Count outliers per variable (using 6 SD threshold)
+for(z_col in z_cols_final) {
+  orig_col <- sub("_z$", "", z_col)
+  outlier_count <- sum(abs(pvz_with_z_final[[z_col]]) > 6, na.rm = TRUE)
+  
+  if(outlier_count > 0) {
+    outlier_vars_final <- c(outlier_vars_final, orig_col)
+    outlier_counts <- c(outlier_counts, outlier_count)
+  }
+}
+
+# Create a summary table of outliers
+outlier_summary <- tibble(
+  name = outlier_vars_final,
+  Extremes = outlier_counts,
+  Extremes_p = scales::percent(outlier_counts / nrow(pvz_df_clean_final), accuracy = .01)
+)
+
+# Display the summary
+print(outlier_summary)
+
+# Create a cleaned version with outliers replaced by NA
+pvz_clean_final <- pvz_df_clean_final
+
+# Replace outliers with NA
+for(i in seq_along(outlier_vars_final)) {
+  var <- outlier_vars_final[i]
+  z_var <- paste0(var, "_z")
+  pvz_clean_final[[var]] <- ifelse(abs(pvz_with_z_final[[z_var]]) > 6, NA, pvz_df_clean_final[[var]])
+}
+
+# Save the cleaned dataset
+write_csv(pvz_clean_final, here("data/pvz_clean_final.csv"))
+
+# Print summary statistics
+cat("\nOutlier handling summary:\n")
+cat("Threshold: 6 SD (aligned with original paper)\n")
+cat("Number of variables with extreme outliers:", length(outlier_vars_final), "\n")
+cat("Total number of data points identified as outliers:", sum(outlier_counts), "\n")
+
+# Count participants with at least one outlier
+participants_with_outliers <- c()
+for(i in seq_along(outlier_vars_final)) {
+  var <- outlier_vars_final[i]
+  z_var <- paste0(var, "_z")
+  participants_with_outliers <- c(
+    participants_with_outliers, 
+    pvz_with_z_final$player_id[abs(pvz_with_z_final[[z_var]]) > 6]
+  )
+}
+
+cat("Number of participants with at least one extreme value:", 
+    length(unique(participants_with_outliers)), "\n")
+cat("\nFinal output saved: data/pvz_clean_final.csv (n =", nrow(pvz_clean_final), ")\n")
+```
+
+# Next Steps
+
+The preprocessing is complete. The processed data has been saved to `data/pvz_clean_final.csv` with n = 470 participants. 
+
+**Key preprocessing decisions:**
+- **Outlier threshold**: 6 SD (aligned with original paper)
+- **Playtime filter**: hours > 0 (any measurable playtime)
+- **Telemetry requirement**: Valid combat/gameplay metrics
+
+The main analysis script (`manuscript.qmd`) will apply additional filters:
+1. Combat engagement/performance filter (removes 49 participants with no usable non-zero combat/mode indicators)
+2. Mode-specific completeness filter (removes 8 participants missing required clustering metrics)
+3. Final analysis sample: n = 413
