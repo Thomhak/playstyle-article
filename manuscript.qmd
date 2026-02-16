@@ -114,7 +114,6 @@ if (!requireNamespace("pacman", quietly = TRUE)) {
 
 # Use pacman to load all required packages (will install any missing packages)
 pacman::p_load(
-  tidyverse,    # For data manipulation and visualization
   here,         # For project-relative paths
   lubridate,    # For date/time manipulation
   scales,       # For scale transformations
@@ -127,7 +126,6 @@ pacman::p_load(
   cluster,      # For clustering algorithms
   fmsb,         # For radar charts
   knitr,        # For dynamic report generation
-  tibble,       # For improved data frames
   fpc,          # For cluster validation
   gridExtra,    # For arranging multiple plots
   hopkins,      # For cluster tendency assessment
@@ -140,7 +138,8 @@ pacman::p_load(
   grid,         # For grid graphics (needed for tableGrob)
   tinytable,    # For publication-quality tables
   modelsummary, # For regression model tables
-  report        # For automated statistical reporting
+  report,       # For automated statistical reporting
+  tidyverse     # For data manipulation and visualization (loaded last to avoid masking)
 )
 
 # Load helper functions
@@ -167,15 +166,15 @@ run_anova <- function(dv) {
 # Mean helper for mode-specific telemetry metrics:
 # treat missing values as 0 and always return a finite scalar.
 mode_mean <- function(x) {
-  mean(dplyr::coalesce(x, 0), na.rm = TRUE)
+  mean(coalesce(x, 0), na.rm = TRUE)
 }
 
 # Safe lookup helper for inline reporting from summary tables.
 type_stat <- function(tbl, type_label, column_name, digits = 2) {
   value <- tbl %>%
-    dplyr::filter(.data$player_type == type_label) %>%
-    dplyr::pull(.data[[column_name]]) %>%
-    dplyr::first(default = NA_real_)
+    filter(.data$player_type == type_label) %>%
+    pull(.data[[column_name]]) %>%
+    first(default = NA_real_)
 
   if (is.na(value) || is.nan(value) || is.infinite(value)) {
     value <- 0
@@ -232,17 +231,14 @@ pvz_df_analysis <- pvz_df_analysis %>%
 #| label: telemetry-data-filter
 #| include: false
 
-# Filter for players with valid performance metrics (> 0)
+# Keep players who engaged in at least one combat mode (PVP or PVE)
+# All 10 clustering features are checked: hours > 0 AND non-missing performance
+# metrics for at least one mode. NAs in the other mode are set to 0 before clustering (see replace_na in cluster_feature_selection chunk).
+combat_metrics <- c("kd", "hit_accuracy", "dps", "average_damage", "average_score")
 pvz_df_analysis <- pvz_df_analysis %>%
   filter(
-    ratio_pvp_hours > 0 | ratio_pve_hours > 0 | pvp_kd > 0 | pve_kd > 0 | pvp_hit_accuracy > 0 | pve_hit_accuracy > 0 | pvp_dps > 0 | pve_dps > 0 | pvp_average_damage > 0 | pve_average_damage > 0 | pvp_average_score > 0 | pve_average_score > 0
-  )
-
-pvz_df_analysis <- pvz_df_analysis %>%
-  filter(
-    # Keep players with valid PVP data OR valid PVE data
-    (ratio_pvp_hours > 0 & !is.na(pvp_kd) & !is.na(pvp_hit_accuracy)) |
-    (ratio_pve_hours > 0 & !is.na(pve_kd) & !is.na(pve_hit_accuracy))
+    (ratio_pvp_hours > 0 & if_all(paste0("pvp_", combat_metrics), ~ !is.na(.x))) |
+    (ratio_pve_hours > 0 & if_all(paste0("pve_", combat_metrics), ~ !is.na(.x)))
   )
 
 # Show the number of players left
@@ -400,39 +396,19 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
     player_data_expanded <- bind_rows(player_data_expanded, midnight_part1, midnight_part2)
   }
   
-  # Recode match_type based on game_level_key 
-  player_data_expanded$match_type <- "0"  # Initialize with 0 as in the original code
-  
-  # Social matches
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_social_terrain_beach"] <- "social match"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_social_terrain_summer"] <- "social match"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_socialspace"] <- "social match"
-  
-  # PVE matches
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_cheesemines"] <- "pve match"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_dreadwood"] <- "pve match"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_region_towncenter"] <- "pve match" 
-  
-  # PVP matches (Rush)
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_dreadwood"] <- "pvp match (rush)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_towncenter"] <- "pvp match (rush)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_farm"] <- "pvp match (rush)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_cheesemines"] <- "pvp match (rush)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_shoreline"] <- "pvp match (rush)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_rush_resort"] <- "pvp match (rush)"
-  
-  # PVP matches (Vanquish)
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_cheesemines"] <- "pvp match (vanquish)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_zrefinery"] <- "pvp match (vanquish)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_suburbs"] <- "pvp match (vanquish)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_tvm_dreadwood"] <- "pvp match (vanquish)"
-  
-  # PVP matches (Arena)
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_4v4_battlearena_v2"] <- "pvp match (arena)"
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_4v4_superarena"] <- "pvp match (arena)"
-  
-  # Podium celebration
-  player_data_expanded$match_type[player_data_expanded$game_level_key == "dsub_podiumcelebration"] <- "podium celebration"
+  # Recode match_type based on game_level_key prefix
+  player_data_expanded <- player_data_expanded %>%
+    mutate(
+      match_type = case_when(
+        str_starts(game_level_key, "dsub_social")  ~ "social match",
+        str_starts(game_level_key, "dsub_region")  ~ "pve match",
+        str_starts(game_level_key, "dsub_rush")    ~ "pvp match (rush)",
+        str_starts(game_level_key, "dsub_tvm")     ~ "pvp match (vanquish)",
+        str_starts(game_level_key, "dsub_4v4")     ~ "pvp match (arena)",
+        game_level_key == "dsub_podiumcelebration"  ~ "podium celebration",
+        .default = "0"
+      )
+    )
   
   # Ensure day of week is a factor with ordered levels
   player_data_expanded$day_of_week <- factor(
@@ -473,10 +449,10 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
   
   # Create the plot with enhanced styling
   plot <- player_data_expanded %>%
-    ggplot2::ggplot(aes(start_time_only, y_position, col = match_type, 
-                        group = interaction(day_of_week, date, session_id_within_day))) +
+    ggplot(aes(start_time_only, y_position, col = match_type, 
+               group = interaction(day_of_week, date, session_id_within_day))) +
     # Use improved color palette with better contrast
-    ggplot2::scale_color_manual(
+    scale_color_manual(
       name = "Match Type", 
       values = c(
         "Social Lobby" = "#00BFC4",       # Teal
@@ -489,16 +465,16 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
       )
     ) +
     # Thicker segments with rounded ends for better visibility
-    ggplot2::geom_segment(
+    geom_segment(
       aes(xend = end_time_only, yend = y_position),
       linewidth = 2,
       lineend = "round"
     ) +
     # Add points at start/end for better visibility of short sessions
-    ggplot2::geom_point(size = 1.5, alpha = 0.6) +
-    ggplot2::geom_point(aes(x = end_time_only), size = 1.5, alpha = 0.6) +
+    geom_point(size = 1.5, alpha = 0.6) +
+    geom_point(aes(x = end_time_only), size = 1.5, alpha = 0.6) +
     # Better time axis formatting - using fixed limits for consistency
-    ggplot2::scale_x_datetime(
+    scale_x_datetime(
       labels = scales::date_format("%H:%M"),
       breaks = scales::date_breaks("2 hours"),
       limits = c(
@@ -509,19 +485,19 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
       date_minor_breaks = "1 hour"
     ) +
     # Use the original day of week as the y-axis labels
-    ggplot2::scale_y_continuous(
+    scale_y_continuous(
       breaks = 1:7,
       labels = levels(player_data_expanded$day_of_week),
       limits = c(0.5, 7.5)
     ) +
     # Empty labs - axis labels will be added to the combined figure instead
-    ggplot2::labs(
+    labs(
       x = NULL, 
       y = NULL
     ) +
     # Improved theme with better typography and layout
-    ggplot2::theme_minimal(base_size = 11, base_family = "sans") +
-    ggplot2::theme(
+    theme_minimal(base_size = 11, base_family = "sans") +
+    theme(
       legend.position = "none", # Move legend to the combined figure
       plot.margin = margin(30, 10, 30, 10), # Increased margins for better separation
       
@@ -2393,7 +2369,7 @@ fmt_p_table <- function(p) {
 
 tidy_rlmer_table <- function(model, outcome, model_name) {
   as.data.frame(coef(summary(model))) %>%
-    tibble::rownames_to_column("term") %>%
+    rownames_to_column("term") %>%
     as_tibble() %>%
     rename(
       estimate = Estimate,
@@ -2422,7 +2398,7 @@ term_map <- c(
 )
 
 make_term_label <- function(term) {
-  dplyr::recode(term, !!!term_map, .default = term)
+  recode(term, !!!term_map, .default = term)
 }
 
 tbl_main_model <- bind_rows(
