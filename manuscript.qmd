@@ -1,7 +1,7 @@
 ---
 title: "Not All Play is Equal: In-game Player Behaviour Predicts Wellbeing Differences"
 shorttitle: "In-game player behaviour and wellbeing"
-running-head: "Playing Style and Well-being"
+running-head: "Playing Style and Wellbeing"
 author:
   - name: Thomas Hakman
     corresponding: true
@@ -51,7 +51,7 @@ affiliations:
     department: Department of Social Psychology
 abstract: |
   Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing, suggesting that the quality of play may matter more than the quantity. Yet these studies typically capture playtime across platforms and titles without examining what happens inside the game, the granular in-game behaviours that might differentiate players' experiences. The Integrated Model of Player Experience (IMP) posits that the mechanics and contexts players encounter during play shape the resulting experience and its downstream psychological effects, implying that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 413 players of the online shooter Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three distinct playstyles characterised by cooperative, high-performing generalist, and competitive playstyles. Players clustered as cooperative-focused reported greater wellbeing and enjoyment than competition-focused players. However, we found no evidence that playstyle moderated the relationship between playtime and either outcome. These findings indicate that how players engage with a game's mechanics and modes is associated with different average levels of wellbeing, but does not appear to alter the relationship between the amount of play and wellbeing. We discuss implications for moving beyond playtime-centric approaches toward in-game behavioural methods for understanding games and wellbeing.
-categories: [video games, playing style, well-being, performance, telemetry]
+categories: [video games, playing style, wellbeing, performance, telemetry]
 authornote: |
   Correspondence concerning this article should be addressed to Thomas Hakman, Oxford Internet Institute, University of Oxford. Email: thomas.hakman@oii.ox.ac.uk
 date: last-modified
@@ -122,7 +122,7 @@ Within game analytics research, this process is known as telemetry-driven profil
 
 In contrast, telemetry-derived playstyles capture emergent behavioural patterns as they occur, providing a more ecologically valid representation of how players engage with games. As such, playstyles offer a quantifiable, data-driven way to characterise how players pursue a game's objectives [@sifaProfilingGamesUnderstanding2018]. Previous work has used telemetry-driven profiling to examine the relationship between playstyles and personality [@beanVideoGamersPersonality2016; @vanlankveldGamesPersonalityProfiling2011], motivation [@melhartYourGameplaySays2019; @yeeGamerMotivationProfile2016], national culture [@ravariInvestigatingRelationPlaying2022], and individual and team performance [@jiangWideDeepMaverick2021]. However, whether and how playstyles relate to wellbeing and enjoyment has remained untested, in large part because datasets combining granular session-level behavioural telemetry with validated measures of mental health are exceedingly rare [@norwoodBuildingCollaborativeDigital2026].
 
-The present study addresses this question by leveraging one such rare dataset, collected through an industry-academia collaboration [@johannesVideoGamePlay2021]. We address three research questions. First, can distinct playstyles be identified from in-game behavioural telemetry within a single game title? Second, do players with different playstyles report different levels of game-specific well-being or enjoyment? Third, does the association between playtime and well-being or enjoyment differ between playstyles?
+The present study addresses this question by leveraging one such rare dataset, collected through an industry-academia collaboration [@johannesVideoGamePlay2021]. We address three research questions. First, can distinct playstyles be identified from in-game behavioural telemetry within a single game title? Second, do players with different playstyles report different levels of game-specific wellbeing or enjoyment? Third, does the association between playtime and wellbeing or enjoyment differ between playstyles?
 
 
 
@@ -229,7 +229,7 @@ pvz_df_analysis <- pvz_df_analysis %>%
     # Demographic variables
     player_id, country, age, gender, played_with_others,
     
-    # Well-being variables - focus only on our two key outcomes
+    # Wellbeing variables - focus only on our two key outcomes
     spane_game_balance, enjoyment,
     
     # Total playtime
@@ -348,10 +348,9 @@ Plants versus Zombies: Battle for Neighbourville (PvZ) is an online multiplayer 
 
 ## Participants
 
-As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the well-being survey (approximately 0.21% response rate). For details on the full dataset, which also includes Animal Crossing: New Horizons players, see @johannesVideoGamePlay2021.
+As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the wellbeing survey (approximately 0.21% response rate). For details on the full dataset, which also includes Animal Crossing: New Horizons players, see @johannesVideoGamePlay2021.
 Because our research questions concern mechanics-based playstyles, we applied several inclusion criteria to ensure the analytic sample consisted of players who actively engaged with the game's core mechanics. We first excluded participants without matching telemetry data (n = 48). We then excluded 57 participants whose telemetry contained no performance metrics across any activity (PvP or PvE). These players spent time in the game's social hub, an idle space for navigation and character customisation, but did not participate in any gameplay, and thus had no behavioural data from which to derive playstyle profiles. Social-hub-only players differed markedly from combat-active players in engagement: they logged substantially less playtime (Mdn = 0.12 vs. 4.82 hours; Mann–Whitney U = 1,156, p < .001) and fewer sessions (Mdn = 1 vs. 28; U = 589, p < .001), though survey response quality did not differ between groups (straightlining rates: 1.8% vs. 1.5%, χ² = 0, p = 1.0). The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (M age = `r demographics$avg_age`, SD = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents.
 Following the methodology from the original paper, values more than 6 standard deviations from a variable mean were replaced with NA on a case-by-case basis (@johannesVideoGamePlay2021). In this dataset, this procedure replaced 87 values (across 48 variables; 26 participants affected) and did not reduce the final analytic sample.
-The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (M age = `r demographics$avg_age`, SD = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents.
 
 
 ## Measures
@@ -658,7 +657,7 @@ numeric_vars <- pvz_df_analysis %>%
     pvp_average_damage, pve_average_damage,
     pvp_average_score, pve_average_score,
     
-    # Well-being and enjoyment
+    # Wellbeing and enjoyment
     spane_game_balance, enjoyment
   )
 
@@ -724,7 +723,7 @@ descriptive_stats <- numeric_stats %>%
     variable == "pve_average_damage" ~ "PvE Average Damage per Game",
     variable == "pvp_average_score" ~ "PvP Average Score",
     variable == "pve_average_score" ~ "PvE Average Score",
-    variable == "spane_game_balance" ~ "Game-Specific Well-being (SPANE)",
+    variable == "spane_game_balance" ~ "Game-Specific Wellbeing (SPANE)",
     variable == "enjoyment" ~ "Enjoyment",
     TRUE ~ variable
   )) %>%
@@ -737,7 +736,7 @@ descriptive_stats <- numeric_stats %>%
                    "PvP Damage per Second", "PvE Damage per Second",
                    "PvP Average Damage per Game", "PvE Average Damage per Game",
                    "PvP Average Score", "PvE Average Score") ~ "Performance",
-    variable %in% c("Game-Specific Well-being (SPANE)", "Enjoyment") ~ "Well-being",
+    variable %in% c("Game-Specific Wellbeing (SPANE)", "Enjoyment") ~ "Wellbeing",
     TRUE ~ "Other"
   )) %>%
   # Round numeric values
@@ -763,8 +762,8 @@ variable_order <- c(
   "PvP Average Damage per Game", "PvE Average Damage per Game",
   "PvP Average Score", "PvE Average Score",
   
-  # Well-being
-  "Game-Specific Well-being (SPANE)", "Enjoyment"
+  # Wellbeing
+  "Game-Specific Wellbeing (SPANE)", "Enjoyment"
 )
 
 # Apply the custom ordering
@@ -786,9 +785,9 @@ descriptive_stats |>
 ```
 
 
-### Well-being
+### Wellbeing
 
-We assessed affective well-being with the Scale of Positive and Negative Experiences [SPANE; @dienerNewWellbeingMeasures2010; @dienerAdvancesOpenQuestions2018]. Respondents were prompted to reflect on how playing PvZ had made them feel over the past two weeks and rated how often they experienced each of six positive (positive, good, pleasant, happy, joyful, contented) and six negative (negative, bad, unpleasant, sad, afraid, angry) feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always). An overall well-being balance score was computed by subtracting the mean negative score from the mean positive score, yielding a possible range of −6 to +6, where higher values indicate more positive affect associated with play. All responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys (@leinerTooFastToo2019), however, no unusual cases were identified.
+We assessed affective wellbeing with the Scale of Positive and Negative Experiences [SPANE; @dienerNewWellbeingMeasures2010; @dienerAdvancesOpenQuestions2018]. Respondents were prompted to reflect on how playing PvZ had made them feel over the past two weeks and rated how often they experienced each of six positive (positive, good, pleasant, happy, joyful, contented) and six negative (negative, bad, unpleasant, sad, afraid, angry) feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always). An overall wellbeing balance score was computed by subtracting the mean negative score from the mean positive score, yielding a possible range of −6 to +6, where higher values indicate more positive affect associated with play. All responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys (@leinerTooFastToo2019), however, no unusual cases were identified.
 
 ### Enjoyment
 
@@ -802,7 +801,7 @@ To test whether clustering was appropriate before fitting any cluster model, we 
 
 We then identified play styles with Partitioning Around Medoids (PAM) [@kaufmanFindingGroupsData1990] on standardized in-game behavioral features. PAM was selected over k-means because it is less sensitive to extreme points and defines each cluster by an observed medoid (a real player profile), which improves robustness and interpretability for telemetry-derived behavioral profiles. Features were z-standardized before clustering, and missing mode-specific performance values were set to zero to encode no activity in that mode rather than dropping cases. The number of clusters was determined by maximizing the Calinski-Harabasz index across k = 2 to 10 [@tibshiraniEstimatingNumberClusters2001], which selected a three-cluster solution; we then checked internal coherence with silhouette widths [@kaufmanFindingGroupsData1990].
 
-To examine associations between play style, playtime, and outcomes, we fit robust linear mixed-effects models with random intercepts for country to account for baseline between-country differences in outcome levels. For both outcomes (game-specific well-being and enjoyment), we first estimated main-effects models: outcome ~ player type + hours played + gender + age + (1 | country). To address moderation (RQ3), we then estimated interaction models: outcome ~ player type * hours played + (1 | country). Outcomes were treated as continuous and approximately normally distributed, and playtime hours was modeled on its raw scale. We used simple-slopes analyses to estimate within-play-style playtime slopes and pairwise slope-difference tests to compare those slopes across play styles. Statistical significance was set at p \< .05.
+To examine associations between play style, playtime, and outcomes, we fit robust linear mixed-effects models with random intercepts for country to account for baseline between-country differences in outcome levels. For both outcomes (game-specific wellbeing and enjoyment), we first estimated main-effects models: outcome ~ player type + hours played + gender + age + (1 | country). To address moderation (RQ3), we then estimated interaction models: outcome ~ player type * hours played + (1 | country). Outcomes were treated as continuous and approximately normally distributed, and playtime hours was modeled on its raw scale. We used simple-slopes analyses to estimate within-play-style playtime slopes and pairwise slope-difference tests to compare those slopes across play styles. Statistical significance was set at p \< .05.
 
 ## Data, Materials, and Code
 
@@ -1480,21 +1479,21 @@ for (i in 1:length(player_type_names)) {
 par(mfrow = c(1, 1))
 ```
 
-## Well-being differences between player types 
+## Wellbeing differences between player types 
 
 ```{r}
 #| label: player-type-wellbeing-model
-#| code-summary: "Fit robust mixed-effects models for well-being outcomes"
+#| code-summary: "Fit robust mixed-effects models for wellbeing outcomes"
 #| message: false
 #| warning: false
 #| include: false
 
-# Create a robust linear model for well-being
+# Create a robust linear model for wellbeing
 set.seed(123) # For reproducibility of robust estimates
 
 # Check if models should be refit or loaded from cache
 if (eval_models || !model_exists("rmodel_game") || !model_exists("rmodel_enjoyment")) {
-  # Fit robust models for game-specific well-being
+  # Fit robust models for game-specific wellbeing
   rmodel_game <- rlmer(spane_game_balance ~ player_type + hours + gender + age + (1|country), 
                        data = pvz_df_clustered)
   
@@ -1513,7 +1512,7 @@ if (eval_models || !model_exists("rmodel_game") || !model_exists("rmodel_enjoyme
 
 # Display models side-by-side using modelsummary
 modelsummary(
-  list("Well-being (SPANE)" = rmodel_game, "Enjoyment" = rmodel_enjoyment),
+  list("Wellbeing (SPANE)" = rmodel_game, "Enjoyment" = rmodel_enjoyment),
   estimate = "{estimate} ({std.error})",
   statistic = "t = {statistic}",
   gof_omit = "AIC|BIC|RMSE|Log",
@@ -1527,7 +1526,7 @@ modelsummary(
     "genderPrefer not to say" = "Gender (Undisclosed)",
     "age" = "Age"
   ),
-  title = "Robust Linear Mixed-Effects Models Predicting Well-being and Enjoyment",
+  title = "Robust Linear Mixed-Effects Models Predicting Wellbeing and Enjoyment",
   notes = "Reference category for play style: Casual PVE Players. Reference category for gender: Female. Country included as random effect."
 )
 
@@ -1536,7 +1535,7 @@ coefs_game <- coef(summary(rmodel_game))
 coefs_enjoyment <- coef(summary(rmodel_enjoyment))
 ```
 
-We fitted robust linear mixed-effects models predicting each outcome from player type, hours played, gender, and age, with random intercepts for country (Appendix 3). Casual PVE Players served as the reference category. Relative to these players, both Casual PVP Players (b = `r round(coefs_game["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeCasual PVP Players", "t value"], 2)`) and Elite Allround Players (b = `r round(coefs_game["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeElite Allround Players", "t value"], 2)`) reported significantly lower game-specific well-being. For enjoyment, Casual PVP Players again scored lower than Casual PVE Players (b = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeCasual PVP Players", "t value"], 2)`), whereas the difference between Elite Allround and Casual PVE Players was smaller and not statistically reliable (b = `r round(coefs_enjoyment["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeElite Allround Players", "t value"], 2)`). Hours played was positively associated with both outcomes (well-being: b = `r round(coefs_game["hours", "Estimate"], 2)`, SE = `r round(coefs_game["hours", "Std. Error"], 2)`, t = `r round(coefs_game["hours", "t value"], 2)`; enjoyment: b = `r round(coefs_enjoyment["hours", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["hours", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["hours", "t value"], 2)`).
+We fitted robust linear mixed-effects models predicting each outcome from player type, hours played, gender, and age, with random intercepts for country (Appendix 3). Casual PVE Players served as the reference category. Relative to these players, both Casual PVP Players (b = `r round(coefs_game["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeCasual PVP Players", "t value"], 2)`) and Elite Allround Players (b = `r round(coefs_game["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeElite Allround Players", "t value"], 2)`) reported significantly lower game-specific wellbeing. For enjoyment, Casual PVP Players again scored lower than Casual PVE Players (b = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeCasual PVP Players", "t value"], 2)`), whereas the difference between Elite Allround and Casual PVE Players was smaller and not statistically reliable (b = `r round(coefs_enjoyment["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeElite Allround Players", "t value"], 2)`). Hours played was positively associated with both outcomes (wellbeing: b = `r round(coefs_game["hours", "Estimate"], 2)`, SE = `r round(coefs_game["hours", "Std. Error"], 2)`, t = `r round(coefs_game["hours", "t value"], 2)`; enjoyment: b = `r round(coefs_enjoyment["hours", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["hours", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["hours", "t value"], 2)`).
 
 ## Does Playstyle Moderate the Playtime–Well-being Relationship?
 
@@ -1549,7 +1548,7 @@ We fitted robust linear mixed-effects models predicting each outcome from player
 
 # Check if models should be refit or loaded from cache
 if (eval_models || !model_exists("rmodel_moderation_game") || !model_exists("rmodel_moderation_enjoyment")) {
-  # Create interaction models for our two key well-being outcomes
+  # Create interaction models for our two key wellbeing outcomes
   rmodel_moderation_game <- rlmer(
     spane_game_balance ~ player_type * hours + (1|country),
     data = pvz_df_clustered
@@ -1571,7 +1570,7 @@ if (eval_models || !model_exists("rmodel_moderation_game") || !model_exists("rmo
 
 # Display moderation models side-by-side using modelsummary
 modelsummary(
-  list("Well-being (SPANE)" = rmodel_moderation_game, "Enjoyment" = rmodel_moderation_enjoyment),
+  list("Wellbeing (SPANE)" = rmodel_moderation_game, "Enjoyment" = rmodel_moderation_enjoyment),
   estimate = "{estimate} ({std.error})",
   statistic = "t = {statistic}",
   gof_omit = "AIC|BIC|RMSE|Log",
@@ -1592,7 +1591,7 @@ coefs_mod_game <- coef(summary(rmodel_moderation_game))
 coefs_mod_enjoyment <- coef(summary(rmodel_moderation_enjoyment))
 ```
 
-To test whether the playtime–outcome association differed across playstyles, we added player type × hours interaction terms to the models (Appendix 4). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PVE Players. None of the interaction terms reached significance: for well-being, neither Casual PVP Players (Δb = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "t value"], 2)`) nor Elite Allround Players (Δb = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "t value"], 2)`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PVP: Δb = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "t value"], 2)`; Elite Allround: Δb = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "t value"], 2)`). Baseline playstyle differences in intercepts remained in the interaction models, particularly for Casual PVP Players (well-being: b = `r round(coefs_mod_game["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players", "t value"], 2)`; enjoyment: b = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "t value"], 2)`).
+To test whether the playtime–outcome association differed across playstyles, we added player type × hours interaction terms to the models (Appendix 4). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PVE Players. None of the interaction terms reached significance: for wellbeing, neither Casual PVP Players (Δb = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "t value"], 2)`) nor Elite Allround Players (Δb = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "t value"], 2)`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PVP: Δb = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "t value"], 2)`; Elite Allround: Δb = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "t value"], 2)`). Baseline playstyle differences in intercepts remained in the interaction models, particularly for Casual PVP Players (wellbeing: b = `r round(coefs_mod_game["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players", "t value"], 2)`; enjoyment: b = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "t value"], 2)`).
 
 ```{r}
 #| label: wellbeing-anova
@@ -1668,19 +1667,19 @@ enj_pvp_elite <- enjoyment_posthoc |>
 
 ```{r}
 #| label: fig-anova-boxplots
-#| fig-cap: "Distribution of well-being outcomes by play style. Panel A shows game-specific well-being (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
+#| fig-cap: "Distribution of wellbeing outcomes by play style. Panel A shows game-specific wellbeing (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
 #| fig-width: 10
 #| fig-height: 5
 #| message: false
 #| warning: false
 
-# Create boxplot for game-specific well-being
+# Create boxplot for game-specific wellbeing
 p_wellbeing <- ggplot(pvz_df_clustered, aes(x = player_type, y = spane_game_balance, fill = player_type)) +
   geom_boxplot(alpha = 0.7, outlier.shape = 21) +
   geom_jitter(width = 0.2, alpha = 0.2, size = 1) +
   scale_fill_brewer(palette = "Set2") +
   labs(
-    title = "A. Game-Specific Well-being",
+    title = "A. Game-Specific Wellbeing",
     x = NULL,
     y = "SPANE Balance Score"
   ) +
@@ -1725,7 +1724,7 @@ format_p_inline <- function(p) {
 }
 ```
 
-These playstyle differences were corroborated by one-way ANOVAs (well-being: *F*(`r wellbeing_anova$df`, `r wellbeing_anova$df_residual`) = `r sprintf("%.2f", wellbeing_anova$statistic)`, *p* `r format_p_inline(wellbeing_anova$p.value)`, η² = `r sprintf("%.3f", wellbeing_anova$eta_squared)`; enjoyment: *F*(`r enjoyment_anova$df`, `r enjoyment_anova$df_residual`) = `r sprintf("%.2f", enjoyment_anova$statistic)`, *p* `r format_p_inline(enjoyment_anova$p.value)`, η² = `r sprintf("%.3f", enjoyment_anova$eta_squared)`) and Tukey HSD post-hoc tests, which confirmed that Casual PVP Players scored lower than Casual PVE Players on both well-being (*p* `r format_p_inline(wb_pvp_pve$adj.p.value)`) and enjoyment (*p* `r format_p_inline(enj_pvp_pve$adj.p.value)`), and lower than Elite Allround Players on enjoyment (*p* `r format_p_inline(enj_pvp_elite$adj.p.value)`) (@fig-anova-boxplots).
+These playstyle differences were corroborated by one-way ANOVAs (wellbeing: *F*(`r wellbeing_anova$df`, `r wellbeing_anova$df_residual`) = `r sprintf("%.2f", wellbeing_anova$statistic)`, *p* `r format_p_inline(wellbeing_anova$p.value)`, η² = `r sprintf("%.3f", wellbeing_anova$eta_squared)`; enjoyment: *F*(`r enjoyment_anova$df`, `r enjoyment_anova$df_residual`) = `r sprintf("%.2f", enjoyment_anova$statistic)`, *p* `r format_p_inline(enjoyment_anova$p.value)`, η² = `r sprintf("%.3f", enjoyment_anova$eta_squared)`) and Tukey HSD post-hoc tests, which confirmed that Casual PVP Players scored lower than Casual PVE Players on both wellbeing (*p* `r format_p_inline(wb_pvp_pve$adj.p.value)`) and enjoyment (*p* `r format_p_inline(enj_pvp_pve$adj.p.value)`), and lower than Elite Allround Players on enjoyment (*p* `r format_p_inline(enj_pvp_elite$adj.p.value)`) (@fig-anova-boxplots).
 
 
 ```{r}
@@ -1964,10 +1963,10 @@ create_jn_plot <- function(model, moderator = "player_type", predictor = "hours"
 #| warning: false
 #| include: false
 
-# Calculate simple slopes for game-specific well-being model
-wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Well-being")
+# Calculate simple slopes for game-specific wellbeing model
+wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Wellbeing")
 
-# Create a formatted table for game-specific well-being simple slopes
+# Create a formatted table for game-specific wellbeing simple slopes
 wellbeing_slopes_table <- wellbeing_slopes %>%
   mutate(
     estimate = round(estimate, 3),
@@ -2014,7 +2013,7 @@ enjoyment_slopes_table <- enjoyment_slopes %>%
 #| warning: false
 #| include: false
 
-# Create pairwise comparison of slopes for game-specific well-being
+# Create pairwise comparison of slopes for game-specific wellbeing
 wellbeing_pairs <- data.frame(player_type1 = character(),
                         player_type2 = character(),
                         difference = numeric(),
@@ -2056,7 +2055,7 @@ for (i in 1:(length(player_types)-1)) {
   }
 }
 
-# Format and display pairwise comparison table for subjective well-being
+# Format and display pairwise comparison table for subjective wellbeing
 wellbeing_pairs <- wellbeing_pairs %>%
   mutate(
     sig = case_when(
@@ -2147,7 +2146,7 @@ enjoyment_pairs <- enjoyment_pairs %>%
 
 ```{r}
 #| label: fig-interaction-plots
-#| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across play styles. Left panel shows game-specific well-being (SPANE balance score); right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PVE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PVP Players show no significant relationship."
+#| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across play styles. Left panel shows game-specific wellbeing (SPANE balance score); right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PVE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PVP Players show no significant relationship."
 #| fig-width: 12
 #| fig-height: 6
 #| code-summary: "Interaction plots for moderation analysis"
@@ -2281,7 +2280,7 @@ fmt_p <- function(p) {
 }
 ```
 
-To further probe the interaction, simple slopes analyses decomposed the playtime–outcome association within each playstyle (@fig-interaction-plots). Only Elite Allround Players showed a significant positive slope for both well-being (b = `r round(wb_elite$estimate, 3)`, *p* `r fmt_p(wb_elite$p.value)`) and enjoyment (b = `r round(enj_elite$estimate, 3)`, *p* `r fmt_p(enj_elite$p.value)`). Slopes for Casual PVE Players (well-being: b = `r round(wb_pve$estimate, 3)`, *p* `r fmt_p(wb_pve$p.value)`; enjoyment: b = `r round(enj_pve$estimate, 3)`, *p* `r fmt_p(enj_pve$p.value)`) and Casual PVP Players (well-being: b = `r round(wb_pvp$estimate, 3)`, *p* `r fmt_p(wb_pvp$p.value)`; enjoyment: b = `r round(enj_pvp$estimate, 3)`, *p* `r fmt_p(enj_pvp$p.value)`) were not significant. Critically, pairwise comparisons of slopes revealed no significant differences between any pair of playstyles (all *p*s > .05), confirming that the playtime–outcome gradient does not differ meaningfully across groups. Taken together, these results indicate that playstyle is associated with different baseline levels of well-being and enjoyment but does not moderate the relationship between playtime and either outcome.
+To further probe the interaction, simple slopes analyses decomposed the playtime–outcome association within each playstyle (@fig-interaction-plots). Only Elite Allround Players showed a significant positive slope for both wellbeing (b = `r round(wb_elite$estimate, 3)`, *p* `r fmt_p(wb_elite$p.value)`) and enjoyment (b = `r round(enj_elite$estimate, 3)`, *p* `r fmt_p(enj_elite$p.value)`). Slopes for Casual PVE Players (wellbeing: b = `r round(wb_pve$estimate, 3)`, *p* `r fmt_p(wb_pve$p.value)`; enjoyment: b = `r round(enj_pve$estimate, 3)`, *p* `r fmt_p(enj_pve$p.value)`) and Casual PVP Players (wellbeing: b = `r round(wb_pvp$estimate, 3)`, *p* `r fmt_p(wb_pvp$p.value)`; enjoyment: b = `r round(enj_pvp$estimate, 3)`, *p* `r fmt_p(enj_pvp$p.value)`) were not significant. Critically, pairwise comparisons of slopes revealed no significant differences between any pair of playstyles (all *p*s > .05), confirming that the playtime–outcome gradient does not differ meaningfully across groups. Taken together, these results indicate that playstyle is associated with different baseline levels of wellbeing and enjoyment but does not moderate the relationship between playtime and either outcome.
 
 # Discussion
 
@@ -2349,7 +2348,7 @@ The authors declare no competing financial, intellectual, or institutional inter
 
 No authors have received funding or compensation from the tech companies or other industries connected to the work presented here.
 
-MV has provided in-kind consultations and served as a nonpaid panel member for Meta and K-Games. AKP has served in advisory or expert roles for the Sync Digital Wellbeing Program (2022–2024), the Google Expert Advisory on Youth and Technology (2025), the OpenAI Expert Council on Well-Being and AI (2025), and UK Department for Science, Innovation and Technology–funded research on children's smartphone and social media use (University of Cambridge, 2025). He is a member of the UK Department for Culture, Media & Sport College of Experts. Any industry fees are directly donated to charity, and his research is conducted in accordance with University of Oxford academic integrity policies.
+MV has provided in-kind consultations and served as a nonpaid panel member for Meta and K-Games. AKP has served in advisory or expert roles for the Sync Digital Wellbeing Program (2022–2024), the Google Expert Advisory on Youth and Technology (2025), the OpenAI Expert Council on Wellbeing and AI (2025), and UK Department for Science, Innovation and Technology–funded research on children's smartphone and social media use (University of Cambridge, 2025). He is a member of the UK Department for Culture, Media & Sport College of Experts. Any industry fees are directly donated to charity, and his research is conducted in accordance with University of Oxford academic integrity policies.
 
 Industry partners had no role in the design, analysis, or publication of results.
 
@@ -2452,14 +2451,14 @@ make_term_label <- function(term) {
 }
 
 tbl_main_model <- bind_rows(
-  tidy_rlmer_table(rmodel_game, "Well-being (SPANE)", "Main effects"),
+  tidy_rlmer_table(rmodel_game, "Wellbeing (SPANE)", "Main effects"),
   tidy_rlmer_table(rmodel_enjoyment, "Enjoyment", "Main effects")
 ) %>%
   mutate(term_label = make_term_label(term)) %>%
   filter(term != "(Intercept)")
 
 tbl_moderation_model <- bind_rows(
-  tidy_rlmer_table(rmodel_moderation_game, "Well-being (SPANE)", "Moderation"),
+  tidy_rlmer_table(rmodel_moderation_game, "Wellbeing (SPANE)", "Moderation"),
   tidy_rlmer_table(rmodel_moderation_enjoyment, "Enjoyment", "Moderation")
 ) %>%
   mutate(term_label = make_term_label(term)) %>%
@@ -2470,26 +2469,26 @@ tbl_anova <- all_anova_results %>%
   mutate(
     outcome = recode(
       variable,
-      "spane_game_balance" = "Well-being (SPANE)",
+      "spane_game_balance" = "Wellbeing (SPANE)",
       "enjoyment" = "Enjoyment"
     ),
     significant = p.value < 0.05
   )
 
 tbl_posthoc <- bind_rows(
-  wellbeing_posthoc %>% mutate(outcome = "Well-being (SPANE)"),
+  wellbeing_posthoc %>% mutate(outcome = "Wellbeing (SPANE)"),
   enjoyment_posthoc %>% mutate(outcome = "Enjoyment")
 ) %>%
   mutate(significant = adj.p.value < 0.05)
 
 tbl_simple_slopes <- bind_rows(
-  wellbeing_slopes %>% mutate(outcome = "Well-being (SPANE)"),
+  wellbeing_slopes %>% mutate(outcome = "Wellbeing (SPANE)"),
   enjoyment_slopes %>% mutate(outcome = "Enjoyment")
 ) %>%
   mutate(significant = p.value < 0.05)
 
 tbl_slope_pairs <- bind_rows(
-  wb_pairs_numeric %>% mutate(outcome = "Well-being (SPANE)"),
+  wb_pairs_numeric %>% mutate(outcome = "Wellbeing (SPANE)"),
   enj_pairs_numeric %>% mutate(outcome = "Enjoyment")
 ) %>%
   mutate(significant = p.value < 0.05)
