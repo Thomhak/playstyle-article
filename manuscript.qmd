@@ -77,6 +77,9 @@ format:
     embed-resources: true
   preprint-typst:
     keep-typ: true
+    citeproc: true
+    include-before-body:
+      - text: "#show <refs>: set par(hanging-indent: 1.4em)"
   preprint-docx: default
 knitr:
   opts_chunk:
@@ -1577,10 +1580,10 @@ modelsummary(
     "player_typeElite Allround Players" = "Elite Allround Players",
     "player_typeCasual PVP Players" = "Casual PVP Players",
     "hours" = "Hours Played",
-    "player_typeElite Allround Players:hours" = "Elite Allround × Hours",
-    "player_typeCasual PVP Players:hours" = "Casual PVP × Hours"
+    "player_typeElite Allround Players:hours" = "Elite Allround x Hours",
+    "player_typeCasual PVP Players:hours" = "Casual PVP x Hours"
   ),
-  title = "Moderation Models: Play Style × Hours Interaction",
+  title = "Moderation Models: Play Style x Hours Interaction",
   notes = "Reference category for play style: Casual PVE Players. Country included as random effect."
 )
 
@@ -2355,7 +2358,11 @@ Industry partners had no role in the design, analysis, or publication of results
 ::: {#refs}
 :::
 
-# Appendix
+```{=typst}
+#show: appendix.with()
+```
+
+# Appendix {.appendix}
 
 ## Appendix 1: Cluster Tendency Assessment
 
@@ -2436,8 +2443,8 @@ term_map <- c(
   "genderOther" = "Gender: Other (vs Female)",
   "genderPrefer not to say" = "Gender: Undisclosed (vs Female)",
   "age" = "Age",
-  "player_typeCasual PVP Players:hours" = "Casual PVP × Hours",
-  "player_typeElite Allround Players:hours" = "Elite Allround × Hours"
+  "player_typeCasual PVP Players:hours" = "Casual PVP x Hours",
+  "player_typeElite Allround Players:hours" = "Elite Allround x Hours"
 )
 
 make_term_label <- function(term) {
@@ -2588,7 +2595,7 @@ tbl_moderation_model %>%
     `Approx. p` = fmt_p_table(p_approx),
     Significant = if_else(significant, "Yes", "No")
   ) %>%
-  tt(caption = "Moderation Models (Play Style × Hours; Approximate Significance)") %>%
+  tt(caption = "Moderation Models (Play Style x Hours; Approximate Significance)") %>%
   format_tt(digits = 3)
 ```
 
