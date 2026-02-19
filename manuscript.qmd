@@ -50,7 +50,7 @@ affiliations:
     name: Tilburg University
     department: Department of Social Psychology
 abstract: |
-  Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing, suggesting that the quality of play may matter more than the quantity. Yet these studies typically capture playtime across platforms and titles without examining what happens inside the game, the granular in-game behaviours that might differentiate players' experiences. The Integrated Model of Player Experience (IMP) posits that the mechanics and contexts players encounter during play shape the resulting experience and its downstream psychological effects, implying that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 413 players of the online shooter Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three distinct playstyles characterised by cooperative, high-performing generalist, and competitive playstyles. Players clustered as cooperative-focused reported greater wellbeing and enjoyment than competition-focused players. However, we found no evidence that playstyle moderated the relationship between playtime and either outcome. These findings indicate that how players engage with a game's mechanics and modes is associated with different average levels of wellbeing, but does not appear to alter the relationship between the amount of play and wellbeing. We discuss implications for moving beyond playtime-centric approaches toward in-game behavioural methods for understanding games and wellbeing.
+  Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing. Yet these studies typically capture playtime across platforms and titles without examining what happens inside the game, the granular in-game behaviours that might differentiate players' experiences. The Integrated Model of Player Experience posits that the mechanics and contexts players encounter during play shape the resulting experience and its downstream psychological effects, implying that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 412 players of the online shooter Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three distinct playstyles characterised by: (A) explorative, (B) high-performing, and (C) competitive playstyles. Explorative players reported greater wellbeing and enjoyment compared to competitive players. However, we found no evidence that playstyle moderated the relationship between playtime and either outcome. These findings indicate that how players engage with a game's mechanics and modes is associated with different average levels of wellbeing, but does not appear to alter the relationship between the amount of play and wellbeing.
 categories: [video games, playing style, wellbeing, performance, telemetry]
 authornote: |
   Correspondence concerning this article should be addressed to Thomas Hakman, Oxford Internet Institute, University of Oxford. Email: thomas.hakman@oii.ox.ac.uk
@@ -110,11 +110,11 @@ if (!dir.exists("output/models")) {
 
 # Introduction
 
-The debate about whether video games harm or improve wellbeing has persisted for decades, yet empirical findings remain mixed, constantly changing with the methods used to study them. Earlier studies relying on players' retrospective estimates of their own playtime and behaviour produced contradictory findings. Several studies reported negative associations between self-reported playtime and measures of mental health or wellbeing [@fergusonLackConsensusScholars2019; @liuDigitalCommunicationMedia2019; @mathurFindingCommonGround2019], with some reporting negative associations only among highly engaged players [@coldercarrasVideoGamingHyperconnected2017; @przybylski2017a]. Whilst others found positive associations [@halbrookWhenHowVideo2019; @villaniVideogamesEmotionRegulation2018], with some reporting those only for moderate usage [@przybylski2017a] or specific game genres such as MMOs [@raithMassivelyMultiplayerOnline2021]. To overcome the well-documented inaccuracy of self-reported measures [@johannesVideoGamePlay2021; @parrySystematicReviewMetaanalysis2021a], later work utilised large-scale digital trace data (i.e., objective behavioural logs collected directly from game platforms). These studies demonstrated that, for most players, the overall associations between the average player's quantity of playtime and their wellbeing are small and unlikely to be practically meaningful [@ballouOpenPlayLongitudinal2025; @egamiCausalEffectVideo2024; @johannesVideoGamePlay2021; @larrieuHowGamingMotives2023; @vuorreTimeSpentPlaying2022].
+The debate about whether video games harm or improve wellbeing has persisted for decades, yet empirical findings remain mixed, constantly changing with the measurement approaches used to study them. Earlier studies relying on players' retrospective estimates of their own playtime and behaviour produced contradictory findings. Several studies reported negative associations between self-reported playtime and measures of mental health or wellbeing [@fergusonLackConsensusScholars2019; @liuDigitalCommunicationMedia2019; @mathurFindingCommonGround2019], with some reporting negative associations only among highly engaged players [@coldercarrasVideoGamingHyperconnected2017; @przybylski2017a]. Whilst others found positive associations [@halbrookWhenHowVideo2019; @villaniVideogamesEmotionRegulation2018], with some reporting those only for moderate usage [@przybylski2017a] or specific game genres such as MMOs [@raithMassivelyMultiplayerOnline2021]. To overcome the well-documented inaccuracy of self-reported measures [@johannesVideoGamePlay2021; @parrySystematicReviewMetaanalysis2021a], later work utilised large-scale digital trace data (i.e., objective behavioural logs collected directly from game platforms). These studies demonstrated that, for most players, the overall associations between the average player's quantity of playtime and their wellbeing are small and unlikely to be practically meaningful [@ballouOpenPlayLongitudinal2025; @egamiCausalEffectVideo2024; @johannesVideoGamePlay2021; @larrieuHowGamingMotives2023; @vuorreTimeSpentPlaying2022].
 
-These null results do not imply that playing video games is irrelevant to wellbeing. Rather, they suggest that the most measured dimension of play, its quantity, might not be the determining factor. Large-scale analysis of adult Nintendo players corroborated this, whilst they found that playtime was not meaningfully related to multiple wellbeing indicators, it did show that players' subjective evaluations of gaming's life-fit were [@ballouPerceivedValueVideo2025]. The underlying problem is that, conceptually, there is no such thing as 'video game play', but only exposures such as 'playing with friends', 'playing competitively', 'succeeding or failing at the game's mechanics', or 'playing to alleviate study-related stress'. That is, playtime consists of heterogeneous exposures, including context-centered exposures (e.g., when and with whom one plays), game-centered exposures (e.g., game modes, mechanics, and business models), and player-centered exposures (e.g., playstyles, motivations, and player experience) [@ballouHowVideoGames2025]. When studies collapse these layers into a single playtime variable, they conflate qualitatively distinct exposures and risk both theoretical ambiguity and empirical inconsistency [@ballouHowVideoGames2025].
+These small, mixed, and often null results do not imply that playing video games is irrelevant to wellbeing. Rather, they suggest that the most measured dimension of play, its quantity, might not be the determining factor. In a large-scale analysis of adult Nintendo players, playtime was indeed not meaningfully related to multiple wellbeing indicators, but players' subjective evaluations of gaming's life-fit were [@ballouPerceivedValueVideo2025]. The underlying problem is that, conceptually, there is no such thing as 'video game play', but only exposures such as 'playing with friends', 'succeeding or failing at the game's mechanics', or 'playing to alleviate study-related stress'. That is, playtime consists of heterogeneous exposures, including context-centred exposures (e.g., when and with whom one plays), game-centred exposures (e.g., game modes, mechanics, and business models), and player-centred exposures (e.g., playstyles, motivations, and player experience) [@ballouHowVideoGames2025]. When studies collapse these layers into a single playtime variable, they conflate qualitatively distinct exposures and risk both theoretical ambiguity and empirical inconsistency [@ballouHowVideoGames2025].
 
-This highlights a crucial gap: while existing digital trace research is a mile wide, it is only an inch deep. They capture playtime across platforms and titles, but not what happens inside the game, the granular in-game behaviours and experiences that might explain why some players benefit from play while others do not. Thus, to reconcile the mixed historical findings with the contemporary null results, research needs to start modelling the quality of play with in-game digital trace data because quantity alone is insufficient; two players can accumulate the same playtime yet have markedly different player experiences. While this makes intuitive sense, how researchers can study in-game player experience empirically without reverting to subjective self-reports remains an open question.
+This highlights a crucial gap: while existing digital trace research is a mile wide, it is only an inch deep. These studies capture playtime across platforms and titles, but not what happens inside the game, the granular in-game behaviours and experiences that might explain why some players benefit from play while others do not. Quantity alone is insufficient; two players can accumulate the same playtime yet have markedly different player experiences. Thus, to reconcile the mixed historical findings with the contemporary null results, research needs to start modelling the quality of play with in-game digital trace data. While this makes intuitive sense, how researchers can study in-game player experience empirically without reverting to subjective self-reports remains an open question.
 
 One theoretically grounded operationalisation comes from the Integrated Model of Player experience [IMP; @elsonMoreStoriesButtons2014], which identifies three categories of game characteristics that shape the playing experience: narrative (story and setting), mechanics (rules, interaction demands, and feedback), and context (the social and situational embedding). Where user-centric theories such as self-determination theory [@ryanIntrinsicMotivationVideo2006] and uses and gratifications [@ruggieroUsesGratificationsTheory2000] focus primarily on motivations and player states, the IMP is game-centric and focuses on how interaction with specific in-game characteristics during play alters the play experience and subsequent wellbeing outcomes [@elsonMoreStoriesButtons2014]. In this sense, the IMP opens the "black box" of in-game behaviour by connecting the game characteristics players encounter during play to the outcomes that follow from it, thereby guiding empirically testable hypotheses about these relationships [@elsonMoreStoriesButtons2014]. Crucially, the IMP positions mechanics as the foundational element of player experience; without mechanics there is no play, whereas narrative and context contribute situationally. A conceptually meaningful operationalisation of play quality should therefore incorporate digital trace data on mechanics-relevant indicators (e.g., performance metrics), contextual indicators (e.g., mode selection), and narrative indicators (e.g., dialogue engagement) where appropriate.
 
@@ -273,9 +273,9 @@ print(paste("Number of players left after filtering:", nrow(pvz_df_analysis)))
 
 # Methods
 
-In this study, we analysed data reported in Johannes et al. (2021), who collected digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighbourville players.
+In this study, we analysed data reported in @johannesVideoGamePlay2021, who collected digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighborville players.
 
-## Plants versus Zombies: Battle for Neighbourville
+## Plants versus Zombies: Battle for Neighborville
 
 ```{r}
 #| label: survey-demographics-calculation
@@ -344,22 +344,18 @@ gender_dist <- pvz_df_analysis %>%
   mutate(percentage = n / sum(n) * 100)
 ```
 
-Plants versus Zombies: Battle for Neighbourville (PvZ) is an online multiplayer First-person shooter (FPS) game released by Electronic Arts (EA) in October 2019. The gameplay is third-person, with an emphasis on shooter-style combat and exploration. Players can play 23 customizable gameplay classes that each have unique weapons, abilities, and forms of movement. The game offers the players the ability to compete against each other in various competitive Player-versus-Player (PVP) modes, including objective-based matches, team deathmatches, 2v2 arena matches, etc. The game also features several Player-versus-Environment (PVE) open zones, which feature storylines with quests and allow players to explore, find collectables, and complete side-missions. Players can earn experience points and in-game currencies, using the former to indicate progression and the latter to upgrade and buy new characters. The game was played on PC, PS4, Xbox One, and Nintendo Switch (@electronicArtsPlantsVsZombiesBattle2019).
+Plants versus Zombies: Battle for Neighborville (PvZ) is an online third-person multiplayer shooter game released by Electronic Arts (EA) in October 2019. Players can choose from 23 customizable gameplay classes, each with unique weapons, abilities, and movement styles. The game offers players the ability to compete against each other in various competitive Player-versus-Player (PVP) modes, including objective-based matches, team deathmatches, and 2v2 arena matches. The game also features several Player-versus-Environment (PVE) open zones, which feature storylines with quests and allow players to explore, find collectables, and complete side-missions. Players can earn experience points and in-game currencies, using the former to indicate progression and the latter to upgrade and buy new characters. The game was played on PC, PS4, Xbox One, and Nintendo Switch [@electronicArtsPlantsVsZombiesBattle2019].
 
 ## Participants
 
-As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the wellbeing survey (approximately 0.21% response rate). For details on the full dataset, which also includes Animal Crossing: New Horizons players, see @johannesVideoGamePlay2021.
-Because our research questions concern mechanics-based playstyles, we applied several inclusion criteria to ensure the analytic sample consisted of players who actively engaged with the game's core mechanics. We first excluded participants without matching telemetry data (n = 48). We then excluded 57 participants whose telemetry contained no performance metrics across any activity (PvP or PvE). These players spent time in the game's social hub, an idle space for navigation and character customisation, but did not participate in any gameplay, and thus had no behavioural data from which to derive playstyle profiles. Social-hub-only players differed markedly from combat-active players in engagement: they logged substantially less playtime (Mdn = 0.12 vs. 4.82 hours; Mann–Whitney U = 1,156, p < .001) and fewer sessions (Mdn = 1 vs. 28; U = 589, p < .001), though survey response quality did not differ between groups (straightlining rates: 1.8% vs. 1.5%, χ² = 0, p = 1.0). The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (M age = `r demographics$avg_age`, SD = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents.
-Following the methodology from the original paper, values more than 6 standard deviations from a variable mean were replaced with NA on a case-by-case basis (@johannesVideoGamePlay2021). In this dataset, this procedure replaced 87 values (across 48 variables; 26 participants affected) and did not reduce the final analytic sample.
+As detailed in @johannesVideoGamePlay2021, participants were recruited by Electronic Arts directly from their active player base via email invitations sent in two waves: the first in early August 2020 to 50,000 players, and the second in late September 2020 to 200,000 players. In total, 518 PvZ players completed the wellbeing survey (approximately 0.21% response rate). For details on the full dataset, which also includes Animal Crossing: New Horizons players, see @johannesVideoGamePlay2021. Because our research questions concern mechanics-based playstyles, we applied several inclusion criteria to ensure the analytic sample consisted of players who actively engaged with the game's core mechanics. We first excluded participants without matching telemetry data (n = 48). We then excluded 57 participants without telemetry across any activity (PvP or PvE). These players spent time in the game's social hub, an idle space for navigation and character customisation, but did not participate in any gameplay, and thus had no behavioural data from which to derive playstyle profiles. The final analytic sample consisted of `r nrow(pvz_df_analysis)` combat-active players (*M* age = `r demographics$avg_age`, *SD* = `r demographics$sd_age`; `r male_count` male, `r female_count` female, `r other_count` other, `r undisclosed_count` undisclosed), representing `r sprintf('%.1f', (nrow(pvz_df_analysis) / 518) * 100)`% of the original 518 respondents. Following the methodology from the original paper, values more than 6 standard deviations from a variable's mean were replaced with NA on a case-by-case basis [@johannesVideoGamePlay2021]. In this dataset, this procedure replaced 87 values (across 48 variables; 26 participants affected) and did not reduce the final analytic sample.
 
 
 ## Measures
 
 ### Playtime
 
-The first measure afforded by these digital trace data is playtime, yet determining this is already complex. Simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time is when the player’s account is online but not actively engaging with the objectives or mechanics of the game. Idle time can happen when a player’s computer is logged onto their account, but they are away from the keyboard. Other forms of idle time are spending time in home screens, customization menus, lobbies, and social spaces.
-In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can be present in. Every player is always in a session and could only be in one session at a time, however, multiple players could be in the same session. For example, when a player launches PvZ, they enter the hub world (where they can select what type of level or mode to play), entering the hub world starts the session timer, which ends as they choose a level or leave to join a match, which then starts a new session timer for that level.
-In total, the `r nrow(pvz_df_analysis)` players in our sample played 36,621 sessions, of which 25,937 happened in the two weeks prior to a player taking the survey. These sessions took place across 19 different maps that each facilitated different forms of gameplay, such as Player-versus-Player (PvP; 13,594 (51.27%) of sessions), 4,854 (18.31%) Player-versus-Environment (PVE), and 7,489 (28.24%) Social Hub maps. In PvP maps players battle against each other in various competitive modes such as objective-based matches, team deathmatches, and 2v2 arena matches. In PVE maps players explore open worlds that are designed for adventure with story-driven quests, side missions, and hidden collectables. The Social Hub served as an idle space for navigation and customization between matches and was excluded. This left 17,505 total sessions, 12,445 PVP sessions (71.09%) and 4,509 PVE sessions (25.76%). Players had clear preferences for which game mode they chose to play (@fig-session-timeline), which already indicated clear differences in playing styles.
+The first measure we calculated is playtime, yet determining this is already complex. Simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time is when the player’s account is online but not actively engaging with the objectives or mechanics of the game. Idle time can happen when a player’s account is online, but they are away from the keyboard. Other forms of idle time are spending time in home screens, customisation menus, lobbies, and social spaces. In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can be present in. Every player is always in a session and can only be in one session at a time; however, multiple players could be in the same session. For example, when a player launches PvZ, they enter the hub world (where they can select what type of level or mode to play). Entering the hub world starts the session timer, which ends as they choose a level or leave to join a match, which then starts a new session timer for that level. In total, the `r nrow(pvz_df_analysis)` players in our sample played 36,621 sessions, of which 25,937 happened in the two weeks prior to a player taking the survey. These sessions took place across 19 different maps that each facilitated different forms of gameplay, such as Player-versus-Player (PVP; 13,594 (51.27%) of sessions), 4,854 (18.31%) Player-versus-Environment (PVE), and 7,489 (28.24%) Social Hub maps. After exclusion of the social hub sessions, this left 17,505 total sessions, 12,445 PVP sessions (71.09%) and 4,509 PVE sessions (25.76%). On visual inspection, players had distinctive preferences for which game mode they chose to play and when (@fig-session-timeline).
 
 ```{r}
 #| label: session-timeline-helper
@@ -622,8 +618,8 @@ fig_sessiontime
 
 ### Behavioural telemetry
 
-The raw telemetry contained session-based records of game events for each player. From these records, we selected and computed metrics only if they had been previously validated as informative measures of player behaviour and performance in shooter games [@drachenGunsSwordsData2012; @lugrinImmersiveFPSGames2013; @melhartYourGameplaySays2019]. Two principles guided the computation of the behavioural metrics. First, all performance metrics were constructed to be independent of total playtime. Common cumulative indicators such as ‘player level’ or ‘total kills’ were deliberately excluded because they conflate skill with playtime; a player's level may simply be higher because they played more, not because they performed better. Second, every metric was computed separately for PvP and PvE modes, because the two contexts differ fundamentally in difficulty, objectives, and opponent type; eliminating a computer-controlled enemy in PvE is not comparable to eliminating a matchmade opponent of similar rank in PvP. Pooling across modes would obscure meaningful behavioural differences.
-This resulted in 12 behavioural metrics plus one overall playtime measure. Mode ratio captured the proportion of active playtime each player devoted to PvP and PvE modes, reflecting game-mode preference. Kill/death ratio indexed combat effectiveness as the number of eliminations per death, with higher values indicating greater survivability and lethality. Hit accuracy measures the proportion of shots that connect with a target, reflecting aiming precision. Damage per second captured sustained offensive output, indicating how efficiently a player dealt damage over time. Average damage per game reflected total offensive contribution within a match, encompassing both direct combat and area-of-effect output. Average score per game provided a composite performance indicator incorporating objectives completed, assists, and other in-game scoring events beyond raw combat. Each of these five performance metrics was computed separately for PvP and PvE, yielding 10 mode-specific indicators alongside the two mode-ratio variables. See @tbl-descriptive-stats for descriptive statistics.
+The raw telemetry contained session-based records of in-game events for each player. From these records, we selected and computed metrics only if they had been previously validated as informative measures of player behaviour and performance in shooter games [@drachenGunsSwordsData2012; @lugrinImmersiveFPSGames2013; @melhartYourGameplaySays2019]. Two principles guided the computation of the behavioural metrics. First, all performance metrics were constructed to be independent of total playtime. Common cumulative indicators such as ‘player level’ or ‘total kills’ were deliberately excluded because they conflate skill with playtime; a player's level may simply be higher because they played more, not because they performed better. Second, every metric was computed separately for PvP and PvE modes, because the two contexts differ fundamentally in difficulty, objectives, and opponent type; eliminating a computer-controlled enemy in PvE is not comparable to eliminating a matchmade opponent of similar rank in PvP. Pooling across modes would obscure meaningful behavioural differences.
+This resulted in 12 behavioural metrics plus one overall playtime measure (for descriptive statistics, see @tbl-descriptive-stats). Mode ratio captured the proportion of active playtime each player devoted to PvP and PvE modes, reflecting game-mode preference. Kill/death ratio indexed combat effectiveness as the number of eliminations per death, with higher values indicating greater survivability and lethality. Hit accuracy measures the proportion of shots that connect with a target, reflecting aiming precision. Damage per second captured sustained offensive output, indicating how efficiently a player dealt damage over time. Average damage per game reflected total offensive contribution within a match, encompassing both direct combat and area-of-effect output. Average score per game provided a composite performance indicator incorporating objectives completed, assists, and other in-game scoring events beyond raw combat. Each of these five performance metrics were computed separately for PvP and PvE, yielding 10 mode-specific indicators alongside the two mode-ratio variables.
 
 ```{r}
 #| label: tbl-descriptive-stats
@@ -787,7 +783,7 @@ descriptive_stats |>
 
 ### Wellbeing
 
-We assessed affective wellbeing with the Scale of Positive and Negative Experiences [SPANE; @dienerNewWellbeingMeasures2010; @dienerAdvancesOpenQuestions2018]. Respondents were prompted to reflect on how playing PvZ had made them feel over the past two weeks and rated how often they experienced each of six positive (positive, good, pleasant, happy, joyful, contented) and six negative (negative, bad, unpleasant, sad, afraid, angry) feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always). An overall wellbeing balance score was computed by subtracting the mean negative score from the mean positive score, yielding a possible range of −6 to +6, where higher values indicate more positive affect associated with play. All responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys (@leinerTooFastToo2019), however, no unusual cases were identified.
+We assessed affective wellbeing with the Scale of Positive and Negative Experiences [SPANE; @dienerNewWellbeingMeasures2010; @dienerAdvancesOpenQuestions2018]. Respondents were prompted to reflect on how playing PvZ had made them feel over the past two weeks and rated how often they experienced each of six positive (positive, good, pleasant, happy, joyful, contented) and six negative (negative, bad, unpleasant, sad, afraid, angry) feelings on a scale from 1 (Very rarely or never) to 7 (Very often or always). An overall wellbeing balance score was computed by subtracting the mean negative score from the mean positive score, yielding a possible range of −6 to +6, where higher values indicate more positive affect associated with play.
 
 ### Enjoyment
 
@@ -795,21 +791,23 @@ Enjoyment was assessed with four items from the Player Experience and Need Satis
 
 ## Data analysis
 
-Data were analyzed in R version 4.5.1 [@rCoreTeamRLanguageEnvironment2025]. Key packages included `fpc` for cluster validation indices [@hennig2020a], `factoextra` for multivariate visualization [@kassambara2020a], and `robustlmm` for robust mixed-effects estimation [@kollerRobustlmmRPackage2016]. Following initial data cleaning, telemetry records were matched to the same two-week window referenced by the survey items, and analyses were conducted on combat-active players with sufficient mode-specific telemetry.
+Data were analyzed in R version 4.5.1 [@rCoreTeamRLanguageEnvironment2025]. Key packages included `fpc` for cluster validation indices [@hennig2020a], `factoextra` for multivariate visualization [@kassambara2020a], and `robustlmm` for robust mixed-effects estimation [@kollerRobustlmmRPackage2016].
+
+Following initial data cleaning, all survey responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys [@leinerTooFastToo2019], however, no unusual cases were identified. Afterwards, the telemetry records were matched to the same two-week window referenced by the survey items, and analyses were conducted on active players with sufficient mode-specific telemetry.
 
 To test whether clustering was appropriate before fitting any cluster model, we evaluated cluster tendency using three complementary approaches. First, we computed the Hopkins statistic [@banerjee2004a], which compares distances in observed data to distances expected under spatial randomness; values near 0.5 indicate random structure, whereas larger values indicate clusterable structure. Second, we used Visual Assessment of Cluster Tendency (VAT) [@bezdek2002a], which reorders the dissimilarity matrix so potential clusters appear as darker diagonal blocks. Third, we examined Principal Component Analysis (PCA) projections to assess whether separable groupings were visible in low-dimensional space relative to random reference data. Together, these diagnostics indicated non-random structure suitable for clustering.
 
 We then identified play styles with Partitioning Around Medoids (PAM) [@kaufmanFindingGroupsData1990] on standardized in-game behavioral features. PAM was selected over k-means because it is less sensitive to extreme points and defines each cluster by an observed medoid (a real player profile), which improves robustness and interpretability for telemetry-derived behavioral profiles. Features were z-standardized before clustering, and missing mode-specific performance values were set to zero to encode no activity in that mode rather than dropping cases. The number of clusters was determined by maximizing the Calinski-Harabasz index across k = 2 to 10 [@tibshiraniEstimatingNumberClusters2001], which selected a three-cluster solution; we then checked internal coherence with silhouette widths [@kaufmanFindingGroupsData1990].
 
-To examine associations between play style, playtime, and outcomes, we fit robust linear mixed-effects models with random intercepts for country to account for baseline between-country differences in outcome levels. For both outcomes (game-specific wellbeing and enjoyment), we first estimated main-effects models: outcome ~ player type + hours played + gender + age + (1 | country). To address moderation (RQ3), we then estimated interaction models: outcome ~ player type * hours played + (1 | country). Outcomes were treated as continuous and approximately normally distributed, and playtime hours was modeled on its raw scale. We used simple-slopes analyses to estimate within-play-style playtime slopes and pairwise slope-difference tests to compare those slopes across play styles. Statistical significance was set at p \< .05.
+To examine associations between play style, playtime, and outcomes, we fit robust linear mixed-effects models [@kollerRobustlmmRPackage2016] with random intercepts for country to account for baseline between-country differences in outcome levels. Robust estimation was preferred over standard maximum-likelihood mixed models because telemetry-derived playtime and performance metrics are characteristically right-skewed and prone to influential observations; a small number of highly engaged players can exert disproportionate leverage on ordinary least-squares estimates. Robust estimation downweights such influential cases automatically through iteratively reweighted least squares, yielding coefficient estimates that better reflect the bulk of the sample without requiring ad hoc outlier exclusion rules that introduce researcher degrees of freedom. This approach also maintains methodological consistency with our clustering strategy: PAM was selected precisely because it is less sensitive to extreme points, and using a robust estimator at the modelling stage carries that same design philosophy through the analytic pipeline. For both outcomes (game-specific wellbeing and enjoyment), we first estimated main-effects models: outcome ~ player type + hours played + gender + age + (1 | country). To address moderation (RQ3), we then estimated interaction models: outcome ~ player type * hours played + (1 | country). Outcomes were treated as continuous and approximately normally distributed, and playtime was modelled on its raw scale. We used simple-slopes analyses to estimate within-play-style playtime slopes and pairwise slope-difference tests to compare those slopes across play styles. Statistical significance was set at *p* < .05.
 
 ## Data, Materials, and Code
 
-The raw data, materials, codebook and further details on this dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>. Building on this raw data and documentation, all of the underlying wrangling and analysis code reported in this study can be found at OSF upon publication.
+The present study was not preregistered, but the data and code reported in this study can be found at <<<<<LINK OSF/ZENODO>>>>>. The raw data, materials, codebook and further details on the dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>.
 
 # Results
 
-## Player Clustering Analysis
+## RQ1. Player Clustering Analysis
 
 ```{r}
 #| label: cluster_feature_selection
@@ -994,12 +992,10 @@ dist_plot_random <- fviz_dist(dist_random_data,
        theme(plot.title = element_text(face = "bold", size = 14))
 ```
 
-Before fitting cluster models, we evaluated whether the data showed non-random structure. The Hopkins statistic [@banerjee2004a] assesses cluster tendency by comparing the observed data structure to what would be expected under spatial randomness. Specifically, it measures the ratio of distances from a sample of data points to their nearest neighbors within the actual dataset, relative to distances from uniformly distributed random points to their nearest neighbors in the actual data. The statistic ranges from 0 to 1, where values near 0.5 indicate spatial randomness (no meaningful cluster structure), values substantially below 0.5 suggest regular spacing, and values substantially above 0.5 indicate clusterable structure. Values above 0.70 are generally considered strong evidence of cluster tendency, with higher values reflecting more pronounced separation between natural groupings in the feature space.
-
-The Hopkins statistic computed from our player behavioral data was high (`r round(hopkins_final, 4)`, 95% CI [`r round(hopkins_ci_final[1], 4)`, `r round(hopkins_ci_final[2], 4)`]), substantially exceeding the 0.70 threshold and indicating strong cluster tendency. As a validity check, a random dataset with identical dimensions produced a substantially lower value (`r round(hopkins_random_check, 4)`) closer to the 0.5 benchmark expected under spatial randomness. VAT plots showed clear dark diagonal blocks for the player data, consistent with separable groups, while the random reference data showed no comparable block structure (Appendix 1; @bezdek2002a). PCA visualizations converged on the same conclusion, with visible grouping in the player data but not in the random comparison. The convergence of these three independent assessments (Hopkins, VAT, and PCA) provided strong statistical evidence to reject the null hypothesis of spatial randomness, demonstrating that the player behavioral data contained meaningful, non-random structure amenable to clustering methods.
+The Hopkins statistic computed from our player behavioural data was high (`r round(hopkins_final, 4)`, 95% CI [`r round(hopkins_ci_final[1], 4)`, `r round(hopkins_ci_final[2], 4)`]), substantially exceeding the 0.70 threshold and indicating strong cluster tendency. As a validity check, a random dataset with identical dimensions produced a substantially lower value (`r round(hopkins_random_check, 4)`), closer to the 0.5 benchmark expected under spatial randomness. VAT plots showed clear dark diagonal blocks for the player data, consistent with separable groups, while the random reference data showed no comparable block structure (Appendix 1; @bezdek2002a). PCA visualisations converged on the same conclusion, with visible grouping in the player data but not in the random comparison. The convergence of these three independent assessments (Hopkins, VAT, and PCA) provided strong statistical evidence to reject the null hypothesis of spatial randomness, demonstrating that the player behavioural data contained meaningful, non-random structure amenable to clustering methods.
 
 
-### Determining Optimal Number of Clusters
+### PAM Clustering
 
 ```{r}
 #| label: pam_silhouette_method
@@ -1044,9 +1040,7 @@ ch_optimal_k <- ch_pam_results$k[which.max(ch_pam_results$ch_index)]
 final_optimal_k <- ch_optimal_k
 ```
 
-To select the number of clusters, we evaluated PAM solutions for k = 2 to 10 using the Calinski-Harabasz (CH) index, where higher values indicate better separation relative to within-cluster dispersion [@kaufmanFindingGroupsData1990; @tibshiraniEstimatingNumberClusters2001]. The CH index peaked at k = `r final_optimal_k` (Appendix 2), supporting a three-cluster solution as the best trade-off between fit and parsimony. This solution also yielded interpretable profiles consistent with prior telemetry-based playstyle research [@drachenGunsSwordsData2012; @drachen2014a; @melhartYourGameplaySays2019].
-
-### PAM Clustering
+To select the number of clusters, we evaluated PAM solutions for k = 2 to 10 using the Calinski-Harabasz (CH) index, where higher values indicate better separation relative to within-cluster dispersion [@kaufmanFindingGroupsData1990; @tibshiraniEstimatingNumberClusters2001]. The CH index peaked at k = `r final_optimal_k` (Appendix 2), supporting a three-cluster solution as the best trade-off between fit and parsimony.
 
 ```{r}
 #| label: prepare_player_data
@@ -1101,7 +1095,7 @@ stats_pam_k3 <- list(
 )
 ```
 
-Having selected k = 3 on the basis of the CH index, we assessed the internal validity of this solution using silhouette analysis [@kaufmanFindingGroupsData1990], which quantifies how well each observation fits its assigned cluster relative to the nearest neighbouring cluster. The average silhouette width was `r round(stats_pam_k3$avg_silhouette, 2)`. According to Kaufman and Rousseeuw's interpretive guidelines, values above 0.25 indicate strong structure and values between 0.10 and 0.25 indicate weak but still meaningful structure; the overall value thus falls at the boundary, suggesting reasonable though not crisp separation. Per-cluster silhouette widths ranged from `r round(min(stats_pam_k3$silhouette_per_cluster), 2)` to `r round(max(stats_pam_k3$silhouette_per_cluster), 2)`, with one cluster exceeding the 0.25 threshold and the remaining two showing acceptable cohesion. No negative silhouette values were observed, confirming that every observation was assigned to its most appropriate cluster. The substantive interpretation of these three clusters is presented below.
+Having selected k = 3 on the basis of the CH index, we assessed the internal validity of this solution using silhouette analysis [@kaufmanFindingGroupsData1990], which quantifies how well each observation fits its assigned cluster relative to the nearest neighbouring cluster. The average silhouette width was `r round(stats_pam_k3$avg_silhouette, 2)`. According to Kaufman and Rousseeuw's interpretive guidelines, values above 0.25 indicate strong structure and values between 0.10 and 0.25 indicate weak but still meaningful structure; the overall value thus falls at the boundary, suggesting reasonable separation. Per-cluster silhouette widths ranged from `r round(min(stats_pam_k3$silhouette_per_cluster), 2)` to `r round(max(stats_pam_k3$silhouette_per_cluster), 2)`, with one cluster exceeding the 0.25 threshold and the remaining two showing acceptable cohesion. No negative silhouette values were observed, confirming that every observation was assigned to its most appropriate cluster. The substantive interpretation of these three clusters is presented below.
 
 
 
@@ -1314,15 +1308,15 @@ pvp_pvp_kd <- round(pt_pvp$`PvP K/D`, 2)
 pvp_pvp_acc <- round(pt_pvp$`PvP Accuracy`, 1)
 ```
 
-### Interpretation of Playstyles
+### Interpretation of Clusters
 
-Following established approaches to telemetry-based player profiling [@drachenGunsSwordsData2012; @drachen2014a; @bauckhageClusteringGameBehavior2015; @melhartYourGameplaySays2019; @sifaProfilingGamesUnderstanding2018], we labelled the three clusters on the basis of their dominant mode preferences and performance levels (@fig-radar-charts). The labels reflect two dimensions that emerged from the data: the game mode players predominantly engaged with (PVE vs. PVP) and their overall performance level (casual vs. elite).
+Following established approaches to telemetry-based player profiling [@bauckhageClusteringGameBehavior2015; @drachenGunsSwordsData2012; @drachen2014a; @melhartYourGameplaySays2019; @sifaProfilingGamesUnderstanding2018], we labelled the three clusters on the basis of their dominant mode preferences and performance levels (@fig-radar-charts). The labels reflect two dimensions that emerged from the data: the game mode players predominantly engaged with (PVE vs. PVP) and their overall performance level (casual vs. elite).
+
+Casual PVP Players (`r pvp_pct_players`% of the sample) devoted the majority of their time to competitive PVP modes (`r pvp_time`%), yet their performance was moderate (PVP K/D: M = `r pvp_pvp_kd`; PVP Accuracy: M = `r pvp_pvp_acc`%), falling well below Elite Allround Players. Performance in PVE was similarly modest. This pattern indicates a preference for competitive engagement that is not accompanied by correspondingly high skill, suggesting a casual orientation to play within a competitive context.
 
 Casual PVE Players (`r pve_pct_players`% of the sample) allocated the majority of their playtime to cooperative PVE modes (`r pve_time`%), achieving moderate performance within that context (PVE K/D: M = `r pve_pve_kd`; PVE Accuracy: M = `r pve_pve_acc`%) while showing markedly lower metrics in PVP. This profile suggests a specialisation in story-driven exploration and cooperative play over competitive engagement.
 
 Elite Allround Players (`r elite_pct_players`% of the sample), the largest cluster, maintained high performance across both gameplay contexts, with kill-to-death ratios and accuracy rates substantially above the sample mean in both PVP (K/D: M = `r elite_pvp_kd`; Accuracy: M = `r elite_pvp_acc`%) and PVE (K/D: M = `r elite_pve_kd`; Accuracy: M = `r elite_pve_acc`%). Rather than specialising in one mode, these players engaged broadly and performed well regardless of context, distinguishing them as the most proficient segment.
-
-Casual PVP Players (`r pvp_pct_players`% of the sample) devoted the majority of their time to competitive PVP modes (`r pvp_time`%), yet their performance was moderate (PVP K/D: M = `r pvp_pvp_kd`; PVP Accuracy: M = `r pvp_pvp_acc`%), falling well below Elite Allround Players. Performance in PVE was similarly modest. This pattern indicates a preference for competitive engagement that is not accompanied by correspondingly high skill, suggesting a casual orientation to play within a competitive context.
 
 ```{r}
 #| label: radar-caption-values
@@ -1479,7 +1473,7 @@ for (i in 1:length(player_type_names)) {
 par(mfrow = c(1, 1))
 ```
 
-## Wellbeing differences between player types 
+## RQ2. Wellbeing differences between player types
 
 ```{r}
 #| label: player-type-wellbeing-model
@@ -1537,7 +1531,7 @@ coefs_enjoyment <- coef(summary(rmodel_enjoyment))
 
 We fitted robust linear mixed-effects models predicting each outcome from player type, hours played, gender, and age, with random intercepts for country (Appendix 3). Casual PVE Players served as the reference category. Relative to these players, both Casual PVP Players (b = `r round(coefs_game["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeCasual PVP Players", "t value"], 2)`) and Elite Allround Players (b = `r round(coefs_game["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_game["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_game["player_typeElite Allround Players", "t value"], 2)`) reported significantly lower game-specific wellbeing. For enjoyment, Casual PVP Players again scored lower than Casual PVE Players (b = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeCasual PVP Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeCasual PVP Players", "t value"], 2)`), whereas the difference between Elite Allround and Casual PVE Players was smaller and not statistically reliable (b = `r round(coefs_enjoyment["player_typeElite Allround Players", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["player_typeElite Allround Players", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["player_typeElite Allround Players", "t value"], 2)`). Hours played was positively associated with both outcomes (wellbeing: b = `r round(coefs_game["hours", "Estimate"], 2)`, SE = `r round(coefs_game["hours", "Std. Error"], 2)`, t = `r round(coefs_game["hours", "t value"], 2)`; enjoyment: b = `r round(coefs_enjoyment["hours", "Estimate"], 2)`, SE = `r round(coefs_enjoyment["hours", "Std. Error"], 2)`, t = `r round(coefs_enjoyment["hours", "t value"], 2)`).
 
-## Does Playstyle Moderate the Playtime–Well-being Relationship?
+## RQ3. Does Playstyle Moderate the Playtime–Wellbeing Relationship?
 
 ```{r}
 #| label: moderation-models
@@ -1591,7 +1585,7 @@ coefs_mod_game <- coef(summary(rmodel_moderation_game))
 coefs_mod_enjoyment <- coef(summary(rmodel_moderation_enjoyment))
 ```
 
-To test whether the playtime–outcome association differed across playstyles, we added player type × hours interaction terms to the models (Appendix 4). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PVE Players. None of the interaction terms reached significance: for wellbeing, neither Casual PVP Players (Δb = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "t value"], 2)`) nor Elite Allround Players (Δb = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "t value"], 2)`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PVP: Δb = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "t value"], 2)`; Elite Allround: Δb = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "t value"], 2)`). Baseline playstyle differences in intercepts remained in the interaction models, particularly for Casual PVP Players (wellbeing: b = `r round(coefs_mod_game["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players", "t value"], 2)`; enjoyment: b = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "t value"], 2)`).
+To test whether the playtime–outcome association differed across playstyles, we added player type × hours interaction terms to the models (Appendix 4). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PVE Players. None of the interaction terms reached significance: for wellbeing, neither Casual PVP Players (Δb = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players:hours", "t value"], 2)`) nor Elite Allround Players (Δb = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_game["player_typeElite Allround Players:hours", "t value"], 2)`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PVP: Δb = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players:hours", "t value"], 2)`; Elite Allround: Δb = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Estimate"], 2)`, SE = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "Std. Error"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeElite Allround Players:hours", "t value"], 2)`). Playstyle differences in intercepts remained in the interaction models, particularly for Casual PVP Players (wellbeing: b = `r round(coefs_mod_game["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_game["player_typeCasual PVP Players", "t value"], 2)`; enjoyment: b = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "Estimate"], 2)`, t = `r round(coefs_mod_enjoyment["player_typeCasual PVP Players", "t value"], 2)`).
 
 ```{r}
 #| label: wellbeing-anova
@@ -2280,7 +2274,7 @@ fmt_p <- function(p) {
 }
 ```
 
-To further probe the interaction, simple slopes analyses decomposed the playtime–outcome association within each playstyle (@fig-interaction-plots). Only Elite Allround Players showed a significant positive slope for both wellbeing (b = `r round(wb_elite$estimate, 3)`, *p* `r fmt_p(wb_elite$p.value)`) and enjoyment (b = `r round(enj_elite$estimate, 3)`, *p* `r fmt_p(enj_elite$p.value)`). Slopes for Casual PVE Players (wellbeing: b = `r round(wb_pve$estimate, 3)`, *p* `r fmt_p(wb_pve$p.value)`; enjoyment: b = `r round(enj_pve$estimate, 3)`, *p* `r fmt_p(enj_pve$p.value)`) and Casual PVP Players (wellbeing: b = `r round(wb_pvp$estimate, 3)`, *p* `r fmt_p(wb_pvp$p.value)`; enjoyment: b = `r round(enj_pvp$estimate, 3)`, *p* `r fmt_p(enj_pvp$p.value)`) were not significant. Critically, pairwise comparisons of slopes revealed no significant differences between any pair of playstyles (all *p*s > .05), confirming that the playtime–outcome gradient does not differ meaningfully across groups. Taken together, these results indicate that playstyle is associated with different baseline levels of wellbeing and enjoyment but does not moderate the relationship between playtime and either outcome.
+To further probe the interaction, simple slopes analyses decomposed the playtime–outcome association within each playstyle (@fig-interaction-plots). Only Elite Allround Players showed a significant positive slope for both wellbeing (b = `r round(wb_elite$estimate, 3)`, *p* `r fmt_p(wb_elite$p.value)`) and enjoyment (b = `r round(enj_elite$estimate, 3)`, *p* `r fmt_p(enj_elite$p.value)`). Slopes for Casual PVE Players (wellbeing: b = `r round(wb_pve$estimate, 3)`, *p* `r fmt_p(wb_pve$p.value)`; enjoyment: b = `r round(enj_pve$estimate, 3)`, *p* `r fmt_p(enj_pve$p.value)`) and Casual PVP Players (wellbeing: b = `r round(wb_pvp$estimate, 3)`, *p* `r fmt_p(wb_pvp$p.value)`; enjoyment: b = `r round(enj_pvp$estimate, 3)`, *p* `r fmt_p(enj_pvp$p.value)`) were not significant. Critically, pairwise comparisons of slopes revealed no significant differences between any pair of playstyles (all *p*s > .05), confirming that the playtime–wellbeing slope does not differ meaningfully across groups. Taken together, these results indicate that playstyle is associated with different average levels of wellbeing and enjoyment but does not moderate the relationship between playtime and either outcome.
 
 # Discussion
 
@@ -2389,12 +2383,13 @@ p_pam_ch
 
 The plot above shows the validation method used to determine the optimal number of clusters. The Calinski-Harabasz Index evaluates cluster validity based on the ratio of between-cluster to within-cluster variance, with higher values indicating better separation between clusters. The index indicated that k = 3 was the optimal number of clusters for our player data.
 
-## Appendix 3: Statistical Tables for Interpretation
+## Appendix 3: Robust Mixed-Model Coefficients
 
 ```{r}
-#| label: appendix_stat_tables_prep
-#| include: false
-#| cache: false
+#| label: appendix_model_coefficients
+#| echo: false
+#| warning: false
+#| message: false
 
 fmt_p_table <- function(p) {
   case_when(
@@ -2416,8 +2411,7 @@ tidy_rlmer_table <- function(model, outcome, model_name) {
     mutate(
       outcome = outcome,
       model = model_name,
-      p_approx = 2 * pnorm(-abs(t_value)),
-      significant = p_approx < 0.05
+      p_approx = 2 * pnorm(-abs(t_value))
     )
 }
 
@@ -2430,247 +2424,29 @@ term_map <- c(
   "genderOther" = "Gender: Other (vs Female)",
   "genderPrefer not to say" = "Gender: Undisclosed (vs Female)",
   "age" = "Age",
-  "player_typeCasual PVP Players:hours" = "Casual PVP x Hours",
-  "player_typeElite Allround Players:hours" = "Elite Allround x Hours"
+  "player_typeCasual PVP Players:hours" = "Casual PVP × Hours",
+  "player_typeElite Allround Players:hours" = "Elite Allround × Hours"
 )
 
-make_term_label <- function(term) {
-  recode(term, !!!term_map, .default = term)
-}
-
-tbl_main_model <- bind_rows(
-  tidy_rlmer_table(rmodel_game, "Wellbeing (SPANE)", "Main effects"),
-  tidy_rlmer_table(rmodel_enjoyment, "Enjoyment", "Main effects")
-) %>%
-  mutate(term_label = make_term_label(term)) %>%
-  filter(term != "(Intercept)")
-
-tbl_moderation_model <- bind_rows(
-  tidy_rlmer_table(rmodel_moderation_game, "Wellbeing (SPANE)", "Moderation"),
+bind_rows(
+  tidy_rlmer_table(rmodel_game, "Wellbeing", "Main effects"),
+  tidy_rlmer_table(rmodel_enjoyment, "Enjoyment", "Main effects"),
+  tidy_rlmer_table(rmodel_moderation_game, "Wellbeing", "Moderation"),
   tidy_rlmer_table(rmodel_moderation_enjoyment, "Enjoyment", "Moderation")
 ) %>%
-  mutate(term_label = make_term_label(term)) %>%
-  filter(term != "(Intercept)")
-
-tbl_anova <- all_anova_results %>%
-  filter(term == "player_type") %>%
-  mutate(
-    outcome = recode(
-      variable,
-      "spane_game_balance" = "Wellbeing (SPANE)",
-      "enjoyment" = "Enjoyment"
-    ),
-    significant = p.value < 0.05
-  )
-
-tbl_posthoc <- bind_rows(
-  wellbeing_posthoc %>% mutate(outcome = "Wellbeing (SPANE)"),
-  enjoyment_posthoc %>% mutate(outcome = "Enjoyment")
-) %>%
-  mutate(significant = adj.p.value < 0.05)
-
-tbl_simple_slopes <- bind_rows(
-  wellbeing_slopes %>% mutate(outcome = "Wellbeing (SPANE)"),
-  enjoyment_slopes %>% mutate(outcome = "Enjoyment")
-) %>%
-  mutate(significant = p.value < 0.05)
-
-tbl_slope_pairs <- bind_rows(
-  wb_pairs_numeric %>% mutate(outcome = "Wellbeing (SPANE)"),
-  enj_pairs_numeric %>% mutate(outcome = "Enjoyment")
-) %>%
-  mutate(significant = p.value < 0.05)
-
-tbl_significant_findings <- bind_rows(
-  tbl_main_model %>%
-    filter(significant) %>%
-    transmute(
-      analysis = model,
-      outcome,
-      test = term_label,
-      effect = estimate,
-      statistic = t_value,
-      p_value = p_approx
-    ),
-  tbl_moderation_model %>%
-    filter(significant) %>%
-    transmute(
-      analysis = model,
-      outcome,
-      test = term_label,
-      effect = estimate,
-      statistic = t_value,
-      p_value = p_approx
-    ),
-  tbl_anova %>%
-    filter(significant) %>%
-    transmute(
-      analysis = "ANOVA",
-      outcome,
-      test = "Overall play-style effect",
-      effect = eta_squared,
-      statistic = statistic,
-      p_value = p.value
-    ),
-  tbl_posthoc %>%
-    filter(significant) %>%
-    transmute(
-      analysis = "Post-hoc (Tukey HSD)",
-      outcome,
-      test = contrast,
-      effect = estimate,
-      statistic = NA_real_,
-      p_value = adj.p.value
-    ),
-  tbl_simple_slopes %>%
-    filter(significant) %>%
-    transmute(
-      analysis = "Simple slopes",
-      outcome,
-      test = player_type,
-      effect = estimate,
-      statistic = statistic,
-      p_value = p.value
-    ),
-  tbl_slope_pairs %>%
-    filter(significant) %>%
-    transmute(
-      analysis = "Pairwise slope differences",
-      outcome,
-      test = paste(player_type1, "vs", player_type2),
-      effect = difference,
-      statistic = statistic,
-      p_value = p.value
-    )
-) %>%
-  arrange(analysis, outcome)
-```
-
-```{r}
-#| label: appendix_table_main_effects
-#| echo: false
-#| warning: false
-#| message: false
-
-tbl_main_model %>%
+  mutate(term = recode(term, !!!term_map, .default = term)) %>%
+  filter(term != "Intercept") %>%
   transmute(
+    Model = model,
     Outcome = outcome,
-    Term = term_label,
-    Estimate = round(estimate, 3),
-    SE = round(std_error, 3),
-    t = round(t_value, 3),
-    `Approx. p` = fmt_p_table(p_approx),
-    Significant = if_else(significant, "Yes", "No")
-  ) %>%
-  tt(caption = "Main-Effects Robust Mixed Models (Approximate Significance)") %>%
-  format_tt(digits = 3)
-```
-
-```{r}
-#| label: appendix_table_moderation
-#| echo: false
-#| warning: false
-#| message: false
-
-tbl_moderation_model %>%
-  transmute(
-    Outcome = outcome,
-    Term = term_label,
-    Estimate = round(estimate, 3),
-    SE = round(std_error, 3),
-    t = round(t_value, 3),
-    `Approx. p` = fmt_p_table(p_approx),
-    Significant = if_else(significant, "Yes", "No")
-  ) %>%
-  tt(caption = "Moderation Models (Play Style x Hours; Approximate Significance)") %>%
-  format_tt(digits = 3)
-```
-
-```{r}
-#| label: appendix_table_anova_posthoc
-#| echo: false
-#| warning: false
-#| message: false
-
-tbl_anova %>%
-  transmute(
-    Outcome = outcome,
-    `df1` = df,
-    `df2` = df_residual,
-    F = round(statistic, 2),
-    p = fmt_p_table(p.value),
-    `Eta-squared` = round(eta_squared, 3),
-    Significant = if_else(significant, "Yes", "No")
-  ) %>%
-  tt(caption = "Omnibus ANOVA Tests by Outcome") %>%
-  format_tt(digits = 3)
-
-tbl_posthoc %>%
-  transmute(
-    Outcome = outcome,
-    Contrast = contrast,
-    Estimate = round(estimate, 3),
-    `CI Low` = round(conf.low, 3),
-    `CI High` = round(conf.high, 3),
-    `Adj. p` = fmt_p_table(adj.p.value),
-    Significant = if_else(significant, "Yes", "No")
-  ) %>%
-  tt(caption = "Post-hoc Tukey HSD Comparisons by Outcome") %>%
-  format_tt(digits = 3)
-```
-
-```{r}
-#| label: appendix_table_slopes
-#| echo: false
-#| warning: false
-#| message: false
-
-tbl_simple_slopes %>%
-  transmute(
-    Outcome = outcome,
-    `Play Style` = player_type,
+    Term = term,
     b = round(estimate, 3),
-    SE = round(std.error, 3),
-    t = round(statistic, 3),
-    p = fmt_p_table(p.value),
-    `CI Low` = round(conf.low, 3),
-    `CI High` = round(conf.high, 3),
-    Significant = if_else(significant, "Yes", "No")
+    SE = round(std_error, 3),
+    t = round(t_value, 2),
+    p = fmt_p_table(p_approx)
   ) %>%
-  tt(caption = "Simple Slopes by Play Style and Outcome") %>%
-  format_tt(digits = 3)
-
-tbl_slope_pairs %>%
-  transmute(
-    Outcome = outcome,
-    Contrast = paste(player_type1, "vs", player_type2),
-    Diff = round(difference, 3),
-    SE = round(std.error, 3),
-    t = round(statistic, 3),
-    p = fmt_p_table(p.value),
-    Significant = if_else(significant, "Yes", "No")
-  ) %>%
-  tt(caption = "Pairwise Differences Between Simple Slopes") %>%
+  tt(caption = "Fixed-effect coefficients from robust linear mixed-effects models (rlmer) with random intercepts for country. Approximate p-values derived from normal-approximation of t-statistics.") %>%
   format_tt(digits = 3)
 ```
 
-```{r}
-#| label: appendix_table_significant_findings
-#| echo: false
-#| warning: false
-#| message: false
-
-tbl_significant_findings %>%
-  transmute(
-    Analysis = analysis,
-    Outcome = outcome,
-    Test = test,
-    Effect = round(effect, 3),
-    Statistic = round(statistic, 3),
-    p = fmt_p_table(p_value)
-  ) %>%
-  tt(caption = "Significant Findings Summary (p < .05)") %>%
-  format_tt(digits = 3)
-```
-
-These appendix tables summarize all model terms, omnibus tests, post-hoc contrasts, simple slopes, and pairwise slope differences to support interpretation of statistically significant findings. For robust mixed-effects models (`rlmer`), p-values are reported as normal-approximation values derived from t-statistics and should be interpreted as approximate.
+This table presents the full coefficient estimates for all four robust mixed-effects models. ANOVA omnibus tests, Tukey HSD post-hoc comparisons, simple slopes, and pairwise slope-difference tests are reported in the main text.
