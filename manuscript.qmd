@@ -717,7 +717,7 @@ descriptive_stats <- numeric_stats %>%
     variable == "pve_average_damage" ~ "PvE Average Damage per Game",
     variable == "pvp_average_score" ~ "PvP Average Score",
     variable == "pve_average_score" ~ "PvE Average Score",
-    variable == "spane_game_balance" ~ "Game-Specific Wellbeing (SPANE)",
+    variable == "spane_game_balance" ~ "Wellbeing (SPANE)",
     variable == "enjoyment" ~ "Enjoyment",
     TRUE ~ variable
   )) %>%
@@ -730,7 +730,7 @@ descriptive_stats <- numeric_stats %>%
                    "PvP Damage per Second", "PvE Damage per Second",
                    "PvP Average Damage per Game", "PvE Average Damage per Game",
                    "PvP Average Score", "PvE Average Score") ~ "Performance",
-    variable %in% c("Game-Specific Wellbeing (SPANE)", "Enjoyment") ~ "Wellbeing",
+    variable %in% c("Wellbeing (SPANE)", "Enjoyment") ~ "Wellbeing",
     TRUE ~ "Other"
   )) %>%
   # Round numeric values
@@ -757,7 +757,7 @@ variable_order <- c(
   "PvP Average Score", "PvE Average Score",
   
   # Wellbeing
-  "Game-Specific Wellbeing (SPANE)", "Enjoyment"
+  "Wellbeing (SPANE)", "Enjoyment"
 )
 
 # Apply the custom ordering
@@ -1484,7 +1484,7 @@ set.seed(123) # For reproducibility of robust estimates
 
 # Check if models should be refit or loaded from cache
 if (eval_models || !model_exists("rmodel_game") || !model_exists("rmodel_enjoyment")) {
-  # Fit robust models for game-specific wellbeing
+  # Fit robust models for wellbeing
   rmodel_game <- rlmer(spane_game_balance ~ player_type + hours + gender + age + (1|country), 
                        data = pvz_df_clustered)
   
@@ -1551,24 +1551,24 @@ fmt_coef <- function(coefs, row, prefix = "b") {
 }
 ```
 
-For each outcome (game-specific wellbeing and enjoyment), we estimated a main-effects model predicting the outcome from player type, hours played, gender, and age, with random intercepts for country (outcome ~ player_type + hours + gender + age + (1 | country); see Appendix 3). The fixed effects accounted for a modest share of outcome variance (wellbeing: marginal *R*² = `r sprintf("%.3f", r2_game["marginal"])`, conditional *R*² = `r sprintf("%.3f", r2_game["conditional"])`; enjoyment: marginal *R*² = `r sprintf("%.3f", r2_enjoyment["marginal"])`, conditional *R*² = `r sprintf("%.3f", r2_enjoyment["conditional"])`). Casual PvE Players served as the reference category. Relative to these players, both Casual PvP Players (`r fmt_coef(coefs_game, "player_typeCasual PvP Players")`) and Elite Allround Players (`r fmt_coef(coefs_game, "player_typeElite Allround Players")`) reported significantly lower game-specific wellbeing. For enjoyment, Casual PvP Players again scored lower than Casual PvE Players (`r fmt_coef(coefs_enjoyment, "player_typeCasual PvP Players")`), whereas the difference between Elite Allround and Casual PvE Players was smaller and not statistically reliable (`r fmt_coef(coefs_enjoyment, "player_typeElite Allround Players")`) (see @fig-anova-boxplots).
+For each outcome (wellbeing and enjoyment), we estimated a main-effects model predicting the outcome from player type, hours played, gender, and age, with random intercepts for country (outcome ~ player_type + hours + gender + age + (1 | country); see Appendix 3). The fixed effects accounted for a modest share of outcome variance (wellbeing: marginal *R*² = `r sprintf("%.3f", r2_game["marginal"])`, conditional *R*² = `r sprintf("%.3f", r2_game["conditional"])`; enjoyment: marginal *R*² = `r sprintf("%.3f", r2_enjoyment["marginal"])`, conditional *R*² = `r sprintf("%.3f", r2_enjoyment["conditional"])`). Casual PvE Players served as the reference category. Relative to these players, both Casual PvP Players (`r fmt_coef(coefs_game, "player_typeCasual PvP Players")`) and Elite Allround Players (`r fmt_coef(coefs_game, "player_typeElite Allround Players")`) reported significantly lower wellbeing. For enjoyment, Casual PvP Players again scored lower than Casual PvE Players (`r fmt_coef(coefs_enjoyment, "player_typeCasual PvP Players")`), whereas the difference between Elite Allround and Casual PvE Players was smaller and not statistically reliable (`r fmt_coef(coefs_enjoyment, "player_typeElite Allround Players")`) (see @fig-anova-boxplots).
 
 ```{r}
 #| label: fig-anova-boxplots
-#| fig-cap: "Distribution of wellbeing outcomes by play style. Panel A shows game-specific wellbeing (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
-#| fig-alt: "Side-by-side boxplots in two panels for three play styles (Casual PvE Players, Elite Allround Players, Casual PvP Players). Panel A (Game-Specific Wellbeing, SPANE balance score on Y-axis) shows Casual PvE Players with the highest median around 2, Elite Allround Players slightly lower near 1, and Casual PvP Players lowest near 0. All three distributions overlap substantially. Panel B (Enjoyment score on Y-axis) shows a similar ordering: Casual PvE Players highest with a median near 5.5, Elite Allround Players near 5, and Casual PvP Players lowest near 4.5. Semi-transparent jittered points overlay each box, revealing that most data clusters in the upper half of the score range for all groups."
+#| fig-cap: "Distribution of wellbeing outcomes by play style. Panel A shows wellbeing (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
+#| fig-alt: "Side-by-side boxplots in two panels for three play styles (Casual PvE Players, Elite Allround Players, Casual PvP Players). Panel A (Wellbeing, SPANE balance score on Y-axis) shows Casual PvE Players with the highest median around 2, Elite Allround Players slightly lower near 1, and Casual PvP Players lowest near 0. All three distributions overlap substantially. Panel B (Enjoyment score on Y-axis) shows a similar ordering: Casual PvE Players highest with a median near 5.5, Elite Allround Players near 5, and Casual PvP Players lowest near 4.5. Semi-transparent jittered points overlay each box, revealing that most data clusters in the upper half of the score range for all groups."
 #| fig-width: 10
 #| fig-height: 5
 #| message: false
 #| warning: false
 
-# Create boxplot for game-specific wellbeing
+# Create boxplot for wellbeing
 p_wellbeing <- ggplot(pvz_df_clustered, aes(x = player_type, y = spane_game_balance, fill = player_type)) +
   geom_boxplot(alpha = 0.7, outlier.shape = 21) +
   geom_jitter(width = 0.2, alpha = 0.2, size = 1) +
   playstyle_scale_fill +
   labs(
-    title = "A. Game-Specific Wellbeing",
+    title = "A. Wellbeing",
     x = NULL,
     y = "SPANE Balance Score"
   ) +
@@ -1989,10 +1989,10 @@ create_jn_plot <- function(model, moderator = "player_type", predictor = "hours"
 #| warning: false
 #| include: false
 
-# Calculate simple slopes for game-specific wellbeing model
-wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Game-Specific Wellbeing")
+# Calculate simple slopes for wellbeing model
+wellbeing_slopes <- calculate_all_simple_slopes(rmodel_moderation_game, "Wellbeing")
 
-# Create a formatted table for game-specific wellbeing simple slopes
+# Create a formatted table for wellbeing simple slopes
 wellbeing_slopes_table <- wellbeing_slopes %>%
   mutate(
     estimate = round(estimate, 3),
@@ -2039,7 +2039,7 @@ enjoyment_slopes_table <- enjoyment_slopes %>%
 #| warning: false
 #| include: false
 
-# Create pairwise comparison of slopes for game-specific wellbeing
+# Create pairwise comparison of slopes for wellbeing
 wellbeing_pairs <- data.frame(player_type1 = character(),
                         player_type2 = character(),
                         difference = numeric(),
@@ -2172,7 +2172,7 @@ enjoyment_pairs <- enjoyment_pairs %>%
 
 ```{r}
 #| label: fig-interaction-plots
-#| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across play styles. Left panel shows game-specific wellbeing (SPANE balance score); right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PvE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PvP Players show no significant relationship."
+#| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across play styles. Left panel shows wellbeing (SPANE balance score); right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PvE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PvP Players show no significant relationship."
 #| fig-alt: "Two scatter plots side by side with total hours played on the horizontal axis. The left panel plots SPANE balance score (range negative 6 to 6) and the right panel plots enjoyment score (range 1 to 7). In each panel, individual data points are coloured by play style and overlaid with linear regression lines and shaded 95 percent confidence bands. In both panels, Casual PvE Players (blue) and Elite Allround Players (green) show upward-sloping lines indicating positive associations between playtime and outcomes. Casual PvP Players (orange) show a nearly flat line in both panels, indicating no meaningful association. Confidence bands are widest at higher hours values where data are sparser. Most data points cluster below 20 hours of total play."
 #| fig-width: 12
 #| fig-height: 6
@@ -2312,7 +2312,7 @@ The objectives of this study were two-fold. First, we aimed to complement the br
 
 As such, this study addressed three research questions. First, whether distinct playstyles can be identified from in-game behavioural telemetry within a single game. Second, whether players with different playstyles report different levels of wellbeing and enjoyment. Third, whether the association between playtime and wellbeing outcomes differs across playstyles. In short, the findings support the first two but not the third. Three distinct playstyles were identified from behavioural telemetry and labelled to reflect two dimensions that emerged from the data: (1) the game mode of preference (PvE vs. PvP) and (2) their overall performance level (casual vs. elite). These playstyles were associated with meaningful differences in wellbeing and enjoyment, but we found no evidence that they moderated the relationship between playtime and wellbeing or enjoyment. The implications and limitations of these findings will be discussed in detail below.
 
-The participants in the first cluster, named "Casual PvE Players", allocated the majority of their playtime to cooperative PvE modes, achieving moderate performance within that context while showing markedly lower metrics in PvP. This playstyle suggests a preference for story-driven exploration and cooperative play over competitive engagement, paralleling the "Adventurer" type identified by @melhartYourGameplaySays2019 in *Tom Clancy's The Division*, who similarly focused on solo and cooperative mission content rather than competitive play. We hypothesise that these players adopt a more recreation-oriented approach to play, gravitating toward narrative content and cooperative challenges that offer immediate enjoyment without the sustained pressure of competitive evaluation. Within the IMP framework [@elsonMoreStoriesButtons2014], this pattern reflects a preference for game contexts in which narrative and cooperative mechanics are foregrounded over adversarial mechanics, potentially affording greater perceived autonomy over how to engage with the game's content and a lower threshold for competence satisfaction. Consistent with this interpretation, Casual PvE Players reported the highest game-specific wellbeing and enjoyment of the three groups. This finding is consistent with @melhartYourGameplaySays2019's observation that cooperative and exploratory play features were among the strongest predictors of need satisfaction in *The Division*.
+The participants in the first cluster, named "Casual PvE Players", allocated the majority of their playtime to cooperative PvE modes, achieving moderate performance within that context while showing markedly lower metrics in PvP. This playstyle suggests a preference for story-driven exploration and cooperative play over competitive engagement, paralleling the "Adventurer" type identified by @melhartYourGameplaySays2019 in *Tom Clancy's The Division*, who similarly focused on solo and cooperative mission content rather than competitive play. We hypothesise that these players adopt a more recreation-oriented approach to play, gravitating toward narrative content and cooperative challenges that offer immediate enjoyment without the sustained pressure of competitive evaluation. Within the IMP framework [@elsonMoreStoriesButtons2014], this pattern reflects a preference for game contexts in which narrative and cooperative mechanics are foregrounded over adversarial mechanics, potentially affording greater perceived autonomy over how to engage with the game's content and a lower threshold for competence satisfaction. Consistent with this interpretation, Casual PvE Players reported the highest wellbeing and enjoyment of the three groups. This finding is consistent with @melhartYourGameplaySays2019's observation that cooperative and exploratory play features were among the strongest predictors of need satisfaction in *The Division*.
 
 The players in the second cluster, called "Elite Allround Players", formed the largest cluster. They maintained high performance across all gameplay contexts, with kill-to-death ratios and accuracy rates substantially above the sample mean in both PvP and PvE. Rather than specialising in one mode, these players engaged broadly and performed well regardless of context, distinguishing them as the most proficient segment. This playstyle is conceptually consistent with the "Elite" type in @melhartYourGameplaySays2019's analysis of *The Division*, characterised by top-tier progression metrics, and with the high-performing player segments identified by @drachenGunsSwordsData2012 in *Battlefield 2: Bad Company 2*. The breadth of their engagement suggests that mode preference alone does not define this group; rather, it is the consistent pursuit of high performance that characterises their play, consistent with a mastery- or achievement-oriented orientation in which players seek to develop and exercise skill across the full range of available game content. Despite their superior performance, however, Elite Allround Players reported lower wellbeing and enjoyment than Casual PvE Players, though higher enjoyment than Casual PvP Players. This pattern is noteworthy, prior work suggests that competence satisfaction positively predicts wellbeing in gaming contexts [@klimmt2009a; @przybylskiMotivationalModelVideo2010; @tamboriniMediaEnjoymentNeed2011; @ryanHappinessHumanPotentials2001], however if competence alone drove wellbeing, the most skilled players should report the highest wellbeing. Our findings do not support this, suggesting that the context in which competence is exercised matters as well, consistent with the IMP's emphasis on both mechanics and context as jointly shaping player experience [@elsonMoreStoriesButtons2014]. Potentially, Elite Allround Players' broad engagement across both cooperative and competitive modes may dilute the wellbeing benefits that cooperative PvE environments appear to afford. Furthermore, their high skill may buffer against the competence frustration that competitive environments can impose on less proficient players, though without direct measurement, this remains speculative.
 
