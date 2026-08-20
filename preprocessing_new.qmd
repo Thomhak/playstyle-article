@@ -243,10 +243,10 @@ The data comes from a study conducted by EA and the Oxford Internet Institute in
 2.  Download the complete dataset from: <https://osf.io/cjd6z/files/4gp3r>
 3.  Extract the downloaded files to `data/raw/ea/` in the project directory
 4.  The data directory should contain:
-    -   `Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx` (survey data)
-    -   `OII_PVZ_Authentications_*.csv` (authentication logs)
-    -   `OII_PVZ_Character_*.csv` (character performance data)
-    -   `OII_PVZ_Game_Time_*.csv` (session timing data)
+    - `Oxford PvZ - Pilot Wave + Wave 1 Download.xlsx` (survey data)
+    - `OII_PVZ_Authentications_*.csv` (authentication logs)
+    - `OII_PVZ_Character_*.csv` (character performance data)
+    - `OII_PVZ_Game_Time_*.csv` (session timing data)
 
 ### Citation
 

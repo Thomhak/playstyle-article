@@ -21,7 +21,7 @@ author:
   - name: Matti Vuorre
     corresponding: false
     orcid: 0000-0001-5052-066X
-    email: mjvuorre@uvt.nl
+    email: M.J.Vuorre@tilburguniversity.edu
     affiliations:
       - ref: 2
     roles:
@@ -46,14 +46,16 @@ affiliations:
   - id: 1
     name: University of Oxford
     department: Oxford Internet Institute
+    city: Oxford
+    country: United Kingdom
   - id: 2
     name: Tilburg University
     department: Department of Social Psychology
+    city: Tilburg
+    country: Netherlands
 abstract: |
-  Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing. Yet these studies typically capture playtime across platforms and titles without examining what happens inside a game: the granular in-game behaviours that might differentiate players’ experiences. The Integrated Model of Player Experience posits that the mechanics and contexts players encounter during play shape the resulting experience and its downstream psychological effects, implying that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 412 players of the online shooter Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three distinct playstyles: exploratory, high-performing, and competitive. Exploratory players reported greater wellbeing and enjoyment than competitive players. However, we found no evidence that playstyle moderated the relationship between playtime and either outcome. These findings indicate that how players engage with a game’s mechanics and modes is associated with different average levels of wellbeing, but we know little about how such playstyles might alter the relationship between the amount of play and wellbeing.
+  Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing, yet these studies rarely examine what happens inside a game: the granular in-game behaviours that might differentiate players’ experiences. The Integrated Model of Player Experience implies that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 412 players of Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three playstyles: exploratory, high-performing, and competitive. Exploratory players reported greater wellbeing and enjoyment than competitive players. However, playstyle did not moderate the relationship between playtime and either outcome. These findings indicate that how players engage with a game’s mechanics and modes is associated with different average levels of wellbeing, even though playstyle does not appear to alter the playtime–wellbeing relationship.
 categories: [video games, playstyle, wellbeing, play experience, telemetry]
-authornote: |
-  Correspondence concerning this article should be addressed to Thomas Hakman, Oxford Internet Institute, University of Oxford. Email: thomas.hakman@oii.ox.ac.uk
 data-license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
 date: last-modified
 bibliography: bibliography.bib
@@ -82,6 +84,26 @@ format:
     include-before-body:
       - text: "#show <refs>: set par(hanging-indent: 1.4em)"
   preprint-docx: default
+  acm-pdf:
+    fig-pos: H
+    keep-tex: true
+    header-includes: |
+      \hypersetup{pdfauthor={Anonymous}}
+acm-metadata:
+  anonymous: true
+  final: false
+  acmart-options: manuscript,screen,review,anonymous
+  copyright-year: 2025
+  acm-year: 2025
+  copyright: acmcopyright
+  doi: XXXXXXX.XXXXXXX
+  shortauthors: Anonymous
+  keywords:
+    - video games
+    - playstyle
+    - wellbeing
+    - play experience
+    - telemetry
 knitr:
   opts_chunk:
     dev: png
@@ -111,11 +133,11 @@ if (!dir.exists("output/models")) {
 
 # Introduction
 
-The debate about whether video games harm or improve wellbeing has persisted for decades, yet empirical findings remain mixed and often shift with the methodological approaches used to study them. Earlier studies relying on players' retrospective estimates of their own playtime and behaviour produced contradictory findings. Several studies reported negative associations between self-reported playtime and measures of mental health or wellbeing [@fergusonLackConsensusScholars2019; @liuDigitalCommunicationMedia2019; @mathurFindingCommonGround2019], with some reporting negative associations only among highly engaged players [@coldercarrasVideoGamingHyperconnected2017; @przybylski2017a]. Other studies found positive associations [@halbrookWhenHowVideo2019; @villaniVideogamesEmotionRegulation2018], with some reporting these only for moderate usage [@przybylski2017a] or specific game genres such as MMOs [@raithMassivelyMultiplayerOnline2021]. To overcome the well-documented inaccuracy of self-reported measures [@johannesVideoGamePlay2021; @parrySystematicReviewMetaanalysis2021a], later work utilised digital trace data (i.e., objective behavioural logs collected directly from game platforms). These studies demonstrated that associations between the average player's playtime and wellbeing are small and unlikely to be practically meaningful [@ballouOpenPlayLongitudinal2025; @egamiCausalEffectVideo2024; @johannesVideoGamePlay2021; @larrieuHowGamingMotives2023; @vuorreTimeSpentPlaying2022].
+The debate about whether video games harm or improve wellbeing has persisted for decades, yet empirical findings remain mixed and often shift with the methodological approaches used to study them. Earlier studies relying on players' retrospective estimates of their own playtime and behaviour produced contradictory findings. Several studies reported negative associations between self-reported playtime and measures of mental health or wellbeing [@fergusonLackConsensusScholars2019; @liuDigitalCommunicationMedia2019; @mathurFindingCommonGround2019], with some reporting negative associations only among highly engaged players [@coldercarrasVideoGamingHyperconnected2017; @przybylski2017a]. Other studies found positive associations [@halbrookWhenHowVideo2019; @villaniVideogamesEmotionRegulation2018], with some reporting these only for moderate usage [@przybylski2017a] or specific game genres such as MMOs [@raithMassivelyMultiplayerOnline2021]. This complexity extends to the clinical literature on internet gaming disorder (IGD). Gamers at risk of disordered gaming self-report markedly elevated playtime, averaging roughly 35 to 42 hours per week. Still, playtime alone remains a poor diagnostic marker: it shares only around 10% of its variance with IGD symptom counts, and a substantial proportion of heavily engaged gamers, averaging 26 hours of play per week, report no psychological distress at all [@katzHowMuchGaming2024; @pontesInterplayTimeSpent2022a]. To overcome the well-documented inaccuracy of self-reported measures [@johannesVideoGamePlay2021; @parrySystematicReviewMetaanalysis2021a], later work utilised digital trace data (i.e., objective behavioural logs collected directly from game platforms). These studies demonstrated that associations between the average player's playtime and wellbeing are small and unlikely to be practically meaningful [@ballouOpenPlayLongitudinal2025; @egamiCausalEffectVideo2024; @johannesVideoGamePlay2021; @larrieuHowGamingMotives2023; @vuorreTimeSpentPlaying2022]. For example, merging publisher-logged playtime with survey responses in two titles revealed a small positive association between play and affective wellbeing [@johannesVideoGamePlay2021]. Linking six weeks of logged play from 38,935 players across seven titles to three waves of self-reported wellbeing produced little to no evidence of a causal connection [@vuorreTimeSpentPlaying2022], and logged playtime showed no longitudinal effects on quality of life among intensive gamers [@larrieuHowGamingMotives2023]. Even where causal evidence exists, from game console lotteries in Japan analysed as a natural experiment, increased play modestly improved rather than harmed mental wellbeing [@egamiCausalEffectVideo2024].
 
 These small, mixed, and often null results do not necessarily imply that playing video games is irrelevant to wellbeing. Rather, they suggest that the most measured dimension of play, its quantity, might not be the most important factor. In a large-scale analysis of adult Nintendo players, playtime was indeed not meaningfully related to multiple wellbeing indicators, but players' subjective evaluations of gaming's life-fit (e.g. the perceived harmful or beneficial value of gaming across various life domains outside of play) were [@ballouPerceivedValueVideo2025]. The underlying problem is that, conceptually, 'video game play' does not capture a single phenomenon, but instead heterogeneous exposures such as 'playing with friends', 'succeeding or failing at the game's mechanics', or 'playing to alleviate study-related stress'. More generally, playtime can be thought to consist of context-centred exposures (e.g., when and with whom one plays), game-centred exposures (e.g., game modes, mechanics, and business models), and player-centred exposures (e.g., playstyles, motivations, and player experience) [@ballouHowVideoGames2025]. When studies collapse these layers into a single playtime variable, they conflate qualitatively distinct exposures and risk both theoretical ambiguity and empirical inconsistency [@ballouHowVideoGames2025].
 
-This highlights a crucial gap: while existing digital trace research is a mile wide in its scope of game platforms and genres, it is only an inch deep in actual player experiences and behaviours. Existing studies capture playtime across platforms and titles, but not what happens inside a game: the granular in-game behaviours and experiences that might explain why some players benefit from play while others do not. Quantity alone is insufficient; two players can accumulate the same playtime yet have markedly different player experiences. To reconcile the mixed historical findings with the contemporary null results, research needs to start modelling the quality of play using in-game digital trace data. Nevertheless, how researchers should best study in-game player experience empirically without reverting to subjective self-reports remains an open question.
+This highlights a crucial gap. Previous digital trace research has captured playtime across platforms and titles, but rarely what happens inside a game: the granular in-game behaviours (i.e., the decisions players make and the actions they perform during play) and experiences that might explain why some players benefit from play while others do not. Quantity alone is insufficient; two players can accumulate the same playtime yet have markedly different player experiences. To reconcile the mixed historical findings with the contemporary null results, research needs to start modelling the quality of play using in-game digital trace data. Nevertheless, how researchers should best study in-game player experience empirically without reverting to subjective self-reports remains an open question.
 
 One theoretically grounded operationalisation comes from the Integrated Model of Player Experience [IMP; @elsonMoreStoriesButtons2014], which identifies three categories of game characteristics that shape the playing experience: narrative (story and setting), mechanics (rules, interaction demands, and feedback), and context (the social and situational embedding). Where user-centric theories such as self-determination theory [@ryanIntrinsicMotivationVideo2006] and uses and gratifications [@ruggieroUsesGratificationsTheory2000] focus primarily on motivations and player states, the IMP is game-centric and focuses on how interaction with specific in-game characteristics during play alters the play experience and subsequent wellbeing outcomes [@elsonMoreStoriesButtons2014]. In this sense, the IMP opens the "black box" of in-game behaviour by connecting the game characteristics players encounter during play to the outcomes that follow, thereby guiding empirically testable hypotheses about these relationships [@elsonMoreStoriesButtons2014]. Crucially, the IMP positions mechanics as the foundational element of player experience; without mechanics there is no play, whereas narrative and context contribute situationally. A conceptually meaningful operationalisation of play quality should therefore incorporate digital trace data on mechanics-relevant indicators (e.g., performance metrics), contextual indicators (e.g., mode selection), and narrative indicators (e.g., dialogue engagement), where appropriate.
 
@@ -123,7 +145,9 @@ Within game analytics research, a similar categorisation process is known as tel
 
 In contrast, telemetry-derived playstyles capture emergent behavioural patterns as they occur, providing a more ecologically valid representation of how players engage with games. As such, playstyles offer a quantifiable, data-driven way to characterise how players pursue a game's objectives [@sifaProfilingGamesUnderstanding2018]. Previous work has used telemetry-driven profiling to examine the relationship between playstyles and personality [@beanVideoGamersPersonality2016; @vanlankveldGamesPersonalityProfiling2011], motivation [@melhartYourGameplaySays2019; @yeeGamerMotivationProfile2016], national culture [@ravariInvestigatingRelationPlaying2022], and individual and team performance [@jiangWideDeepMaverick2021]. However, whether and how playstyles relate to wellbeing and enjoyment has remained untested, in large part because datasets combining granular session-level behavioural telemetry with validated measures of wellbeing are exceedingly rare [@norwoodBuildingCollaborativeDigital2026].
 
-The present study addresses three questions by leveraging one such dataset, collected through an industry-academia collaboration [@johannesVideoGamePlay2021]. First, can distinct playstyles be identified from in-game behavioural telemetry within a single game title? Second, do players with different playstyles report different levels of wellbeing or enjoyment? Third, does the association between playtime and wellbeing or enjoyment differ between playstyles?
+## The Present Study
+
+In this study, we address three research questions using one such dataset [@johannesVideoGamePlay2021]. The first question asks whether distinct playstyles can be identified from in-game behavioural telemetry within a single game title. This question is primarily methodological, examining whether the quality of play can be measured from behaviour alone rather than through self-reports, by applying telemetry-driven profiling [@drachen2014a; @sifaProfilingGamesUnderstanding2018] to the characteristics the IMP positions as central to the player experience, namely (a) mechanics, through in-game performance metrics, and (b) context, through mode preference [@elsonMoreStoriesButtons2014]. The second question asks whether players with different playstyles report different levels of wellbeing or enjoyment, testing the proposed heterogeneity of player-centred video game exposures [@ballouHowVideoGames2025]. If, as the IMP proposes, interaction with a game's characteristics shapes subsequent experience, then players who engage with the same game in qualitatively different ways should differ in these outcomes, even where average playtime effects are small. The third question asks whether the association between playtime and wellbeing or enjoyment differs between playstyles. This tests whether the small average associations reported in digital trace research [@johannesVideoGamePlay2021; @vuorreTimeSpentPlaying2022] hold across different ways of playing or instead conceal offsetting differences between playstyles.
 
 
 
@@ -149,6 +173,7 @@ pacman::p_load(
   psych,        # For psychological statistics
   corrplot,     # For correlation plots
   ggpubr,       # For publication-ready plots
+  ggdist,       # For distribution slabs (half-eye panels)
   factoextra,   # For cluster analysis visualization
   cluster,      # For clustering algorithms
   fmsb,         # For radar charts
@@ -283,7 +308,7 @@ print(paste("Number of players left after filtering:", nrow(pvz_df_analysis)))
 
 # Methods
 
-In this study, we analysed data reported in @johannesVideoGamePlay2021, who collected digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighborville players.
+In this study, we analysed data reported in @johannesVideoGamePlay2021, who collected digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighborville players. The full dataset is openly available on the Open Science Framework (see Data, Materials, and Code).
 
 ## Plants versus Zombies: Battle for Neighborville
 
@@ -365,69 +390,179 @@ As detailed in @johannesVideoGamePlay2021, participants were recruited by Electr
 
 ### Playtime
 
-The first measure we calculated was playtime, though determining it is already complex. Simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time refers to periods when a player's account is online but they are not actively engaging with the objectives or mechanics of the game. This can occur when a player is away from the keyboard, but it can also include time spent in home screens, customisation menus, lobbies, and social spaces. In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can inhabit. Every player is always in a session and can only be in one session at a time; however, multiple players can be in the same session. For example, when a player launches PvZ, they enter the hub world, where they can choose which level or mode to play. Entering the hub world starts the session timer, which ends when they choose a level or leave to join a match; this, in turn, starts a new session timer for that level. In total, the `r nrow(pvz_df_analysis)` players in our sample played 36,621 sessions, of which 25,937 occurred in the two weeks prior to survey completion. These sessions took place across 19 different maps facilitating different forms of gameplay: 13,594 Player-versus-Player (PvP) sessions (51.27%), 4,854 Player-versus-Environment (PvE) sessions (18.31%), and 7,489 Social Hub sessions (28.24%). After excluding the social hub sessions, this left 17,505 total sessions: 12,445 PvP sessions (71.09%) and 4,509 PvE sessions (25.76%). Visual inspection suggested that players had distinctive preferences for which game modes they chose to play and when (@fig-session-timeline).
+The first measure we calculated was playtime. Although prior work suggests that playtime alone is only weakly related to wellbeing, the quantity of play remains an important reference point for interpreting its quality. Stil, calculating playtime from session telemetry is less straightforward than it might appear. For example, simply measuring the total time an account has been online does not distinguish between active and idle time. Idle time refers to periods when a player's account is online but they are not actively engaging with the objectives or mechanics of the game. This can occur when a player is away from the keyboard, but it can also include time spent in home screens, customisation menus, lobbies, and social spaces. In this study, active playtime was calculated by aggregating session data. Sessions represent the different levels, game modes, or worlds a player can inhabit. Every player is always in a session and can only be in one session at a time; however, multiple players can be in the same session. For example, when a player launches PvZ, they enter the hub world, where they can choose which level or mode to play. Entering the hub world starts the session timer, which ends when they choose a level or leave to join a match; this, in turn, starts a new session timer for that level. In total, the `r nrow(pvz_df_analysis)` players in our sample played 36,621 sessions, of which 25,937 occurred in the two weeks prior to survey completion. These sessions took place across 19 different maps facilitating different forms of gameplay: 13,594 Player-versus-Player (PvP) sessions (51.27%), 4,854 Player-versus-Environment (PvE) sessions (18.31%), and 7,489 Social Hub sessions (28.24%). After excluding the social hub sessions, this left 17,505 total sessions: 12,445 PvP sessions (71.09%) and 4,509 PvE sessions (25.76%). Visual inspection suggested that players had distinctive preferences for which game modes they chose to play and when (@fig-descriptives, Panel D).
 
 ```{r}
-#| label: session-timeline-helper
+#| label: descriptive-figure-prep
 #| include: false
 
-# Function to plot session timeline for a player
-plot_player_sessions <- function(player_data, player_id = NULL, player_label = "Player") {
-  # If a player_id is provided, filter data for that player
-  if (!is.null(player_id)) {
-    player_data <- player_data %>%
-      filter(player_id == !!player_id)
-  }
-  
-  # Convert timestamps to POSIXct if they're not already
-  if (!inherits(player_data$game_start_time, "POSIXct")) {
-    player_data$game_start_time <- as.POSIXct(player_data$game_start_time, format = "%Y-%m-%d %H:%M:%S")
-    player_data$game_end_time <- as.POSIXct(player_data$game_end_time, format = "%Y-%m-%d %H:%M:%S")
-  }
-  
-  # Extract day of week, date, and time component
-  player_data$day_of_week <- weekdays(player_data$game_start_time)
+# Shared styling and mode palette for the descriptive overview figure
+theme_desc <- theme_minimal(base_size = 11) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 12, face = "bold"),
+    axis.text = element_text(size = 8.5),
+    axis.title = element_text(size = 10),
+    strip.text = element_text(face = "bold", size = 8.5)
+  )
+pal_mode <- c("PvE" = "#009E73", "PvP" = "#D55E00")
+
+# Panel A: outcome distributions as horizontal half-eyes on full scale ranges
+make_outcome_dist <- function(var, strip_label, fill, xlims, xbreaks) {
+  pvz_df_analysis %>%
+    select(value = all_of(var)) %>%
+    filter(!is.na(value)) %>%
+    mutate(name = strip_label) %>%
+    ggplot(aes(x = value)) +
+    stat_slab(aes(y = 0), side = "top", adjust = 1.4, scale = 0.85,
+              normalize = "groups", alpha = 0.85, colour = NA, fill = fill) +
+    geom_boxplot(aes(y = -0.16), width = 0.22, outlier.shape = NA, fill = fill,
+                 alpha = 0.85, colour = "grey20", linewidth = 0.35) +
+    facet_wrap(~name) +
+    scale_x_continuous(breaks = xbreaks) +
+    scale_y_continuous(breaks = NULL) +
+    coord_cartesian(xlim = xlims, ylim = c(-0.32, 0.92)) +
+    theme_desc +
+    theme(panel.grid.major.x = element_line(colour = "grey92"),
+          panel.grid.major.y = element_blank()) +
+    labs(x = NULL, y = NULL)
+}
+
+panel_spane <- make_outcome_dist("spane_game_balance",
+                                 "Affective wellbeing\n(SPANE)",
+                                 "#7570B3", c(-6, 6), seq(-6, 6, 2)) +
+  labs(title = "Wellbeing Outcomes")
+panel_enjoy <- make_outcome_dist("enjoyment", "Enjoyment", "#1B9E77",
+                                 c(1, 7), 1:7) +
+  labs(x = "Scale value")
+panel_outcomes <- panel_spane / panel_enjoy
+
+# Panel B: three mode-specific performance metrics, labelled by the
+# behavioural construct each one operationalises
+construct_labels <- c(
+  kd = "Combat effectiveness",
+  hit_accuracy = "Aiming precision",
+  dps = "Sustained offensive output"
+)
+
+perf_long <- pvz_df_analysis %>%
+  select(matches("^(pvp|pve)_(kd|hit_accuracy|dps)$")) %>%
+  pivot_longer(everything(), names_to = c("mode", "metric"),
+               names_pattern = "^(pvp|pve)_(.*)$") %>%
+  filter(!is.na(value)) %>%
+  mutate(
+    mode = factor(if_else(mode == "pvp", "PvP", "PvE"),
+                  levels = c("PvP", "PvE")),
+    metric = factor(construct_labels[metric],
+                    levels = unname(construct_labels))
+  ) %>%
+  # Display truncated at the 99th percentile within each metric so extreme
+  # tails do not compress the bulk of the distribution
+  group_by(metric) %>%
+  filter(value <= quantile(value, 0.99)) %>%
+  ungroup()
+
+perf_medians <- perf_long %>%
+  group_by(metric, mode) %>%
+  summarise(med = median(value), .groups = "drop")
+
+n_pvp_perf <- sum(!is.na(pvz_df_analysis$pvp_kd))
+n_pve_perf <- sum(!is.na(pvz_df_analysis$pve_kd))
+
+dens_bits <- list(
+  geom_density(adjust = 1.3, alpha = 0.55, linewidth = 0.3),
+  scale_fill_manual(values = pal_mode[c("PvP", "PvE")], name = "Mode",
+                    breaks = c("PvP", "PvE")),
+  scale_colour_manual(values = pal_mode[c("PvP", "PvE")],
+                      breaks = c("PvP", "PvE"), guide = "none"),
+  theme_desc,
+  theme(axis.text.y = element_blank()),
+  labs(x = NULL)
+)
+
+# K/D spans orders of magnitude (PvE tails), so it gets a log-like axis
+kd_breaks <- c(0, 1, 3, 10, 30, 100, 300)
+panel_kd <- ggplot(filter(perf_long, metric == "Combat effectiveness"),
+                   aes(x = value, fill = mode, colour = mode)) +
+  dens_bits +
+  geom_vline(data = filter(perf_medians, metric == "Combat effectiveness"),
+             aes(xintercept = med, colour = mode),
+             linetype = 2, linewidth = 0.4, show.legend = FALSE) +
+  facet_wrap(~metric, scales = "free") +
+  scale_x_continuous(trans = pseudo_log_trans(base = 10),
+                     breaks = kd_breaks, labels = kd_breaks) +
+  theme(legend.position = "none") +
+  labs(title = "Behavioural Performance Metrics",
+       x = "Kill/death ratio", y = "Density")
+
+make_perf_panel <- function(metric_name, x_lab) {
+  ggplot(filter(perf_long, metric == metric_name),
+         aes(x = value, fill = mode, colour = mode)) +
+    dens_bits +
+    geom_vline(data = filter(perf_medians, metric == metric_name),
+               aes(xintercept = med, colour = mode),
+               linetype = 2, linewidth = 0.4, show.legend = FALSE) +
+    facet_wrap(~metric, scales = "free") +
+    labs(x = x_lab, y = NULL)
+}
+panel_acc <- make_perf_panel("Aiming precision", "Hit accuracy")
+panel_dps <- make_perf_panel("Sustained offensive output", "Damage per second")
+
+panel_performance <- wrap_plots(panel_kd, panel_acc, panel_dps, nrow = 1,
+                                widths = c(1, 1, 1), guides = "collect") &
+  theme(legend.position = "bottom",
+        legend.key.size = unit(4, "mm"),
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 9.5, face = "bold"))
+
+# Panel C: total active playtime in the 14-day window
+median_hours <- median(pvz_df_analysis$hours, na.rm = TRUE)
+panel_playtime <- ggplot(pvz_df_analysis, aes(x = hours)) +
+  geom_histogram(binwidth = 2, boundary = 0, fill = "#E69F00",
+                 colour = "grey30", linewidth = 0.2, alpha = 0.8) +
+  geom_vline(xintercept = median_hours, linetype = 2, colour = "grey20") +
+  coord_cartesian(xlim = c(0, quantile(pvz_df_analysis$hours, 0.99,
+                                       na.rm = TRUE))) +
+  theme_desc +
+  labs(title = "Playtime", x = "Total playtime (hours)", y = "Players")
+```
+
+```{r}
+#| label: descriptive-figure-participant
+#| include: false
+
+# Panel D: all sessions of one example participant, in chronological order.
+# The participant is the 6th unique player id, i.e. the same participant
+# shown as Player A in earlier versions of this figure.
+game_sessions <- read_csv(here("data/processed/game_time_2week.csv"))
+game_sessions$game_start_time <- as.POSIXct(game_sessions$game_start_time,
+                                            format = "%Y-%m-%d %H:%M:%S")
+game_sessions$game_end_time <- as.POSIXct(game_sessions$game_end_time,
+                                          format = "%Y-%m-%d %H:%M:%S")
+player_ids <- unique(game_sessions$player_id)
+example_participant_id <- player_ids[min(6, length(player_ids))]
+
+plot_participant_sessions <- function(player_data) {
   player_data$date <- as.Date(player_data$game_start_time)
   player_data$start_time_only <- as.POSIXct(format(player_data$game_start_time, format = "%H:%M:%S"), format = "%H:%M:%S")
   player_data$end_time_only <- as.POSIXct(format(player_data$game_end_time, format = "%H:%M:%S"), format = "%H:%M:%S")
-  
-  # Identify sessions that cross midnight (where end_time is earlier than start_time)
   player_data$crosses_midnight <- player_data$end_time_only < player_data$start_time_only
-  
-  # Create a new dataframe that will include split sessions for those crossing midnight
-  player_data_expanded <- player_data %>%
-    filter(!crosses_midnight) # Keep all sessions that don't cross midnight
-  
-  # Handle sessions that cross midnight by splitting them
-  midnight_sessions <- player_data %>%
-    filter(crosses_midnight)
-  
+
+  # Sessions crossing midnight are split so each part sits on its own day
+  player_data_expanded <- player_data %>% filter(!crosses_midnight)
+  midnight_sessions <- player_data %>% filter(crosses_midnight)
   if (nrow(midnight_sessions) > 0) {
-    # For each session crossing midnight, create two rows:
-    # 1. From start time to 23:59:59
-    # 2. From 00:00:00 to end time
     midnight <- as.POSIXct(strptime("23:59:59", format = "%H:%M:%S"), format = "%H:%M:%S")
     midnight_start <- as.POSIXct(strptime("00:00:00", format = "%H:%M:%S"), format = "%H:%M:%S")
-    
-    # First part: from start time to midnight
     midnight_part1 <- midnight_sessions
     midnight_part1$end_time_only <- midnight
-    
-    # Second part: from midnight start to end time
     midnight_part2 <- midnight_sessions
     midnight_part2$start_time_only <- midnight_start
-    # The second part is on the next day of the week and the next date
-    midnight_part2$day_of_week <- factor(
-      weekdays(midnight_part2$game_start_time + 86400), # Add one day (86400 seconds)
-      levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-    )
     midnight_part2$date <- midnight_part2$date + 1
-    
-    # Add both parts to the expanded dataset
     player_data_expanded <- bind_rows(player_data_expanded, midnight_part1, midnight_part2)
   }
-  
-  # Recode match_type based on game_level_key prefix
+
   player_data_expanded <- player_data_expanded %>%
     mutate(
       match_type = case_when(
@@ -440,46 +575,57 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
         .default = "0"
       )
     )
-  
-  # Ensure day of week is a factor with ordered levels
-  player_data_expanded$day_of_week <- factor(
-    player_data_expanded$day_of_week,
-    levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-  )
-  
-  # Create a position adjustment for stacking sessions by different dates for the same day of week
-  player_data_expanded <- player_data_expanded %>%
-    group_by(day_of_week) %>%
-    mutate(
-      unique_dates = list(unique(date)),
-      date_index = match(date, unique(date)),
-      y_offset = (date_index - 1) * 0.2,
-      y_position = as.numeric(day_of_week) + y_offset
-    ) %>%
-    ungroup()
-  
-  # Sort by day of week, date, and start time
-  player_data_expanded <- player_data_expanded %>%
-    arrange(day_of_week, date, game_start_time, game_end_time)
-  
-  # Add a session ID within each day to distinguish multiple sessions on same day
-  player_data_expanded <- player_data_expanded %>%
-    group_by(day_of_week, date) %>%
-    mutate(session_id_within_day = row_number()) %>%
-    ungroup()
-  
-  # Convert match_type to factor with proper levels for consistent ordering
   player_data_expanded$match_type <- factor(
     player_data_expanded$match_type,
     levels = c("social match", "pve match", "pvp match (rush)", "pvp match (vanquish)", "pvp match (arena)", "podium celebration", "0"),
     labels = c("Social Lobby", "PvE Match", "PvP (Rush)", "PvP (Vanquish)", "PvP (Arena)", "Podium Celebration", "Other")
   )
-  
-  plot <- player_data_expanded %>%
-    ggplot(aes(start_time_only, y_position, col = match_type, 
-               group = interaction(day_of_week, date, session_id_within_day))) +
+
+  # Day rows are anchored to the theoretical window (14 days ending on the
+  # survey day) so days without play remain visible; day 14 = survey day
+  survey_date <- as.Date(first(player_data$start_date))
+  player_data_expanded <- player_data_expanded %>% filter(date <= survey_date)
+  date_seq <- seq(min(survey_date - 13, min(player_data_expanded$date)),
+                  survey_date, by = "day")
+  n_rows <- length(date_seq)
+  date_rows <- tibble(date = date_seq) %>%
+    mutate(
+      y = n_rows - row_number() + 1,
+      day_index = row_number(),
+      weekday = format(date, "%a"),
+      weekend = weekday %in% c("Sat", "Sun")
+    )
+  player_data_expanded <- player_data_expanded %>%
+    left_join(date_rows %>% select(date, y), by = "date")
+
+  survey_tod <- as.POSIXct(format(first(player_data$start_date), format = "%H:%M:%S"),
+                           format = "%H:%M:%S")
+  x_min <- as.POSIXct(strptime("00:00", format = "%H:%M"))
+  x_max <- as.POSIXct(strptime("23:59", format = "%H:%M"))
+
+  ggplot(player_data_expanded) +
+    geom_rect(data = filter(date_rows, weekend),
+              aes(ymin = y - 0.5, ymax = y + 0.5, fill = "Weekend"),
+              xmin = -Inf, xmax = Inf, inherit.aes = FALSE) +
+    scale_fill_manual(name = NULL, values = c(Weekend = "grey93"),
+                      guide = guide_legend(order = 2)) +
+    # Per-day trace lines, drawn after the weekend bands so they stay visible
+    geom_hline(data = date_rows, aes(yintercept = y), colour = "grey85",
+               linewidth = 0.25) +
+    geom_segment(aes(x = start_time_only, xend = end_time_only, y = y, yend = y,
+                     colour = match_type),
+                 linewidth = 2.2, lineend = "round") +
+    geom_point(aes(x = start_time_only, y = y, colour = match_type),
+               size = 1.2, alpha = 0.6) +
+    geom_point(aes(x = end_time_only, y = y, colour = match_type),
+               size = 1.2, alpha = 0.6) +
+    geom_point(data = tibble(x = survey_tod, y = 1),
+               aes(x = x, y = y, shape = "Survey completion"),
+               colour = "red3", size = 2.6) +
+    scale_shape_manual(name = NULL, values = c("Survey completion" = 16),
+                       guide = guide_legend(order = 3)) +
     scale_color_manual(
-      name = "Match Type", 
+      name = "Match Type",
       values = c(
         "Social Lobby" = "#56B4E9",
         "PvE Match" = "#009E73",
@@ -490,129 +636,56 @@ plot_player_sessions <- function(player_data, player_id = NULL, player_label = "
         "Other" = "#999999"
       )
     ) +
-    geom_segment(
-      aes(xend = end_time_only, yend = y_position),
-      linewidth = 2.5,
-      lineend = "round"
-    ) +
-    geom_point(size = 1.5, alpha = 0.6) +
-    geom_point(aes(x = end_time_only), size = 1.5, alpha = 0.6) +
     scale_x_datetime(
       labels = scales::date_format("%H:%M"),
       breaks = scales::date_breaks("3 hours"),
-      limits = c(
-        as.POSIXct(strptime("00:00", format = "%H:%M")),
-        as.POSIXct(strptime("23:59", format = "%H:%M"))
-      ),
+      limits = c(x_min, x_max),
       expand = c(0.01, 0.01)
     ) +
     scale_y_continuous(
-      breaks = 1:7,
-      labels = levels(player_data_expanded$day_of_week),
-      limits = c(0.5, 7.4),
-      expand = c(0, 0)
+      breaks = date_rows$y[date_rows$day_index %in% c(1, 7, n_rows)],
+      labels = date_rows$day_index[date_rows$day_index %in% c(1, 7, n_rows)],
+      limits = c(0.5, n_rows + 0.5), expand = c(0, 0)
     ) +
-    labs(
-      x = NULL, 
-      y = NULL
-    ) +
-    theme_minimal(base_size = 14) +
+    labs(x = "Time of day", y = "Day") +
+    theme_minimal(base_size = 11) +
     theme(
-      legend.position = "none",
-      plot.margin = margin(10, 10, 10, 10),
-      
-      axis.text.y = element_text(size = 12, face = "bold"),
-      axis.text.x = element_text(size = 11),
-      axis.title = element_text(size = 13, face = "bold"),
-      
-      panel.grid.major.x = element_line(color = "grey90"),
+      legend.position = "bottom",
+      axis.title = element_text(size = 10),
+      axis.text.y = element_text(size = 8.5),
+      axis.text.x = element_text(size = 8.5),
+      panel.grid.major.x = element_line(colour = "grey92"),
       panel.grid.minor = element_blank(),
-      panel.grid.major.y = element_line(color = "grey90"),
-      
-      panel.background = element_rect(fill = "white", color = NA),
-      plot.background = element_rect(fill = "white", color = NA)
+      panel.grid.major.y = element_blank(),
+      legend.text = element_text(size = 9),
+      legend.title = element_text(size = 9.5, face = "bold")
     )
-  
-  return(plot)
 }
+
+panel_participant <- plot_participant_sessions(
+  game_sessions %>% filter(player_id == example_participant_id)
+) +
+  guides(colour = guide_legend(nrow = 1, order = 1,
+                               override.aes = list(linewidth = 3))) +
+  labs(title = "One Participant's Play Sessions") +
+  theme(plot.title = element_text(size = 12, face = "bold"))
 ```
 
 ```{r}
-#| label: session-timeline-data-prep
-#| include: false
-#| cache: false
-
-# Load game session data if not already included
-game_sessions <- read_csv(here("data/processed/game_time_2week.csv"))
-
-# Make sure timestamps are in the correct format
-game_sessions$game_start_time <- as.POSIXct(game_sessions$game_start_time, format = "%Y-%m-%d %H:%M:%S")
-game_sessions$game_end_time <- as.POSIXct(game_sessions$game_end_time, format = "%Y-%m-%d %H:%M:%S")
-
-# First, get a list of player IDs in the data
-player_ids <- unique(game_sessions$player_id)
-
-# Choose specific indices
-# If those indices don't exist in our data, we'll use the first three players
-player_indices <- c(
-  min(401, length(player_ids)),  # Equivalent to slice(401) 
-  min(6, length(player_ids)),    # Equivalent to slice(6)
-  min(3, length(player_ids))     # Equivalent to slice(3)
-)
-
-selected_player_ids <- player_ids[player_indices]
-```
-
-```{r}
-#| label: create-individual-plots
-#| include: false
-#| cache: false
-
-# Create individual plots for each player with standardized x-axis
-plot1 <- plot_player_sessions(
-  game_sessions %>% filter(player_id == selected_player_ids[1])
-)
-
-plot2 <- plot_player_sessions(
-  game_sessions %>% filter(player_id == selected_player_ids[2])
-)
-
-# For the third plot, use the same time range for consistency
-plot3 <- plot_player_sessions(
-  game_sessions %>% filter(player_id == selected_player_ids[3])
-)
-```
-
-```{r}
-#| label: fig-session-timeline
-#| fig-cap: "Session timelines for two example players showing gaming activity across the two-week study period. Each horizontal bar represents a gaming session, with colours indicating match type (Social Lobby, PvE Match, PvP Rush/Vanquish/Arena). Each player's panel contains two rows corresponding to the two weeks of telemetry data, collapsed onto a single weekly timeline to facilitate comparison of play patterns across weeks."
-#| fig-alt: "Two-panel Gantt-style chart with days of the week (Monday to Sunday) on the vertical axis and time of day (00:00 to 23:59) on the horizontal axis. Player A's panel shows predominantly green PvE sessions clustered in evening hours on a few days, with short scattered sessions. Player B's panel shows longer, more frequent sessions spanning multiple match types including orange and red PvP modes alongside green PvE, distributed more evenly across the week and across a wider range of hours. The contrast illustrates how two players can exhibit markedly different temporal patterns and mode preferences within the same two-week window."
+#| label: fig-descriptives
+#| fig-cap: !expr 'paste0("*Overview of the Study Measures.* (A) Wellbeing outcomes in the analytic sample (*n* = ", nrow(pvz_df_analysis), "): game-related affective wellbeing (SPANE balance, -6 to 6) and enjoyment (1 to 7); curves are kernel density estimates, boxes show the median and interquartile range. (B) Three mode-specific performance metrics for PvP (*n* = ", n_pvp_perf, ") and PvE (*n* = ", n_pve_perf, ") play. Densities are normalised within mode, so heights show relative concentration only; dashed lines: medians; x-axes truncated at the 99th percentile; kill/death ratio on a log-like axis. (C) Active playtime in the 14-day window (dashed line: median = ", sprintf("%.1f", median_hours), " hours). (D) All sessions of one example participant from day 1 to day 14 (survey day), by time of day and match type; shaded bands: weekends; red dot: survey completion.")'
+#| fig-alt: "Four-panel descriptive figure. Panel A shows two horizontal density curves with boxplots underneath: game-related SPANE balance scores concentrate on the positive side of the -6 to 6 scale with a long negative tail, and enjoyment concentrates near the top of its 1 to 7 scale. Panel B compares PvP (orange) and PvE (green) density curves for three performance metrics: kill/death ratios cluster around 1 in PvP but spread roughly an order of magnitude higher in PvE; hit accuracy peaks lower in PvP than in PvE; damage per second is likewise lower and narrower in PvP than in PvE. Panel C is a right-skewed histogram of total active hours over the 14-day window: most players played only a few hours, with a long tail of heavier players. Panel D is a timeline for one example participant with one row per day before the survey, showing coloured session segments by time of day and match type, mostly PvP Rush interleaved with Social Lobby visits in morning and mid-afternoon blocks; grey bands mark weekends, and a red dot on the final day marks the moment of survey completion, on a day without recorded play."
 #| fig-width: 12
-#| fig-height: 8
-#| code-summary: "Session timeline visualization"
+#| fig-height: 8.4
 
-figure <- ggarrange(
-  plot2, plot1,
-  labels = c("Player A", "Player B"),
-  font.label = list(size = 14, face = "bold", color = "black"),
-  ncol = 1, 
-  nrow = 2, 
-  common.legend = TRUE, 
-  legend = "bottom",
-  heights = c(1, 1),
-  align = "v",
-  hjust = -0.1
-)
+top_row <- wrap_plots(panel_outcomes, panel_performance, panel_playtime,
+                      nrow = 1, widths = c(1.15, 2.25, 1.15))
 
-# Add shared x and y labels to the combined figure
-fig_sessiontime <- annotate_figure(figure,
-                        bottom = text_grob("Time of Day (hours)", 
-                                          face = "bold", size = 14),
-                        left = text_grob("Day of Week", 
-                                         face = "bold", size = 14, rot = 90))
+fig_descriptives <- top_row / panel_participant +
+  plot_layout(heights = c(1.08, 1.42)) +
+  plot_annotation(tag_levels = list(c("A", "", "B", "", "", "C", "D")))
 
-# Display the combined figure
-fig_sessiontime
+fig_descriptives
 ```
 
 ### Behavioural telemetry
@@ -725,13 +798,14 @@ descriptive_stats <- numeric_stats %>%
   # Create category variable for grouping
   mutate(category = case_when(
     variable == "Age" ~ "Demographics",
-    variable %in% c("Total Hours Played", "Proportion of PvP Playtime", "Proportion of PvE Playtime") ~ "Playtime",
-    variable %in% c("PvP Kill/Death Ratio", "PvE Kill/Death Ratio", 
+    variable == "Total Hours Played" ~ "Playtime",
+    variable %in% c("Proportion of PvP Playtime", "Proportion of PvE Playtime") ~ "Mode Preference",
+    variable %in% c("PvP Kill/Death Ratio", "PvE Kill/Death Ratio",
                    "PvP Hit Accuracy", "PvE Hit Accuracy",
                    "PvP Damage per Second", "PvE Damage per Second",
                    "PvP Average Damage per Game", "PvE Average Damage per Game",
-                   "PvP Average Score", "PvE Average Score") ~ "Performance",
-    variable %in% c("Wellbeing (SPANE)", "Enjoyment") ~ "Wellbeing",
+                   "PvP Average Score", "PvE Average Score") ~ "In-game Performance",
+    variable %in% c("Wellbeing (SPANE)", "Enjoyment") ~ "Wellbeing Outcomes",
     TRUE ~ "Other"
   )) %>%
   # Round numeric values
@@ -769,14 +843,23 @@ descriptive_stats <- descriptive_stats %>%
 # Get sample size for the note
 sample_n <- nrow(pvz_df_analysis)
 
-# Create the table with tinytable
+# Create the table with tinytable; categories render as bold group header rows
+table_groups <- descriptive_stats %>%
+  mutate(row = row_number()) %>%
+  group_by(category) %>%
+  summarise(start = min(row)) %>%
+  arrange(start)
+
 descriptive_stats |>
   select(Variable = variable, M, SD, Min, Max) |>
   tt(
     caption = "Descriptive Statistics for Key Variables",
     notes = paste0("N = ", sample_n, ". ", gender_note)
   ) |>
-  format_tt(j = 2:5, digits = 2)
+  format_tt(j = 2:5, digits = 2) |>
+  group_tt(i = as.list(setNames(table_groups$start, table_groups$category))) |>
+  style_tt(i = "groupi", bold = TRUE, align = "l") |>
+  style_tt(i = "~groupi", indent = 1)
 ```
 
 
@@ -790,7 +873,7 @@ Enjoyment was assessed with four items from the Player Experience and Need Satis
 
 ## Data analysis
 
-Data were analysed in R version 4.5.1 [@rCoreTeamRLanguageEnvironment2025]. Key packages included `fpc` for cluster validation indices [@hennig2020a], `factoextra` for multivariate visualisation [@kassambara2020a], and `robustlmm` for robust mixed-effects estimation [@kollerRobustlmmRPackage2016].
+Data were analysed in R version 4.5.1 [@rCoreTeamRLanguageEnvironment2025]. Key packages included fpc for cluster validation indices [@hennig2020a], factoextra for multivariate visualisation [@kassambara2020a], and robustlmm for robust mixed-effects estimation [@kollerRobustlmmRPackage2016].
 
 Following initial data cleaning, all survey responses were screened for straightlining (e.g. when respondents give identical answers to all items) to identify records with low data quality commonly found in online surveys [@leinerTooFastToo2019]; however, no unusual cases were identified. Afterwards, the telemetry records were matched to the same two-week window referenced by the survey items, and analyses were conducted on active players with sufficient mode-specific telemetry.
 
@@ -802,7 +885,7 @@ To examine associations between playstyle, playtime, and outcomes, we fit robust
 
 ## Data, Materials, and Code
 
-The present study was not preregistered. The data and code reported in this study can be found at <https://osf.io/fngzc>. The raw data, materials, codebook, and further details on the dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>.
+The present study was not preregistered. The data and code reported in this study can be found at <https://osf.io/fngzc/overview?view_only=8ded53c16b5a4670bbf717bb2abc268f>. The raw data, materials, codebook, and further details on the dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>.
 
 # Results
 
@@ -1295,7 +1378,7 @@ pvp_pvp_acc <- round(pt_pvp$`PvP Accuracy`, 1)
 
 Following established approaches to telemetry-based player profiling [@bauckhageClusteringGameBehavior2015; @drachenGunsSwordsData2012; @drachen2014a; @melhartYourGameplaySays2019; @sifaProfilingGamesUnderstanding2018], we labelled the three clusters on the basis of their dominant mode preferences and performance levels (@fig-radar-charts). The labels reflect two dimensions that emerged from the data: the game mode players predominantly engaged with (PvE vs. PvP) and their overall performance level (casual vs. elite).
 
-Casual PvP Players (`r pvp_pct_players`% of the sample) devoted the majority of their time to competitive PvP modes (`r pvp_time`%), yet their performance was moderate (PvP K/D: M = `r pvp_pvp_kd`; PvP Accuracy: M = `r pvp_pvp_acc`%), falling well below Elite Allround Players. Performance in PvE was similarly modest. This pattern indicates a preference for competitive engagement that is not accompanied by correspondingly high skill, suggesting a casual orientation to play within a competitive context.
+Casual PvP Players (`r pvp_pct_players`% of the sample) devoted the majority of their time to competitive PvP modes (`r pvp_time`%), yet their performance was moderate (PvP K/D: M = `r pvp_pvp_kd`; PvP Accuracy: M = `r pvp_pvp_acc`%), falling well below Elite Allround Players. Performance in PvE was similarly modest. This pattern suggests a preference for competitive engagement that is not accompanied by correspondingly high skill, consistent with a casual orientation to play within a competitive context.
 
 Casual PvE Players (`r pve_pct_players`% of the sample) allocated the majority of their playtime to cooperative PvE modes (`r pve_time`%), achieving moderate performance within that context (PvE K/D: M = `r pve_pve_kd`; PvE Accuracy: M = `r pve_pve_acc`%) while showing markedly lower metrics in PvP. This profile suggests a specialisation in story-driven exploration and cooperative play over competitive engagement.
 
@@ -1519,7 +1602,7 @@ modelsummary(
     "age" = "Age"
   ),
   title = "Robust Linear Mixed-Effects Models Predicting Wellbeing and Enjoyment",
-  notes = "Reference category for play style: Casual PvE Players. Reference category for gender: Female. Country included as random effect."
+  notes = "Reference category for playstyle: Casual PvE Players. Reference category for gender: Female. Country included as random effect."
 )
 
 # Extract coefficients for inline reporting
@@ -1556,7 +1639,7 @@ For each outcome (wellbeing and enjoyment), we estimated a main-effects model pr
 
 ```{r}
 #| label: fig-anova-boxplots
-#| fig-cap: "Distribution of wellbeing outcomes by play style. Panel A shows wellbeing (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
+#| fig-cap: "Distribution of wellbeing outcomes by playstyle. Panel A shows wellbeing (SPANE balance score); Panel B shows enjoyment. Boxes represent interquartile ranges with median lines; whiskers extend to 1.5 × IQR. Individual points show outliers."
 #| fig-alt: "Side-by-side boxplots in two panels for three playstyles (Casual PvE Players, Elite Allround Players, Casual PvP Players). Panel A (Wellbeing, SPANE balance score on Y-axis) shows Casual PvE Players with the highest median around 2, Elite Allround Players slightly lower near 1, and Casual PvP Players lowest near 0. All three distributions overlap substantially. Panel B (Enjoyment score on Y-axis) shows a similar ordering: Casual PvE Players highest with a median near 5.5, Elite Allround Players near 5, and Casual PvP Players lowest near 4.5. Semi-transparent jittered points overlay each box, revealing that most data clusters in the upper half of the score range for all groups."
 #| fig-width: 10
 #| fig-height: 5
@@ -1611,7 +1694,7 @@ p_wellbeing + p_enjoyment
 
 ```{r}
 #| label: moderation-models
-#| code-summary: "Fit moderation models (play style × hours interaction)"
+#| code-summary: "Fit moderation models (playstyle × hours interaction)"
 #| message: false
 #| warning: false
 #| include: false
@@ -1652,8 +1735,8 @@ modelsummary(
     "player_typeElite Allround Players:hours" = "Elite Allround x Hours",
     "player_typeCasual PvP Players:hours" = "Casual PvP x Hours"
   ),
-  title = "Moderation Models: Play Style x Hours Interaction",
-  notes = "Reference category for play style: Casual PvE Players. Country included as random effect."
+  title = "Moderation Models: Playstyle x Hours Interaction",
+  notes = "Reference category for playstyle: Casual PvE Players. Country included as random effect."
 )
 
 # Extract coefficients for inline reporting
@@ -1664,7 +1747,7 @@ r2_mod_game <- compute_r2(rmodel_moderation_game)
 r2_mod_enjoyment <- compute_r2(rmodel_moderation_enjoyment)
 ```
 
-To test whether the playtime–wellbeing association differed across playstyles, we extended the main-effects models by adding player type × hours interaction terms, retaining gender and age as covariates (outcome ~ player_type × hours + gender + age + (1 | country); see Appendix 4). Adding the interaction terms did not meaningfully increase variance explained (wellbeing: marginal *R*² = `r sprintf("%.3f", r2_mod_game["marginal"])`; enjoyment: marginal *R*² = `r sprintf("%.3f", r2_mod_enjoyment["marginal"])`). In the main-effects models, hours played was positively associated with both outcomes (wellbeing: `r fmt_coef(coefs_game, "hours")`; enjoyment: `r fmt_coef(coefs_enjoyment, "hours")`). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PvE Players. None of the interaction terms reached significance: for wellbeing, neither Casual PvP Players (`r fmt_coef(coefs_mod_game, "player_typeCasual PvP Players:hours", "Δb")`) nor Elite Allround Players (`r fmt_coef(coefs_mod_game, "player_typeElite Allround Players:hours", "Δb")`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PvP: `r fmt_coef(coefs_mod_enjoyment, "player_typeCasual PvP Players:hours", "Δb")`; Elite Allround: `r fmt_coef(coefs_mod_enjoyment, "player_typeElite Allround Players:hours", "Δb")`). Playstyle differences in intercepts remained in the interaction models, particularly for Casual PvP Players (wellbeing: `r fmt_coef(coefs_mod_game, "player_typeCasual PvP Players")`; enjoyment: `r fmt_coef(coefs_mod_enjoyment, "player_typeCasual PvP Players")`).
+To test whether the playtime–wellbeing association differed across playstyles, we extended the main-effects models by adding player type × hours interaction terms, retaining gender and age as covariates (outcome ~ player_type × hours + gender + age + (1 | country); see Appendix 3). Adding the interaction terms did not meaningfully increase variance explained (wellbeing: marginal *R*² = `r sprintf("%.3f", r2_mod_game["marginal"])`; enjoyment: marginal *R*² = `r sprintf("%.3f", r2_mod_enjoyment["marginal"])`). In the main-effects models, hours played was positively associated with both outcomes (wellbeing: `r fmt_coef(coefs_game, "hours")`; enjoyment: `r fmt_coef(coefs_enjoyment, "hours")`). Each interaction coefficient represents the difference in the playtime slope for a given playstyle relative to Casual PvE Players. None of the interaction terms reached significance: for wellbeing, neither Casual PvP Players (`r fmt_coef(coefs_mod_game, "player_typeCasual PvP Players:hours", "Δb")`) nor Elite Allround Players (`r fmt_coef(coefs_mod_game, "player_typeElite Allround Players:hours", "Δb")`) had a playtime slope that differed from the reference group. The same held for enjoyment (Casual PvP: `r fmt_coef(coefs_mod_enjoyment, "player_typeCasual PvP Players:hours", "Δb")`; Elite Allround: `r fmt_coef(coefs_mod_enjoyment, "player_typeElite Allround Players:hours", "Δb")`). Playstyle differences in intercepts remained in the interaction models, particularly for Casual PvP Players (wellbeing: `r fmt_coef(coefs_mod_game, "player_typeCasual PvP Players")`; enjoyment: `r fmt_coef(coefs_mod_enjoyment, "player_typeCasual PvP Players")`).
 
 ```{r}
 #| label: wellbeing-anova
@@ -2174,7 +2257,7 @@ enjoyment_pairs <- enjoyment_pairs %>%
 ```{r}
 #| label: fig-interaction-plots
 #| fig-cap: "Interaction plots showing the relationship between hours played and psychological outcomes across playstyles. The left panel shows wellbeing (SPANE balance score), and the right panel shows enjoyment. Lines represent linear regression slopes with 95% confidence intervals. Casual PvE Players and Elite Allround Players show positive associations between playtime and outcomes, while Casual PvP Players show no significant relationship."
-#| fig-alt: "Two scatter plots side by side with total hours played on the horizontal axis. The left panel plots SPANE balance score (range negative 6 to 6) and the right panel plots enjoyment score (range 1 to 7). In each panel, individual data points are coloured by play style and overlaid with linear regression lines and shaded 95 percent confidence bands. In both panels, Casual PvE Players (blue) and Elite Allround Players (green) show upward-sloping lines indicating positive associations between playtime and outcomes. Casual PvP Players (orange) show a nearly flat line in both panels, indicating no meaningful association. Confidence bands are widest at higher hours values where data are sparser. Most data points cluster below 20 hours of total play."
+#| fig-alt: "Two scatter plots side by side with total hours played on the horizontal axis. The left panel plots SPANE balance score (range negative 6 to 6) and the right panel plots enjoyment score (range 1 to 7). In each panel, individual data points are coloured by playstyle and overlaid with linear regression lines and shaded 95 percent confidence bands. In both panels, Casual PvE Players (blue) and Elite Allround Players (green) show upward-sloping lines indicating positive associations between playtime and outcomes. Casual PvP Players (orange) show a nearly flat line in both panels, indicating no meaningful association. Confidence bands are widest at higher hours values where data are sparser. Most data points cluster below 20 hours of total play."
 #| fig-width: 12
 #| fig-height: 6
 #| code-summary: "Interaction plots for moderation analysis"
@@ -2191,7 +2274,7 @@ wellbeing_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = spane_game_balance
   labs(
     x = "Total Hours Played",
     y = "SPANE Score",
-    color = "Play Style"
+    color = "Playstyle"
   ) +
   theme_minimal(base_size = 14) +
   theme(
@@ -2212,7 +2295,7 @@ enjoyment_plot <- ggplot(pvz_df_clustered, aes(x = hours, y = enjoyment, color =
   labs(
     x = "Total Hours Played",
     y = "Enjoyment Score",
-    color = "Play Style"
+    color = "Playstyle"
   ) +
   theme_minimal(base_size = 14) +
   theme(
@@ -2309,19 +2392,27 @@ To further probe the interaction, simple slopes analyses decomposed the playtime
 
 # Discussion
 
+## Summary of Findings
+
 The objectives of this study were twofold. First, we aimed to complement the breadth of platform-level playtime research with the depth of granular in-game playstyle analysis. Through telemetry-driven profiling, we aimed to demonstrate how players' in-game behavioural heterogeneity can be modelled within a single game. Second, informed by the Integrated Model of Player Experience, we sought to explore how players' interactions with game mechanics and preferences for different in-game modes shape their play experience and subsequent wellbeing, thereby providing greater insight into the conditions under which, and the players for whom, video game play might support or undermine wellbeing.
 
 Accordingly, this study addressed three research questions: whether distinct playstyles can be identified from in-game behavioural telemetry within a single game; whether players with different playstyles report different levels of wellbeing and enjoyment; and whether the association between playtime and wellbeing outcomes differs across playstyles. In short, the findings support the first two questions but not the third. Three distinct playstyles were identified from behavioural telemetry and labelled to reflect two dimensions that emerged from the data: (1) preferred game mode (PvE vs. PvP) and (2) overall performance level (casual vs. elite). These playstyles were associated with meaningful differences in wellbeing and enjoyment, but we found no evidence that they moderated the relationship between playtime and wellbeing or enjoyment. The implications and limitations of these findings are discussed below.
 
-The participants in the first cluster, named "Casual PvE Players", allocated the majority of their playtime to cooperative PvE modes, achieving moderate performance within that context while showing markedly lower metrics in PvP. This playstyle suggests a preference for story-driven exploration and cooperative play over competitive engagement, paralleling the "Adventurer" type identified by @melhartYourGameplaySays2019 in *Tom Clancy's The Division*, who similarly focused on solo and cooperative mission content rather than competitive play. We hypothesise that these players adopt a more recreation-oriented approach to play, gravitating toward narrative content and cooperative challenges that offer immediate enjoyment without the sustained pressure of competitive evaluation. This interpretation is consistent with the view that playstyle captures not only goal-directed behaviour but also forms of engagement partly motivated by the enjoyment that a particular way of playing produces [@kalmanlehtoStyleMakesPlayer2025]. Within the IMP framework [@elsonMoreStoriesButtons2014], this pattern reflects a preference for game contexts in which narrative and exploratory mechanics are foregrounded over adversarial mechanics, potentially affording greater perceived autonomy over how to engage with the game's content and a lower threshold for competence satisfaction. Consistent with this interpretation, Casual PvE Players reported the highest wellbeing and enjoyment of the three groups. This finding is consistent with @melhartYourGameplaySays2019's observation that cooperative and exploratory play features were among the strongest predictors of need satisfaction in *The Division*.
+## Three Playstyles and Their Wellbeing Correlates
 
-The players in the second cluster, called "Elite Allround Players", formed the largest cluster. They maintained high performance across all gameplay contexts, with kill-to-death ratios and accuracy rates substantially above the sample mean in both PvP and PvE. Rather than specialising in one mode, these players engaged broadly and performed well regardless of context, distinguishing them as the most proficient segment. This playstyle is conceptually consistent with the "Elite" type in @melhartYourGameplaySays2019's analysis of *The Division*, characterised by top-tier progression metrics, and with the high-performing player segments identified by @drachenGunsSwordsData2012 in *Battlefield 2: Bad Company 2*. The breadth of their engagement suggests that mode preference alone does not define this group; rather, it is the consistent pursuit of high performance that characterises their play, consistent with a mastery- or achievement-oriented orientation in which players seek to develop and exercise skill across the full range of available game content. Despite their superior performance, however, Elite Allround Players reported lower wellbeing and enjoyment than Casual PvE Players, though higher enjoyment than Casual PvP Players. This pattern is noteworthy because prior work suggests that competence satisfaction positively predicts wellbeing in gaming contexts [@klimmt2009a; @przybylskiMotivationalModelVideo2010; @tamboriniMediaEnjoymentNeed2011; @ryanHappinessHumanPotentials2001]. However, if competence alone drove wellbeing, the most skilled players should report the highest wellbeing. Our findings do not support this, suggesting that the context in which competence is exercised matters as well, consistent with the IMP's emphasis on both mechanics and context as jointly shaping player experience [@elsonMoreStoriesButtons2014]. Potentially, Elite Allround Players' broad engagement across both cooperative and competitive modes may dilute the wellbeing benefits that cooperative PvE environments appear to afford. Furthermore, their high skill may buffer against the competence frustration that competitive environments can impose on less proficient players, though without direct measurement, this remains speculative.
+The participants in the first cluster, named "Casual PvE Players", allocated the majority of their playtime to cooperative PvE modes, achieving moderate performance within that context while showing markedly lower metrics in PvP. This playstyle suggests a preference for story-driven exploration and cooperative play over competitive engagement, paralleling the "Adventurer" type identified by @melhartYourGameplaySays2019 in *Tom Clancy's The Division*, who similarly focused on solo and cooperative mission content rather than competitive play. We hypothesise that these players adopt a more recreation-oriented approach to play, gravitating toward narrative content and cooperative challenges that offer immediate enjoyment without the sustained pressure of competitive evaluation. This interpretation is consistent with the view that playstyle captures not only goal-directed behaviour but also forms of engagement partly motivated by the enjoyment that a particular way of playing produces [@kalmanlehtoStyleMakesPlayer2025]. Within the IMP framework [@elsonMoreStoriesButtons2014], this pattern is consistent with a preference for game contexts in which narrative and exploratory mechanics are foregrounded over adversarial mechanics, potentially affording greater perceived autonomy over how to engage with the game's content and a lower threshold for competence satisfaction. Consistent with this interpretation, Casual PvE Players reported the highest wellbeing and enjoyment of the three groups. This finding is consistent with @melhartYourGameplaySays2019's observation that cooperative and exploratory play features were among the strongest predictors of need satisfaction in *The Division*.
 
-Finally, the players in the third cluster, called "Casual PvP Players", devoted the majority of their time to competitive PvP modes, yet their performance was moderate, falling well below that of Elite Allround Players. Their performance in PvE was similarly modest. This pattern indicates a preference for competitive engagement that is not accompanied by correspondingly high skill, suggesting a casual orientation to play within a competitive context. A comparable playstyle appears in @drachenGunsSwordsData2012's analysis of *Battlefield 2: Bad Company 2*, where a segment of players engaged frequently in competitive modes without achieving high performance metrics, and it bears some resemblance to the "Social Dark Zone Player" in @melhartYourGameplaySays2019's *Division* typology, who preferred competitive areas but were distinguished more by their social engagement than their skill. These players were potentially drawn to the multiplayer and competitive dynamics of PvP modes rather than to the mastery of competitive mechanics per se. This combination of competitive exposure and moderate skill may create a less optimal play experience. Competitive PvP environments are characterised by direct performance feedback, social comparison, and outcome uncertainty, conditions that could frustrate competence needs when players lack the skill to succeed consistently [@ballouHowVideoGames2025]. Consistent with this reasoning, Casual PvP Players reported the lowest wellbeing and enjoyment of the three groups. The finding that competitive engagement at moderate skill levels is associated with the poorest psychological outcomes aligns with evidence that need frustration in gaming contexts can undermine wellbeing [@ballouHowVideoGames2025] and suggests that the experiential costs of competitive play may not be offset by the social or excitement-related benefits that draw these players to PvP modes.
+The players in the second cluster, called "Elite Allround Players", formed the largest cluster. They maintained high performance across all gameplay contexts, with kill-to-death ratios and accuracy rates substantially above the sample mean in both PvP and PvE. Rather than specialising in one mode, these players engaged broadly and performed well regardless of context, distinguishing them as the most proficient segment. This playstyle is conceptually consistent with the "Elite" type in @melhartYourGameplaySays2019's analysis of *The Division*, characterised by top-tier progression metrics, and with the high-performing player segments identified by @drachenGunsSwordsData2012 in *Battlefield 2: Bad Company 2*. The breadth of their engagement suggests that mode preference alone does not define this group; rather, it is consistently high performance across contexts that characterises their play. This pattern would be consistent with a mastery- or achievement-oriented approach, in which players develop and exercise skill across the full range of available game content; however, telemetry alone cannot reveal the motivations underlying it, and future work should assess these directly by pairing behavioural profiles with self-reported motivations. Despite their superior performance, however, Elite Allround Players reported lower wellbeing and enjoyment than Casual PvE Players, though higher enjoyment than Casual PvP Players. This pattern is noteworthy because prior work suggests that competence satisfaction positively predicts wellbeing in gaming contexts [@klimmt2009a; @przybylskiMotivationalModelVideo2010; @tamboriniMediaEnjoymentNeed2011; @ryanHappinessHumanPotentials2001]. However, if competence alone drove wellbeing, the most skilled players should report the highest wellbeing. Our findings do not support this, suggesting that the context in which competence is exercised matters as well, consistent with the IMP's emphasis on both mechanics and context as jointly shaping player experience [@elsonMoreStoriesButtons2014]. Potentially, Elite Allround Players' broad engagement across both cooperative and competitive modes may dilute the wellbeing benefits that cooperative PvE environments appear to afford. Furthermore, their high skill may buffer against the competence frustration that competitive environments can impose on less proficient players, though without direct measurement, this remains speculative.
 
-Lastly, we found no evidence that playstyle moderates the association between playtime and wellbeing or enjoyment. Although Elite Allround Players showed the only significant positive simple slope, this did not translate into a significant difference from the slopes of other groups. These findings align closely with @johannesVideoGamePlay2021, who tested whether self-reported player experiences moderated the playtime-wellbeing association in the same game, *Plants vs. Zombies: Battle for Neighborville*. They found that neither need satisfaction, nor enjoyment, nor extrinsic motivation significantly interacted with playtime in predicting wellbeing, concluding that player experience contributes to wellbeing independently rather than altering how playtime relates to it. Our study extends this result by testing moderation through an entirely different operationalisation, objectively measured behavioural playstyles derived from telemetry, rather than self-reported motivational experiences. That neither subjective player experience nor objective behavioural profile moderates the playtime-wellbeing association in this game strengthens the case that playtime alone is not meaningfully associated with wellbeing for most players [@ballouOpenPlayLongitudinal2025; @johannesVideoGamePlay2021; @vuorreTimeSpentPlaying2022].
+Finally, the players in the third cluster, called "Casual PvP Players", devoted the majority of their time to competitive PvP modes, yet their performance was moderate, falling well below that of Elite Allround Players. Their performance in PvE was similarly modest. This pattern suggests a preference for competitive engagement that is not accompanied by correspondingly high skill, consistent with a casual orientation to play within a competitive context. A comparable playstyle appears in @drachenGunsSwordsData2012's analysis of *Battlefield 2: Bad Company 2*, where a segment of players engaged frequently in competitive modes without achieving high performance metrics, and it bears some resemblance to the "Social Dark Zone Player" in @melhartYourGameplaySays2019's *Division* typology, who preferred competitive areas but were distinguished more by their social engagement than their skill. These players were potentially drawn to the multiplayer and competitive dynamics of PvP modes rather than to the mastery of competitive mechanics per se. This combination of competitive exposure and moderate skill may create a less optimal play experience. Competitive PvP environments are characterised by direct performance feedback, social comparison, and outcome uncertainty, conditions that could frustrate competence needs when players lack the skill to succeed consistently [@ballouHowVideoGames2025]. Consistent with this reasoning, Casual PvP Players reported the lowest wellbeing and enjoyment of the three groups. The finding that competitive engagement at moderate skill levels is associated with the poorest psychological outcomes aligns with evidence that need frustration in gaming contexts can undermine wellbeing [@ballouHowVideoGames2025] and suggests that the experiential costs of competitive play may not be offset by the social or excitement-related benefits that may draw these players to PvP modes.
+
+## No Evidence of Playstyle-Dependent Playtime Effects
+
+Turning to the third research question, we found no evidence that playstyle moderates the association between playtime and wellbeing or enjoyment. Although Elite Allround Players showed the only significant positive simple slope, this did not translate into a significant difference from the slopes of other groups. These findings align closely with @johannesVideoGamePlay2021, who tested whether self-reported player experiences moderated the playtime-wellbeing association in the same game, *Plants vs. Zombies: Battle for Neighborville*. They found that neither need satisfaction, nor enjoyment, nor extrinsic motivation significantly interacted with playtime in predicting wellbeing, concluding that player experience contributes to wellbeing independently rather than altering how playtime relates to it. Our study extends this result by testing moderation through an entirely different operationalisation, objectively measured behavioural playstyles derived from telemetry, rather than self-reported motivational experiences. That neither subjective player experience nor objective behavioural profile moderates the playtime-wellbeing association in this game strengthens the case that playtime alone is not meaningfully associated with wellbeing for most players [@ballouOpenPlayLongitudinal2025; @johannesVideoGamePlay2021; @vuorreTimeSpentPlaying2022].
 
 It is worth noting, however, that the absence of moderation in our data does not constitute evidence that playtime is wholly irrelevant to wellbeing under all conditions. The playtime-wellbeing relationship is subject to a wide range of time-varying confounds, including physical health, grief, work stress, and leisure availability, that can bias observed associations in either direction [@ballouIllHealthGrief2025]. Our cross-sectional design and limited set of covariates leave open the possibility that such confounds obscure true differential effects. Moreover, our study examines only one game; it remains possible that playstyle-by-playtime interactions exist in games with greater mechanical diversity, stronger competitive ranking systems, or more pronounced social features. The null moderation finding should therefore be interpreted as specific to the present context rather than as a general claim about the impossibility of such effects.
+
+## Implications for the Playtime Paradigm
 
 What the data do show is that the playtime paradigm is incomplete in a critical respect; it misses qualitative differences in play that are associated with meaningful variation in average wellbeing. Playtime treats all minutes of play as equivalent, but players who devote their time to cooperative PvE gameplay report higher wellbeing than those who spend comparable time in competitive PvP modes. This between-group difference in levels, rather than in slopes, is the primary empirical contribution of the present study. In this respect, our results complement rather than contradict platform-level research; playtime may indeed be uninformative as a predictor of wellbeing, but the behavioural composition of that playtime is not.
 
@@ -2332,6 +2423,8 @@ Several limitations constrain the interpretation of these findings and point tow
 Second, while our behavioural telemetry provided comprehensive metrics on core gameplay mechanics and performance, it captured only a subset of potential in-game behaviours. Notably absent were indicators of social interaction, which is an important dimension of multiplayer gaming experiences that the IMP identifies as part of the contextual layer of player experience [@elsonMoreStoriesButtons2014]. In this study, sessions spent in the game's social hub were considered idle time and thus excluded from the playstyle analysis because these sessions generated no mechanics-relevant telemetry on which to cluster. Yet recent work has shown that ostensibly idle or non-interactive periods in games, including socialising between matches and exploring social spaces, can serve experiential functions such as community-building and strategic preparation that shape the broader play experience [@tepponenUnderstandingWaitingVideo2025]. Future work could address this gap by extending the playstyle profiling framework to incorporate social and communicative dimensions of gameplay. Gesture-based digital trace data, such as the 'ping' communication systems common in multiplayer games, have been demonstrated to be related to game context, team dynamics, and performance outcomes [@zhengUnderstandingPlayersGestureBased2023].
 
 Third, the cross-sectional design precludes causal inference. The observed associations between playstyle and wellbeing may reflect selection effects (e.g., players with higher baseline wellbeing may gravitate toward cooperative play) rather than the influence of play behaviour on outcomes. This concern is not merely hypothetical; a wide range of time-varying confounds, from physical health conditions to work stress, plausibly affect both what players do in games and how they feel [@ballouIllHealthGrief2025]. Our design cannot disentangle whether cooperative PvE play promotes wellbeing, whether wellbeing promotes cooperative play, or whether both are driven by unmeasured third variables.
+
+Fourth, the temporality of when participants played was not considered. The session telemetry also captured when sessions occurred, how they were spaced, and how mode choices unfolded over time (illustrated in @fig-descriptives, Panel D). These temporal contrasts, such as habitual versus binge-like session rhythms or daytime versus late-night play, may offer insightful avenues for future research.
 
 ## Conclusion
 
@@ -2376,7 +2469,7 @@ The study procedures were granted ethical approval by the University of Oxford's
 
 # Appendix {.appendix}
 
-## Appendix 1: Cluster Tendency Assessment
+## Appendix 1: Cluster Tendency Assessment {.unnumbered}
 
 ```{r}
 #| label: appendix_cluster_tendency
@@ -2398,7 +2491,7 @@ grid.arrange(
 )
 ```
 
-## Appendix 2: Cluster Validation Plots
+## Appendix 2: Cluster Validation Plots {.unnumbered}
 
 ```{r}
 #| label: appendix_cluster_validation_plots
@@ -2416,7 +2509,7 @@ p_pam_ch
 
 The plot above shows the validation method used to determine the optimal number of clusters. The Calinski-Harabasz Index evaluates cluster validity based on the ratio of between-cluster to within-cluster variance, with higher values indicating better separation between clusters. The index indicated that k = 3 was the optimal number of clusters for our player data.
 
-## Appendix 3: Robust Mixed-Model Coefficients
+## Appendix 3: Robust Mixed-Model Coefficients {.unnumbered}
 
 ```{r}
 #| label: appendix_model_coefficients
