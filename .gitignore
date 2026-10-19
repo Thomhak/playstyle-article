@@ -71,3 +71,11 @@ camera_ready_proposals.md
 strict_window_report.md
 
 /.luarc.json
+
+# Strict-window sensitivity copies (reference only, not part of the archive)
+*_strict.qmd
+*_strict.html
+*_strict_files/
+output/models_strict/
+submission_steps.md
+submission/

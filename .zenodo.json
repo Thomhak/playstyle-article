@@ -3,7 +3,7 @@
   "upload_type": "software",
   "access_right": "open",
   "license": "cc-by-4.0",
-  "description": "<p>Analysis code and Quarto manuscript source for the article <em>Not All Play is Equal: In-game Player Behaviour Predicts Wellbeing Differences</em> (ACM Games: Research and Practice). The repository contains the data-cleaning pipeline (<code>preprocessing_new.qmd</code>), the full analysis and manuscript (<code>manuscript.qmd</code>), shared helper functions (<code>helpers.R</code>), the bibliography, and a rendered HTML version of the manuscript with all code and output.</p><p>The raw survey and telemetry data from Plants vs. Zombies: Battle for Neighborville are not included. They were released by Johannes, Vuorre, and Przybylski (2021) and are available at <a href=\"https://osf.io/cjd6z/\">https://osf.io/cjd6z/</a>. See the README for reproduction steps.</p>",
+  "description": "<p>Analysis code and Quarto manuscript source for the article <em>Not All Play is Equal: In-game Player Behaviour Predicts Wellbeing Differences</em> (ACM Games: Research and Practice). The repository contains the data-cleaning pipeline (<code>preprocessing_new.qmd</code>), the full analysis and manuscript (<code>manuscript.qmd</code>), shared helper functions (<code>helpers.R</code>), the bibliography, and a rendered HTML version of the manuscript (text, tables, and figures).</p><p>The raw survey and telemetry data from Plants vs. Zombies: Battle for Neighborville are not included. They were released by Johannes, Vuorre, and Przybylski (2021) and are available at <a href=\"https://osf.io/cjd6z/\">https://osf.io/cjd6z/</a>. See the README for reproduction steps.</p>",
   "creators": [
     {
       "name": "Hakman, Thomas",
