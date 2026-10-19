@@ -97,6 +97,30 @@ acm-metadata:
   copyright: acmcopyright
   doi: XXXXXXX.XXXXXXX
   shortauthors: Hakman et al.
+  ccs: |
+    \begin{CCSXML}
+    <ccs2012>
+       <concept>
+           <concept_id>10010405.10010455.10010459</concept_id>
+           <concept_desc>Applied computing~Psychology</concept_desc>
+           <concept_significance>300</concept_significance>
+           </concept>
+       <concept>
+           <concept_id>10003120.10003121.10011748</concept_id>
+           <concept_desc>Human-centered computing~Empirical studies in HCI</concept_desc>
+           <concept_significance>500</concept_significance>
+           </concept>
+       <concept>
+           <concept_id>10003120.10003121.10003122.10003334</concept_id>
+           <concept_desc>Human-centered computing~User studies</concept_desc>
+           <concept_significance>300</concept_significance>
+           </concept>
+     </ccs2012>
+    \end{CCSXML}
+
+    \ccsdesc[300]{Applied computing~Psychology}
+    \ccsdesc[500]{Human-centered computing~Empirical studies in HCI}
+    \ccsdesc[300]{Human-centered computing~User studies}
   keywords:
     - video games
     - playstyle
