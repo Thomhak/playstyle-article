@@ -314,6 +314,59 @@ add_median_iqr_row <- function(data, var, label, digits = 1) {
   )
 }
 
+#' Plain booktabs LaTeX table (used instead of tinytable for LaTeX output)
+#'
+#' tinytable's LaTeX tables need the tabularray package, which ACM's
+#' production system (TAPS) does not accept. This builds a plain `tabular`
+#' with booktabs rules instead (acmart loads booktabs itself). Quarto adds
+#' the table float, caption and cross-reference label from the chunk's
+#' `tbl-cap`, as it does for tinytable output.
+#' @param data data frame of cells already formatted as text; cells are
+#'   inserted as they are, so LaTeX markup is kept and special characters
+#'   must be escaped beforehand
+#' @param groups optional named list of the rows at which each group starts,
+#'   as in `tinytable::group_tt(i = )`; each name becomes a bold label row
+#'   spanning all columns, and data rows are indented by 1em
+#' @param notes optional note, set in footnote size below the table
+#' @param align column alignment, one letter per column (default: all
+#'   left-aligned, as in tinytable's LaTeX output)
+#' @return `knit_asis` object with the LaTeX code
+latex_booktabs_table <- function(
+  data,
+  groups = NULL,
+  notes = NULL,
+  align = strrep("l", ncol(data))
+) {
+  # One "cell & cell & ..." string per row
+  rows <- do.call(paste, c(unname(as.list(data)), sep = " & "))
+  if (!is.null(groups)) {
+    rows <- paste0("\\hspace{1em}", rows)
+    labels <- sprintf(
+      "\\multicolumn{%d}{l}{\\textbf{%s}}",
+      ncol(data),
+      names(groups)
+    )
+    starts <- unlist(groups)
+    # Insert from the last group up so earlier row positions stay valid
+    for (k in rev(seq_along(starts))) {
+      rows <- append(rows, labels[k], after = starts[k] - 1)
+    }
+  }
+  latex <- c(
+    sprintf("\\begin{tabular}{%s}", align),
+    "\\toprule",
+    paste(paste(names(data), collapse = " & "), "\\\\"),
+    "\\midrule",
+    paste(rows, "\\\\"),
+    "\\bottomrule",
+    "\\end{tabular}",
+    if (!is.null(notes)) {
+      sprintf("\\par\\smallskip{\\footnotesize %s\\par}", notes)
+    }
+  )
+  knitr::asis_output(paste(latex, collapse = "\n"))
+}
+
 # ============================================
 # Visualization Helper Functions
 # ============================================

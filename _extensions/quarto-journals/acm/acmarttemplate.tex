@@ -98,25 +98,28 @@ $--   \protected\def ^^^^200c{\zerowidthnonjoiner}
 $-- \fi
 $-- %% End of ZWNJ support
 $-- $endif$
+$-- Not loaded for acmart: upquote (no verbatim), microtype (acmart loads it)
+$-- and parskip (\parindent and \parskip are set after the pandoc preamble).
+$-- ACM's production system (TAPS) accepts only acmart and its package list.
 $-- % Use upquote if available, for straight quotes in verbatim environments
-\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
-\IfFileExists{microtype.sty}{% use microtype if available
-  \usepackage[$for(microtypeoptions)$$microtypeoptions$$sep$,$endfor$]{microtype}
-  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
-}{}
-$if(indent)$
-$else$
-\makeatletter
-\@ifundefined{KOMAClassName}{% if non-KOMA class
-  \IfFileExists{parskip.sty}{%
-    \usepackage{parskip}
-  }{% else
-    \setlength{\parindent}{0pt}
-    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
-}{% if KOMA class
-  \KOMAoptions{parskip=half}}
-\makeatother
-$endif$
+$-- \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+$-- \IfFileExists{microtype.sty}{% use microtype if available
+$--   \usepackage[$for(microtypeoptions)$$microtypeoptions$$sep$,$endfor$]{microtype}
+$--   \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+$-- }{}
+$-- $if(indent)$
+$-- $else$
+$-- \makeatletter
+$-- \@ifundefined{KOMAClassName}{% if non-KOMA class
+$--   \IfFileExists{parskip.sty}{%
+$--     \usepackage{parskip}
+$--   }{% else
+$--     \setlength{\parindent}{0pt}
+$--     \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+$-- }{% if KOMA class
+$--   \KOMAoptions{parskip=half}}
+$-- \makeatother
+$-- $endif$
 $-- $if(verbatim-in-note)$
 $-- \usepackage{fancyvrb}
 $-- $endif$
@@ -324,7 +327,8 @@ $if(CJKmainfont)$
 \PassOptionsToPackage{space}{xeCJK}
 $endif$
 
-\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+$-- acmart loads hyperref itself; bookmark is not on ACM's TAPS package list.
+$-- \IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
 
 %% PANDOC PREAMBLE BEGINS
 $pandoc.tex()$

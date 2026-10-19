@@ -1,0 +1,14 @@
+$-- Override of Quarto's biblio-config.tex partial for acmart. acmart loads
+$-- natbib itself and ACM's production system (TAPS) rejects packages the
+$-- class already loads, so only the bibliography style is set for natbib.
+$if(biblio-config)$
+$if(natbib)$
+\bibliographystyle{$if(biblio-style)$$biblio-style$$else$ACM-Reference-Format$endif$}
+$endif$
+$if(biblatex)$
+\usepackage[$if(biblio-style)$style=$biblio-style$,$endif$$for(biblatexoptions)$$biblatexoptions$$sep$,$endfor$]{biblatex}
+$for(bibliography)$
+\addbibresource{$bibliography$}
+$endfor$
+$endif$
+$endif$

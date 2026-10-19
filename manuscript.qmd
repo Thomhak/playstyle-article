@@ -87,15 +87,31 @@ format:
   acm-pdf:
     fig-pos: H
     keep-tex: true
+    # No pandoc tables in LaTeX output (Tables 1-2 are booktabs tabulars), so
+    # pandoc's longtable preamble is not emitted (ACM TAPS package list)
+    variables:
+      tables: false
+    # pdfLaTeX (used by ACM production) has no mapping for two characters in
+    # the text: the eta in "η²" (set as upright math eta from newtxmath) and
+    # the minus sign U+2212. LuaLaTeX uses the font's own glyphs instead.
+    include-in-header:
+      text: |
+        \ifPDFTeX
+          \DeclareUnicodeCharacter{03B7}{\ensuremath{\etaup}}
+          \DeclareUnicodeCharacter{2212}{\textminus}
+        \fi
 acm-metadata:
   anonymous: false
   final: true
   journal: GAMES
-  acmart-options: manuscript,screen
-  copyright-year: 2025
-  acm-year: 2025
-  copyright: acmcopyright
-  doi: XXXXXXX.XXXXXXX
+  acmart-options: acmsmall,screen
+  copyright-year: 2026
+  acm-year: 2026
+  # Open access under a Creative Commons licence (authors keep copyright).
+  # cctype: by, by-sa, by-nd, by-nc, by-nc-sa, by-nc-nd or zero
+  copyright: cc
+  cctype: by
+  # doi: 10.1145/... (add once ACM assigns it; until then none is printed)
   shortauthors: Hakman et al.
   ccs: |
     \begin{CCSXML}
@@ -881,7 +897,7 @@ if ("gender" %in% names(pvz_df_analysis)) {
     mutate(frequency = sprintf("%d (%.1f%%)", n, pct))
   
   # Note: gender distribution is reported in the table note; the "%" signs are
-  # escaped for LaTeX by format_tt(escape = TRUE) below
+  # escaped for LaTeX below (format_vector/format_tt with escape = TRUE)
   gender_note <- paste("Gender distribution:", 
                      paste(paste0(gender_counts$gender, ": ", gender_counts$frequency), 
                            collapse = ", "))
@@ -959,23 +975,43 @@ descriptive_stats <- descriptive_stats %>%
 # Get sample size for the note
 sample_n <- nrow(pvz_df_analysis)
 
-# Create the table with tinytable; categories render as bold group header rows
+# Categories render as bold group header rows
 table_groups <- descriptive_stats %>%
   mutate(row = row_number()) %>%
   group_by(category) %>%
   summarise(start = min(row)) %>%
   arrange(start)
+group_starts <- as.list(setNames(table_groups$start, table_groups$category))
+table_note <- paste0("N = ", sample_n, ". ", gender_note)
+table_data <- descriptive_stats |>
+  select(Variable = variable, M, SD, Min, Max)
 
-descriptive_stats |>
-  select(Variable = variable, M, SD, Min, Max) |>
-  # Caption comes from the chunk's tbl-cap (Quarto cross-reference); tinytable's
-  # caption argument must not be used in Quarto documents (see ?tinytable::tt)
-  tt(notes = paste0("N = ", sample_n, ". ", gender_note)) |>
-  format_tt(j = 2:5, digits = 2, num_fmt = "decimal", num_zero = TRUE, num_mark_big = ",") |>
-  format_tt(escape = TRUE) |>
-  group_tt(i = as.list(setNames(table_groups$start, table_groups$category))) |>
-  style_tt(i = "groupi", bold = TRUE, align = "l") |>
-  style_tt(i = "~groupi", indent = 1)
+# Caption comes from the chunk's tbl-cap (Quarto cross-reference); tinytable's
+# caption argument must not be used in Quarto documents (see ?tinytable::tt)
+if (knitr::is_latex_output()) {
+  # ACM LaTeX output: plain booktabs tabular (helpers.R), because tinytable's
+  # LaTeX tables need tabularray, which ACM's production system does not
+  # accept. Same number format, escaping, groups and note as the tinytable
+  # table used for all other formats.
+  table_data |>
+    mutate(
+      Variable = format_vector(as.character(Variable), output = "latex", escape = TRUE),
+      across(M:Max, ~ format_vector(.x, digits = 2, num_fmt = "decimal",
+                                    num_zero = TRUE, num_mark_big = ","))
+    ) |>
+    latex_booktabs_table(
+      groups = group_starts,
+      notes = format_vector(table_note, output = "latex", escape = TRUE)
+    )
+} else {
+  table_data |>
+    tt(notes = table_note) |>
+    format_tt(j = 2:5, digits = 2, num_fmt = "decimal", num_zero = TRUE, num_mark_big = ",") |>
+    format_tt(escape = TRUE) |>
+    group_tt(i = group_starts) |>
+    style_tt(i = "groupi", bold = TRUE, align = "l") |>
+    style_tt(i = "~groupi", indent = 1)
+}
 ```
 
 
@@ -1260,15 +1296,18 @@ cluster_means <- pvz_df_analysis %>%
   group_by(cluster) %>%
   summarize(across(all_of(clustering_features), mean, na.rm = TRUE), .groups = "drop")
 
-# Display medoid profiles 
+# Display medoid profiles and cluster means (interactive inspection only; the
+# chunk is not included). preamble = FALSE: even from a hidden chunk, tinytable
+# would add its tabularray preamble to the ACM .tex, which TAPS does not accept
 medoid_features |>
   tt(caption = "Cluster Medoids (Feature Values of Representative Players)") |>
-  format_tt(digits = 2)
+  format_tt(digits = 2) |>
+  theme_latex(preamble = FALSE)
 
-# Display cluster means
 cluster_means |>
   tt(caption = "Cluster Means - Average Feature Values") |>
-  format_tt(digits = 2)
+  format_tt(digits = 2) |>
+  theme_latex(preamble = FALSE)
 ```
 
 ```{r}
@@ -2594,7 +2633,7 @@ term_map <- c(
   "player_typeElite Allround Players:hours" = paste("Elite Allround", times_sign, "Hours")
 )
 
-bind_rows(
+coefficient_table <- bind_rows(
   tidy_rlmer_table(rmodel_game, "Wellbeing", "Main effects"),
   tidy_rlmer_table(rmodel_enjoyment, "Enjoyment", "Main effects"),
   tidy_rlmer_table(rmodel_moderation_game, "Wellbeing", "Moderation"),
@@ -2610,9 +2649,15 @@ bind_rows(
     SE = sprintf("%.3f", std_error),
     t = sprintf("%.2f", t_value),
     p = format_pvalue(p_approx, equals = FALSE)
-  ) %>%
-  # Caption comes from the chunk's tbl-cap (see tbl-descriptive-stats)
-  tt()
+  )
+
+# Caption comes from the chunk's tbl-cap (see tbl-descriptive-stats); in LaTeX
+# (ACM) output a plain booktabs tabular replaces tinytable, as for that table
+if (knitr::is_latex_output()) {
+  latex_booktabs_table(coefficient_table)
+} else {
+  tt(coefficient_table)
+}
 ```
 
 This table presents the full coefficient estimates for all four robust mixed-effects models. ANOVA omnibus tests, Tukey HSD post-hoc comparisons, simple slopes, and pairwise slope-difference tests are reported in the main text.

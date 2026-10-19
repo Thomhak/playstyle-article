@@ -4,9 +4,20 @@
 %% the commands and values with those provided to you when you
 %% complete the rights form.
 \setcopyright{$acm-metadata.copyright$}
+$-- Creative Commons licence type for \setcopyright{cc} (acmart 2.x), e.g.
+$-- by or by-nc-nd; set with acm-metadata.cctype.
+$if(acm-metadata.cctype)$
+\setcctype{$acm-metadata.cctype$}
+$endif$
 \copyrightyear{$acm-metadata.copyright-year$}
 \acmYear{$acm-metadata.acm-year$}
+$-- Without a DOI, \acmDOI{} is emitted empty: acmart's own default is the
+$-- placeholder 10.1145/nnnnnnn.nnnnnnn, which would otherwise be printed.
+$if(acm-metadata.doi)$
 \acmDOI{$acm-metadata.doi$}
+$else$
+\acmDOI{}
+$endif$
 
 $if(acm-metadata.journal)$
 %% This command is for a JOURNAL article. It must come after any

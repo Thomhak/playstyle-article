@@ -52,7 +52,15 @@ end
 return {
   {
     Image = function(image)
+      -- acmart requires a \Description for every figure. This filter runs at
+      -- post-render (see _extension.yml): figures with a cross-reference label
+      -- (#fig-...) still carry `fig-alt` there, whereas for figures without
+      -- one (e.g. knitr chunks labelled appendix_...) Quarto has already
+      -- moved the text to `alt`, so LaTeX output falls back to `alt`.
       local description = attribute(image, "fig-alt", nil)
+      if description == nil and quarto.doc.is_format("latex") then
+        description = attribute(image, "alt", nil)
+      end
       if description == nil then
         return image
       end
