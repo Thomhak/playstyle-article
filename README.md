@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23468927.svg)](https://doi.org/10.5281/zenodo.23468927)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 
-Analysis code and manuscript source for our article in *ACM Games: Research and Practice* (accepted). Read the authors' version: [HTML](https://thomhak.github.io/playstyle-article/) · [PDF](https://thomhak.github.io/playstyle-article/manuscript.pdf) · [Word](https://thomhak.github.io/playstyle-article/manuscript.docx)
+Analysis code and manuscript source for our article in *ACM Games: Research and Practice* (accepted). Read the authors' version: [HTML](https://thomhak.github.io/playstyle-article/) · [Preprint PDF](https://thomhak.github.io/playstyle-article/manuscript.pdf) · [ACM version PDF](https://thomhak.github.io/playstyle-article/manuscript-acm.pdf) · [Word](https://thomhak.github.io/playstyle-article/manuscript.docx)
 
 **Authors:** [Thomas Hakman](https://thomashakman.com/) (University of Oxford), [Matti Vuorre](https://vuorre.com/) (Tilburg University), [Andrew K. Przybylski](https://www.przybylski.xyz/) (University of Oxford)
 

@@ -2321,7 +2321,7 @@ window.Quarto = {
   <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references">References</a></li>
   
   </ul>
-<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="manuscript.pdf"><i class="bi bi-file-pdf"></i>Typst (preprint)</a></li><li><a href="manuscript.docx"><i class="bi bi-file-word"></i>MS Word (preprint)</a></li><li><a href="manuscript.pdf"><i class="bi bi-file-pdf"></i>PDF (acm)</a></li></ul></div></nav>
+<div class="quarto-alternate-formats"><h2>Other Formats</h2><ul><li><a href="manuscript.pdf"><i class="bi bi-file-pdf"></i>Typst (preprint)</a></li><li><a href="manuscript.docx"><i class="bi bi-file-word"></i>MS Word (preprint)</a></li><li><a href="manuscript-acm.pdf"><i class="bi bi-file-pdf"></i>PDF (acm)</a></li></ul></div></nav>
 </div>
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
 </div>
@@ -2442,7 +2442,7 @@ Figure 1: <em>Overview of the Study Measures.</em> (A) Wellbeing outcomes in th
 <h3 class="anchored" data-anchor-id="behavioural-telemetry">Behavioural Telemetry</h3>
 <p>The raw telemetry contained one record per player, session, level, and character class, each with counts of in-game events during that stint (eliminations, deaths, shots fired and hit, damage dealt, and score). We restricted these records to the 14 days before each player’s survey. From these records, we selected and computed metrics only if they had been previously validated as informative measures of player behaviour and performance in shooter games <span class="citation" data-cites="drachenGunsSwordsData2012 lugrinImmersiveFPSGames2013 melhartYourGameplaySays2019">(<a href="#ref-drachenGunsSwordsData2012" role="doc-biblioref">Drachen et al., 2012</a>; <a href="#ref-lugrinImmersiveFPSGames2013" role="doc-biblioref">Lugrin et al., 2013</a>; <a href="#ref-melhartYourGameplaySays2019" role="doc-biblioref">Melhart et al., 2019</a>)</span>. Two principles guided the computation of the behavioural metrics. First, all performance metrics were constructed to be independent of total playtime. Common cumulative indicators such as ‘player level’ or ‘total kills’ were deliberately excluded because they conflate skill with playtime; a player’s level may simply be higher because they played more, not because they performed better. Second, every metric was computed separately for PvP and PvE modes, because the two contexts differ fundamentally in difficulty, objectives, and opponent type; eliminating a computer-controlled enemy in PvE is not comparable to eliminating a matchmade opponent of similar rank in PvP. Pooling across modes would obscure meaningful behavioural differences. For each mode, event counts were summed across all of a player’s records within the 14-day window and ratios were formed from these totals (e.g., PvP hit accuracy = total shots hit in PvP / total shots fired in PvP), rather than averaging per-session values. This resulted in 12 behavioural metrics plus one overall playtime measure (for descriptive statistics, see <a href="#tbl-descriptive-stats" class="quarto-xref">Table 1</a>). Mode ratio captured the proportion of active playtime each player devoted to PvP and PvE modes, reflecting game-mode preference. Kill/death ratio indexed combat effectiveness as the number of eliminations per death, with higher values indicating greater survivability and lethality. Hit accuracy measured the proportion of shots that connect with a target, reflecting aiming precision. Damage per second captured sustained offensive output, indicating how efficiently a player dealt damage over time. Average damage per game reflected total offensive contribution within a match, encompassing both direct combat and area-of-effect output. Average score per game provided a composite performance indicator incorporating objectives completed, assists, and other in-game scoring events beyond raw combat. Each of these five performance metrics was computed separately for PvP and PvE, yielding 10 mode-specific indicators alongside the two mode-ratio variables. Of these 12 metrics, 10 entered the cluster analysis, as described under Data Analysis.</p>
 <div class="cell" data-layout-align="center" data-tbl-cap-location="top">
-<div id="tbl-descriptive-stats" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-cap-location="top" data-layout-align="center">
+<div id="tbl-descriptive-stats" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-layout-align="center" data-tbl-cap-location="top">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-descriptive-stats-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 1: Descriptive Statistics for Key Variables
@@ -2689,26 +2689,26 @@ function tinytable_rank_sorter(a, b, aRow, bRow, column, dir, sorterParams) {
 
     <script>
       // Create table-specific functions using external factory
-      const tableFns_49k98eu605zy4yfkfpje = TinyTable.createTableFunctions("tinytable_49k98eu605zy4yfkfpje");
+      const tableFns_hm877lui7ceno5jko9ij = TinyTable.createTableFunctions("tinytable_hm877lui7ceno5jko9ij");
       // tinytable span after
-      window.addEventListener('load', function () { tableFns_49k98eu605zy4yfkfpje.spanCell(19, 1, 1, 5) })
-      window.addEventListener('load', function () { tableFns_49k98eu605zy4yfkfpje.spanCell(8, 1, 1, 5) })
-      window.addEventListener('load', function () { tableFns_49k98eu605zy4yfkfpje.spanCell(5, 1, 1, 5) })
-      window.addEventListener('load', function () { tableFns_49k98eu605zy4yfkfpje.spanCell(3, 1, 1, 5) })
-      window.addEventListener('load', function () { tableFns_49k98eu605zy4yfkfpje.spanCell(1, 1, 1, 5) })
+      window.addEventListener('load', function () { tableFns_hm877lui7ceno5jko9ij.spanCell(19, 1, 1, 5) })
+      window.addEventListener('load', function () { tableFns_hm877lui7ceno5jko9ij.spanCell(8, 1, 1, 5) })
+      window.addEventListener('load', function () { tableFns_hm877lui7ceno5jko9ij.spanCell(5, 1, 1, 5) })
+      window.addEventListener('load', function () { tableFns_hm877lui7ceno5jko9ij.spanCell(3, 1, 1, 5) })
+      window.addEventListener('load', function () { tableFns_hm877lui7ceno5jko9ij.spanCell(1, 1, 1, 5) })
       window.addEventListener('load', function () {
           var cellsToStyle = [
             // tinytable style arrays after
-          { positions: [ { i: '2', j: 1 }, { i: '4', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '20', j: 1 }, { i: '2', j: 2 }, { i: '4', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '20', j: 2 }, { i: '2', j: 3 }, { i: '4', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '20', j: 3 }, { i: '2', j: 4 }, { i: '4', j: 4 }, { i: '6', j: 4 }, { i: '7', j: 4 }, { i: '9', j: 4 }, { i: '10', j: 4 }, { i: '11', j: 4 }, { i: '12', j: 4 }, { i: '13', j: 4 }, { i: '14', j: 4 }, { i: '15', j: 4 }, { i: '16', j: 4 }, { i: '17', j: 4 }, { i: '18', j: 4 }, { i: '20', j: 4 }, { i: '2', j: 5 }, { i: '4', j: 5 }, { i: '6', j: 5 }, { i: '7', j: 5 }, { i: '9', j: 5 }, { i: '10', j: 5 }, { i: '11', j: 5 }, { i: '12', j: 5 }, { i: '13', j: 5 }, { i: '14', j: 5 }, { i: '15', j: 5 }, { i: '16', j: 5 }, { i: '17', j: 5 }, { i: '18', j: 5 }, { i: '20', j: 5 } ], css_id: 'tinytable_css_xuficonwb0vmnk5vzerv',}, 
-          { positions: [ { i: '1', j: 1 }, { i: '3', j: 1 }, { i: '5', j: 1 }, { i: '8', j: 1 }, { i: '19', j: 1 }, { i: '1', j: 2 }, { i: '3', j: 2 }, { i: '5', j: 2 }, { i: '8', j: 2 }, { i: '19', j: 2 }, { i: '1', j: 3 }, { i: '3', j: 3 }, { i: '5', j: 3 }, { i: '8', j: 3 }, { i: '19', j: 3 }, { i: '1', j: 4 }, { i: '3', j: 4 }, { i: '5', j: 4 }, { i: '8', j: 4 }, { i: '19', j: 4 }, { i: '1', j: 5 }, { i: '3', j: 5 }, { i: '5', j: 5 }, { i: '8', j: 5 }, { i: '19', j: 5 } ], css_id: 'tinytable_css_vo776qt0h3hce9tkldfm',}, 
-          { positions: [ { i: '21', j: 1 }, { i: '21', j: 2 }, { i: '21', j: 3 }, { i: '21', j: 4 }, { i: '21', j: 5 } ], css_id: 'tinytable_css_rdiy9ai4mqwlst94frkz',}, 
-          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_q0rmfl7v997jf1h43ri9',}, 
+          { positions: [ { i: '2', j: 1 }, { i: '4', j: 1 }, { i: '6', j: 1 }, { i: '7', j: 1 }, { i: '9', j: 1 }, { i: '10', j: 1 }, { i: '11', j: 1 }, { i: '12', j: 1 }, { i: '13', j: 1 }, { i: '14', j: 1 }, { i: '15', j: 1 }, { i: '16', j: 1 }, { i: '17', j: 1 }, { i: '18', j: 1 }, { i: '20', j: 1 }, { i: '2', j: 2 }, { i: '4', j: 2 }, { i: '6', j: 2 }, { i: '7', j: 2 }, { i: '9', j: 2 }, { i: '10', j: 2 }, { i: '11', j: 2 }, { i: '12', j: 2 }, { i: '13', j: 2 }, { i: '14', j: 2 }, { i: '15', j: 2 }, { i: '16', j: 2 }, { i: '17', j: 2 }, { i: '18', j: 2 }, { i: '20', j: 2 }, { i: '2', j: 3 }, { i: '4', j: 3 }, { i: '6', j: 3 }, { i: '7', j: 3 }, { i: '9', j: 3 }, { i: '10', j: 3 }, { i: '11', j: 3 }, { i: '12', j: 3 }, { i: '13', j: 3 }, { i: '14', j: 3 }, { i: '15', j: 3 }, { i: '16', j: 3 }, { i: '17', j: 3 }, { i: '18', j: 3 }, { i: '20', j: 3 }, { i: '2', j: 4 }, { i: '4', j: 4 }, { i: '6', j: 4 }, { i: '7', j: 4 }, { i: '9', j: 4 }, { i: '10', j: 4 }, { i: '11', j: 4 }, { i: '12', j: 4 }, { i: '13', j: 4 }, { i: '14', j: 4 }, { i: '15', j: 4 }, { i: '16', j: 4 }, { i: '17', j: 4 }, { i: '18', j: 4 }, { i: '20', j: 4 }, { i: '2', j: 5 }, { i: '4', j: 5 }, { i: '6', j: 5 }, { i: '7', j: 5 }, { i: '9', j: 5 }, { i: '10', j: 5 }, { i: '11', j: 5 }, { i: '12', j: 5 }, { i: '13', j: 5 }, { i: '14', j: 5 }, { i: '15', j: 5 }, { i: '16', j: 5 }, { i: '17', j: 5 }, { i: '18', j: 5 }, { i: '20', j: 5 } ], css_id: 'tinytable_css_riuybkzmeubzuf4rnej7',}, 
+          { positions: [ { i: '1', j: 1 }, { i: '3', j: 1 }, { i: '5', j: 1 }, { i: '8', j: 1 }, { i: '19', j: 1 }, { i: '1', j: 2 }, { i: '3', j: 2 }, { i: '5', j: 2 }, { i: '8', j: 2 }, { i: '19', j: 2 }, { i: '1', j: 3 }, { i: '3', j: 3 }, { i: '5', j: 3 }, { i: '8', j: 3 }, { i: '19', j: 3 }, { i: '1', j: 4 }, { i: '3', j: 4 }, { i: '5', j: 4 }, { i: '8', j: 4 }, { i: '19', j: 4 }, { i: '1', j: 5 }, { i: '3', j: 5 }, { i: '5', j: 5 }, { i: '8', j: 5 }, { i: '19', j: 5 } ], css_id: 'tinytable_css_tzfnr2wmtde17xbcsxlp',}, 
+          { positions: [ { i: '21', j: 1 }, { i: '21', j: 2 }, { i: '21', j: 3 }, { i: '21', j: 4 }, { i: '21', j: 5 } ], css_id: 'tinytable_css_thscc2m98i6ibd3zayik',}, 
+          { positions: [ { i: '0', j: 1 }, { i: '0', j: 2 }, { i: '0', j: 3 }, { i: '0', j: 4 }, { i: '0', j: 5 } ], css_id: 'tinytable_css_4kd86018uo9r0p0nosk3',}, 
           ];
 
           // Loop over the arrays to style the cells
           cellsToStyle.forEach(function (group) {
               group.positions.forEach(function (cell) {
-                  tableFns_49k98eu605zy4yfkfpje.styleCell(cell.i, cell.j, group.css_id);
+                  tableFns_hm877lui7ceno5jko9ij.styleCell(cell.i, cell.j, group.css_id);
               });
           });
       });
@@ -2916,13 +2916,13 @@ line-height: var(--tt-line-height-footnote-tight);
 </style>
     <style>
 
-#tinytable_49k98eu605zy4yfkfpje td.tinytable_css_xuficonwb0vmnk5vzerv, #tinytable_49k98eu605zy4yfkfpje th.tinytable_css_xuficonwb0vmnk5vzerv { padding-left: 1em }
-#tinytable_49k98eu605zy4yfkfpje td.tinytable_css_vo776qt0h3hce9tkldfm, #tinytable_49k98eu605zy4yfkfpje th.tinytable_css_vo776qt0h3hce9tkldfm { font-weight: bold; text-align: left }
-#tinytable_49k98eu605zy4yfkfpje td.tinytable_css_rdiy9ai4mqwlst94frkz, #tinytable_49k98eu605zy4yfkfpje th.tinytable_css_rdiy9ai4mqwlst94frkz { position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: black; --line-color-left: black; --line-color-right: black; --line-color-top: black; --line-width-bottom: 0.1em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; padding-left: 1em }
-#tinytable_49k98eu605zy4yfkfpje td.tinytable_css_q0rmfl7v997jf1h43ri9, #tinytable_49k98eu605zy4yfkfpje th.tinytable_css_q0rmfl7v997jf1h43ri9 { position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: black; --line-color-left: black; --line-color-right: black; --line-color-top: black; --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; }
+#tinytable_hm877lui7ceno5jko9ij td.tinytable_css_riuybkzmeubzuf4rnej7, #tinytable_hm877lui7ceno5jko9ij th.tinytable_css_riuybkzmeubzuf4rnej7 { padding-left: 1em }
+#tinytable_hm877lui7ceno5jko9ij td.tinytable_css_tzfnr2wmtde17xbcsxlp, #tinytable_hm877lui7ceno5jko9ij th.tinytable_css_tzfnr2wmtde17xbcsxlp { font-weight: bold; text-align: left }
+#tinytable_hm877lui7ceno5jko9ij td.tinytable_css_thscc2m98i6ibd3zayik, #tinytable_hm877lui7ceno5jko9ij th.tinytable_css_thscc2m98i6ibd3zayik { position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 0; --line-color-bottom: black; --line-color-left: black; --line-color-right: black; --line-color-top: black; --line-width-bottom: 0.1em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; ; padding-left: 1em }
+#tinytable_hm877lui7ceno5jko9ij td.tinytable_css_4kd86018uo9r0p0nosk3, #tinytable_hm877lui7ceno5jko9ij th.tinytable_css_4kd86018uo9r0p0nosk3 { position: relative; --border-bottom: 1; --border-left: 0; --border-right: 0; --border-top: 1; --line-color-bottom: black; --line-color-left: black; --line-color-right: black; --line-color-top: black; --line-width-bottom: 0.05em; --line-width-left: 0.1em; --line-width-right: 0.1em; --line-width-top: 0.1em; --trim-bottom-left: 0%; --trim-bottom-right: 0%; --trim-left-bottom: 0%; --trim-left-top: 0%; --trim-right-bottom: 0%; --trim-right-top: 0%; --trim-top-left: 0%; --trim-top-right: 0%; }
 </style>
     <div class="container">
-      <table class="tinytable" id="tinytable_49k98eu605zy4yfkfpje" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
+      <table class="tinytable" id="tinytable_hm877lui7ceno5jko9ij" style="width: auto; margin-left: auto; margin-right: auto;" data-quarto-disable-processing="true">
         
         <thead>
               <tr>
@@ -3457,7 +3457,7 @@ Zheng, K., &amp; Farzan, R. (2023). Understanding <span>Player</span>’s <span>
 <section id="appendix-3-robust-mixed-model-coefficients" class="level2 unnumbered">
 <h2 class="unnumbered anchored" data-anchor-id="appendix-3-robust-mixed-model-coefficients">Appendix 3: Robust Mixed-Model Coefficients</h2>
 <div class="cell" data-layout-align="center" data-tbl-cap-location="top">
-<div id="tbl-model-coefficients" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-tbl-cap-location="top" data-layout-align="center">
+<div id="tbl-model-coefficients" class="cell quarto-float quarto-figure quarto-figure-center anchored" data-layout-align="center" data-tbl-cap-location="top">
 <figure class="quarto-float quarto-float-tbl figure">
 <figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-model-coefficients-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 Table 2: Fixed-effect coefficients from robust linear mixed-effects models (rlmer) with random intercepts for country. Approximate <em>p</em>-values derived from the normal approximation of <em>t</em>-statistics.

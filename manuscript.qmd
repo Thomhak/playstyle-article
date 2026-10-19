@@ -85,6 +85,9 @@ format:
       - text: "#show <refs>: set par(hanging-indent: 1.4em)"
   preprint-docx: default
   acm-pdf:
+    # Own file name, so the ACM PDF and the preprint PDF do not overwrite
+    # each other and the HTML links to both
+    output-file: manuscript-acm.pdf
     fig-pos: H
     keep-tex: true
     # No pandoc tables in LaTeX output (Tables 1-2 are booktabs tabulars), so
