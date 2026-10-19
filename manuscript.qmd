@@ -2493,7 +2493,7 @@ MV’s work is or has been funded by the European Research Council, the Economic
 
 # Ethics {.unnumbered}
 
-The study procedures were granted ethical approval by the University of Oxford's Central University Research Ethics Committee (OII_C1A_23_107). The original data collection was approved under SSH_OII_CIA_21_011 [@johannesVideoGamePlay2021]. All participants provided informed consent and reported being 18 years or older.
+The study procedures were granted ethical approval by the University of Oxford's Central University Research Ethics Committee (OII_C1A_23_107). The original data collection was approved under SSH_OII_CIA_20_043 [@johannesVideoGamePlay2021]. All participants provided informed consent and reported being 18 years or older.
 
 # References
 
