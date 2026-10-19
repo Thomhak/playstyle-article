@@ -81,10 +81,11 @@ read_both_waves <- function(stub = "OII_PVZ_Authentications", data_dir = "data/r
     )
   }
   
-  # Filenames of wave 1 and 2 files
+  # Wave 1 is the file without the _p2 suffix. Order explicitly: list.files()
+  # sorts differently across system locales, which would swap the wave labels
+  files <- files[order(grepl("_p2", basename(files)))]
+
   files %>% 
-    # Put wave 1 first (they are in reverse order)
-    rev() %>% 
     # Read into a list of data frames
     map(read_csv, ...) %>% 
     # Bind into one data frame with wave ID
@@ -862,6 +863,15 @@ telemetry_players <- telemetry_players %>%
       ~ ifelse(.x == 0, 1, .x)
     )
   ) %>%
+  # A mode with damage dealt but zero recorded seconds is given 1 second, so
+  # that damage and score per second stay finite (this also overwrites the
+  # stored seconds). Together with the NA rule below, this reproduces
+  # data/pvz_clean_final.csv, the file analysed in the paper
+  mutate(
+    seconds = ifelse(seconds == 0 & damage_dealt > 0, 1, seconds),
+    pvp_seconds = ifelse(pvp_seconds == 0 & pvp_damage_dealt > 0, 1, pvp_seconds),
+    pve_seconds = ifelse(pve_seconds == 0 & pve_damage_dealt > 0, 1, pve_seconds)
+  ) %>%
   # Calculate all ratio metrics
   mutate(
     # K/D ratios
@@ -900,9 +910,11 @@ telemetry_players <- telemetry_players %>%
     pvp_sps = pvp_score / pvp_seconds
   )
 
-# Replace NaN values with 0
+# Undefined ratios (0/0 = NaN, mostly no activity in that mode, e.g. no shots
+# fired) are kept as missing (NA), as in data/pvz_clean_final.csv; missing
+# clustering features are set to 0 in manuscript.qmd before clustering
 telemetry_players <- telemetry_players %>%
-  mutate(across(everything(), ~ifelse(is.nan(.x), 0, .x)))
+  mutate(across(everything(), ~ifelse(is.nan(.x), NA, .x)))
 
 # Save processed metrics
 write_csv(telemetry_players, here("data/processed/telemetry_with_metrics.csv"))
