@@ -65,13 +65,42 @@ return {
       end
 
       -- add bibliography to the right place
-      -- local bibname = "sample-base"
-      local bibliography = pandoc.RawBlock(
-        "latex", 
-        "\\bibliographystyle{ACM-Reference-Format}\n\\bibliography{" .. bibname .. "}")
-      replace_node(doc.blocks, function(el)
+      --
+      -- With `cite-method: natbib`, Quarto itself replaces a `::: {#refs}`
+      -- div with `\renewcommand{\bibsection}{}\bibliography{...}` (empty
+      -- \bibsection, so the heading must come from the Markdown header), and
+      -- it already emits `\bibliographystyle{<biblio-style>}` in the preamble
+      -- (biblio-config partial). Emitting our own \bibliography as well
+      -- printed the reference list twice and made BibTeX report "Illegal,
+      -- another \bibstyle/\bibdata command". So:
+      --   * refs div present: leave placement to Quarto and only make the
+      --     "References" header unnumbered (same output as acmart's own
+      --     \bibsection: \section*{References} + TOC entry);
+      --   * no refs div: fall back to replacing the "References" header with
+      --     \bibliography{...}; acmart's \bibsection then prints the heading.
+      --     No \bibliographystyle here, the preamble already sets it.
+      local has_refs_div = false
+      doc:walk({
+        Div = function(el)
+          if el.identifier == "refs" then
+            has_refs_div = true
+          end
+        end
+      })
+      local is_references_header = function(el)
         return el.t == "Header" and pandoc.utils.stringify(el.content) == "References"
-      end, bibliography)
+      end
+      if has_refs_div then
+        for _i, el in ipairs(doc.blocks) do
+          if is_references_header(el) and not has_class(el, "unnumbered") then
+            el.classes:insert("unnumbered")
+          end
+        end
+      else
+        local bibliography = pandoc.RawBlock(
+          "latex", "\\bibliography{" .. bibname .. "}")
+        replace_node(doc.blocks, is_references_header, bibliography)
+      end
 
       -- fix appendix compilation
       local appendix = pandoc.RawBlock("latex", "\\appendix")

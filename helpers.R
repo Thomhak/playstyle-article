@@ -6,16 +6,18 @@
 # Formatting Functions
 # ============================================
 
-#' Format p-value for inline reporting
-#' @param p numeric p-value
+#' Format p-values in APA style (no leading zero, "< .001" floor)
+#' @param p numeric vector of p-values
 #' @param digits number of decimal places
-#' @return formatted string
-format_pvalue <- function(p, digits = 3) {
-  if (p < 0.001) {
-    return("< .001")
-  } else {
-    return(sprintf(paste0("= %.", digits, "f"), p))
-  }
+#' @param equals logical; prefix exact values with "= " for inline text
+#'   (e.g., "*p* `r format_pvalue(p)`"), or return bare values for tables
+#' @return character vector, NA where p is NA
+format_pvalue <- function(p, digits = 3, equals = TRUE) {
+  threshold <- 10^-digits
+  exact <- sub("^0\\.", ".", sprintf("%.*f", digits, p))
+  below <- sub("^0\\.", "< .", sprintf("%.*f", digits, threshold))
+  if (equals) exact <- paste("=", exact)
+  ifelse(is.na(p), NA_character_, ifelse(p < threshold, below, exact))
 }
 
 #' Format estimate with confidence interval
