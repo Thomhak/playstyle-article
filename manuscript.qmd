@@ -87,17 +87,16 @@ format:
   acm-pdf:
     fig-pos: H
     keep-tex: true
-    header-includes: |
-      \hypersetup{pdfauthor={Anonymous}}
 acm-metadata:
-  anonymous: true
-  final: false
-  acmart-options: manuscript,screen,review,anonymous
+  anonymous: false
+  final: true
+  journal: GAMES
+  acmart-options: manuscript,screen
   copyright-year: 2025
   acm-year: 2025
   copyright: acmcopyright
   doi: XXXXXXX.XXXXXXX
-  shortauthors: Anonymous
+  shortauthors: Hakman et al.
   keywords:
     - video games
     - playstyle
@@ -308,7 +307,7 @@ print(paste("Number of players left after filtering:", nrow(pvz_df_analysis)))
 
 # Methods
 
-In this study, we analysed digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighborville players originally reported in @johannesVideoGamePlay2021. The analysis code ([<https://osf.io/fngzc>]{.content-hidden when-meta="acm-metadata.anonymous"}[<https://osf.io/fngzc/?view_only=8ded53c16b5a4670bbf717bb2abc268f>]{.content-visible when-meta="acm-metadata.anonymous"}) and dataset (<https://osf.io/cjd6z/>) used in this study are available on the Open Science Framework.
+In this study, we analysed digital trace data and survey responses of 518 Plants versus Zombies: Battle for Neighborville players originally reported in @johannesVideoGamePlay2021. The analysis code used in this study is archived on Zenodo (<https://doi.org/10.5281/zenodo.23468927>) and the dataset is available on the Open Science Framework (<https://osf.io/cjd6z/>).
 
 ## Plants versus Zombies: Battle for Neighborville
 
@@ -881,7 +880,7 @@ To examine associations between playstyle, playtime, and outcomes, we fit robust
 
 ## Data, Materials, and Code
 
-The present study was not preregistered. The analysis code reported in this study can be found at [<https://osf.io/fngzc>]{.content-hidden when-meta="acm-metadata.anonymous"}[<https://osf.io/fngzc/?view_only=8ded53c16b5a4670bbf717bb2abc268f>]{.content-visible when-meta="acm-metadata.anonymous"}. The raw data and further details on the dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>.
+The present study was not preregistered. The analysis code reported in this study is archived on Zenodo at <https://doi.org/10.5281/zenodo.23468927>. The raw data and further details on the dataset shared by @johannesVideoGamePlay2021 can be found at <https://osf.io/cjd6z/>.
 
 # Results
 
@@ -2426,13 +2425,11 @@ Fourth, the temporality of when participants played was not considered. The sess
 
 This study demonstrates that players of the same game engage with it in qualitatively different ways and that these differences are associated with meaningful variation in wellbeing and enjoyment. However, we found no evidence that playstyle moderates the playtime-wellbeing relationship. These findings contribute to the growing body of digital trace research in two respects. First, they provide empirical support for the view that gameplay constitutes heterogeneous exposures with distinct psychological correlates, even within a single title. Second, they demonstrate a practical methodology, telemetry-driven profiling, for incorporating in-game behavioural depth into wellbeing research. At the same time, the null moderation results caution against overclaiming: the present data show that what players do is associated with how they feel, but not that different styles of play change how playtime itself relates to wellbeing. As richer forms of in-game data become available through industry-academia partnerships, researchers should continue to develop more granular, theory-driven approaches to understanding player experience and its relationship to psychological outcomes.
 
-## Acknowledgements
+# Acknowledgements {.unnumbered}
 
 Claude (Sonnet/Opus 4.6; Anthropic) was used to assist with code development and minor text edits during the preparation of this manuscript. All AI-assisted contributions were reviewed, verified, and, where necessary, further revised by members of the author team, who maintain full responsibility for the final content.
 
-::: {.content-hidden when-meta="acm-metadata.anonymous"}
-
-## Author contributions
+# Author contributions {.unnumbered}
 Conceptualization: TH, AKP;
 Data curation: TH, MV;
 Formal analysis: TH, MV;
@@ -2446,25 +2443,15 @@ Writing – original draft: TH;
 Writing – review & editing: TH, MV, AKP
 
 
-## Conflicts of Interest
+# Conflicts of Interest {.unnumbered}
 
-The authors declare no competing financial, intellectual, or institutional interests relevant to this research. The disclosures below are provided in the interest of full transparency.
+The authors declare no competing financial, intellectual, or institutional interests relevant to this research. The following disclosures are provided in the interest of full transparency.
 No authors have received funding or compensation from the tech companies or other industries connected to the work presented here.
 MV’s work is or has been funded by the European Research Council, the Economic and Social Research Council, Tilburg University, and the University of Oxford’s John Fell Fund. MV has provided in-kind consultations and served as a nonpaid panel member for Meta and K-Games. AKP has served in advisory or expert roles for the Sync Digital Wellbeing Program (2022–2024), the Google Expert Advisory on Youth and Technology (2025), the OpenAI Expert Council on Wellbeing and AI (2025), and UK Department for Science, Innovation and Technology–funded research on children's smartphone and social media use (University of Cambridge, 2025). He is a member of the UK Department for Culture, Media & Sport College of Experts. Any industry fees are directly donated to charity, and his research is conducted in accordance with University of Oxford academic integrity policies.
 
-## Ethics
+# Ethics {.unnumbered}
 
 The study procedures were granted ethical approval by the University of Oxford's Central University Research Ethics Committee (OII_C1A_23_107). The original data collection was approved under SSH_OII_CIA_21_011 [@johannesVideoGamePlay2021]. All participants provided informed consent and reported being 18 years or older.
-
-:::
-
-::: {.content-visible when-meta="acm-metadata.anonymous"}
-
-## Ethics
-
-The study procedures were granted ethical approval by the authors' institutional research ethics committee (reference withheld for anonymous review). The original data collection was approved by the same committee [@johannesVideoGamePlay2021]. All participants provided informed consent and reported being 18 years or older.
-
-:::
 
 # References
 

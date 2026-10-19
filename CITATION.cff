@@ -1,0 +1,46 @@
+cff-version: 1.2.0
+message: "If you use this code, please cite the article (preferred) and the archived repository."
+type: software
+title: "Not All Play is Equal: In-game Player Behaviour Predicts Wellbeing Differences (analysis code and manuscript source)"
+authors:
+  - family-names: Hakman
+    given-names: Thomas
+    orcid: "https://orcid.org/0009-0009-8292-2482"
+    affiliation: "Oxford Internet Institute, University of Oxford"
+  - family-names: Vuorre
+    given-names: Matti
+    orcid: "https://orcid.org/0000-0001-5052-066X"
+    affiliation: "Department of Social Psychology, Tilburg University"
+  - family-names: Przybylski
+    given-names: Andrew K.
+    orcid: "https://orcid.org/0000-0001-5547-2185"
+    affiliation: "Oxford Internet Institute, University of Oxford"
+doi: 10.5281/zenodo.23468927
+repository-code: "https://github.com/Thomhak/playstyle-article"
+url: "https://thomhak.github.io/playstyle-article/"
+license: CC-BY-4.0
+keywords:
+  - video games
+  - playstyle
+  - wellbeing
+  - play experience
+  - telemetry
+  - digital trace data
+preferred-citation:
+  type: article
+  status: in-press
+  title: "Not All Play is Equal: In-game Player Behaviour Predicts Wellbeing Differences"
+  authors:
+    - family-names: Hakman
+      given-names: Thomas
+      orcid: "https://orcid.org/0009-0009-8292-2482"
+    - family-names: Vuorre
+      given-names: Matti
+      orcid: "https://orcid.org/0000-0001-5052-066X"
+    - family-names: Przybylski
+      given-names: Andrew K.
+      orcid: "https://orcid.org/0000-0001-5547-2185"
+  journal: "Games: Research and Practice"
+  publisher:
+    name: "Association for Computing Machinery"
+  year: 2026
