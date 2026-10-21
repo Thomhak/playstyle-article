@@ -57,6 +57,7 @@ abstract: |
   Large-scale studies using digital trace data consistently find that playtime alone is not meaningfully associated with wellbeing, yet these studies rarely examine what happens inside a game: the granular in-game behaviours that might differentiate players’ experiences. The Integrated Model of Player Experience implies that players who engage with the same game in qualitatively different ways may report different wellbeing outcomes. We tested this using telemetry-driven profiling of session-level behavioural data from 412 players of Plants vs. Zombies: Battle for Neighborville. Cluster analysis on 10 standardised performance and mode-preference metrics identified three playstyles: exploratory, high-performing, and competitive. Exploratory players reported greater wellbeing and enjoyment than competitive players. However, playstyle did not moderate the relationship between playtime and either outcome. These findings indicate that how players engage with a game’s mechanics and modes is associated with different average levels of wellbeing, even though playstyle does not appear to alter the playtime–wellbeing relationship.
 categories: [video games, playstyle, wellbeing, play experience, telemetry]
 data-license: "Creative Commons Attribution 4.0 International (CC BY 4.0)"
+doi: 10.1145/3860329
 date: last-modified
 bibliography: bibliography.bib
 csl: apa.csl
@@ -114,7 +115,8 @@ acm-metadata:
   # cctype: by, by-sa, by-nd, by-nc, by-nc-sa, by-nc-nd or zero
   copyright: cc
   cctype: by
-  # doi: 10.1145/... (add once ACM assigns it; until then none is printed)
+  # Article DOI from the ACM rights form (active once ACM publishes the article)
+  doi: 10.1145/3860329
   shortauthors: Hakman et al.
   ccs: |
     \begin{CCSXML}

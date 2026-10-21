@@ -9,7 +9,7 @@ Analysis code and manuscript source for our article in *ACM Games: Research and 
 
 ## Citation
 
-> Hakman, T., Vuorre, M., & Przybylski, A. K. (in press). Not all play is equal: In-game player behaviour predicts wellbeing differences. *Games: Research and Practice*.
+> Hakman, T., Vuorre, M., & Przybylski, A. K. (in press). Not all play is equal: In-game player behaviour predicts wellbeing differences. *Games: Research and Practice*. <https://doi.org/10.1145/3860329>
 
 The code is archived on Zenodo: <https://doi.org/10.5281/zenodo.23468927>.
 

@@ -41,6 +41,7 @@ preferred-citation:
       given-names: Andrew K.
       orcid: "https://orcid.org/0000-0001-5547-2185"
   journal: "Games: Research and Practice"
+  doi: 10.1145/3860329
   publisher:
     name: "Association for Computing Machinery"
   year: 2026

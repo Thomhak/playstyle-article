@@ -35,6 +35,12 @@
       "identifier": "https://osf.io/cjd6z/",
       "relation": "isDerivedFrom",
       "resource_type": "dataset"
+    },
+    {
+      "identifier": "10.1145/3860329",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article",
+      "scheme": "doi"
     }
   ]
 }
